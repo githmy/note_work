@@ -1,0 +1,55 @@
+{
+  "inform": [
+    "forest",
+    "keras"
+  ],
+  "outform": [
+    "nn",
+    "keras"
+  ],
+  "pipline": {
+    "time_sequence": {
+      "illustration": "单输入，单输出",
+      "inform": [],
+      "outform": [],
+      "way": [
+        "nn",
+        "hmm",
+        "forest",
+        "keras",
+        "iter"
+      ],
+      "outdays": 2,
+      "epoch": 100,
+      "sequence_length": 200,
+      "batch": 10,
+      "validation_split": 0.8
+    },
+    "env_effect": {
+      "illustration": "库入，规则参数出",
+      "inform": null,
+      "outform": null,
+      "sequence_way": [
+        "nn",
+        "hmm",
+        "forest",
+        "keras"
+      ],
+      "iterate_item": {
+        "政策下个体表现的集合": [
+          "税率"
+        ],
+        "整体特征极值的趋势": [
+          "净利润率",
+          "市盈率",
+          "市净率",
+          "动态市盈率",
+          "流动资产"
+        ],
+        "规律聚类": [
+          "板块同步"
+        ]
+      }
+    }
+  }
+}

@@ -1,0 +1,9 @@
+/.idea
+/.ipynb_checkpoints
+*.idea
+*.ipynb_checkpoints
+*.py[cod]
+/pubmodule
+*__pycache__
+/data
+/logs

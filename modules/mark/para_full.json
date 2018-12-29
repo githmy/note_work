@@ -1,0 +1,25 @@
+{
+  "env": {
+    "epsilon": 0.5,
+    "min_epsilon": 0.1,
+    "epoch": 100000,
+    "single_num": 10,
+    "max_memory": 5000,
+    "batch_size": 128,
+    "discount": 0.8,
+    "start_date": "2013-08-26",
+    "end_date": "2025-08-25",
+    "learn_rate": 1e-11,
+    "sudden_death": -1.0,
+    "scope": 60,
+    "inputdim": 92,
+    "outspace": 3
+  },
+  "model": {
+    "globalstep": 0,
+    "dropout": 1.0,
+    "modelname": "full",
+    "sub_fix": "",
+    "file": "learn_file"
+  }
+}
