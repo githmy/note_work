@@ -162,6 +162,33 @@ def main(rnn_size, layer_size, encoder_vocab_size, decoder_vocab_size, embedding
         # During inference, use the our estimated population mean and variance to normalize the layer
         return tf.nn.batch_normalization(linear_output, pop_mean, pop_variance, beta, gamma, epsilon)
 
+    def crf_funcs():
+        with tf.name_scope('CRF'):
+            # inputs: [batch_size, max_seq_len, num_tags]
+            # tag_indices: [batch_size, max_seq_len]
+            # seq_length: [batch_size]
+            # log_likelihood: scalar
+            # transition_params: [num_tags, num_tags]
+            log_likelihood, transition_params = tf.contrib.crf.crf_log_likelihood(
+                inputs, tag_indices, seq_length)
+
+            # 作用就是返回最好的标签序列.这个函数只能够在测试时使用,在tensorflow外部解码
+            # inputs: 一个形状为[seq_len, num_tags] matrix of unary potentials.
+            # transition_params: 形状为[num_tags, num_tags] 的转移矩阵
+            # viterbi: 一个形状为[seq_len] 显示了最高分的标签索引的列表.
+            # viterbi_score: A float containing the score for the Viterbi sequence.
+            viterbi,viterbi_score = tf.contrib.crf.viterbi_decode(inputs, transition_params)
+
+            # 进行解码（维特比算法），获得解码之后的序列viterbi_sequence和分数viterbi_score
+            # inputs: 一个形状为[batch_size, max_seq_len, num_tags] 的tensor,
+            # transition_params: 一个形状为[num_tags, num_tags] 的转移矩阵
+            # sequence_length: 一个形状为[batch_size] 的 ,表示batch中每个序列的长度
+            # decode_tags:一个形状为[batch_size, max_seq_len] 的tensor,类型是tf.int32.表示最好的序列标记.
+            # best_score: 有个形状为[batch_size] 的tensor, 包含每个序列解码标签的分数.
+            predictions, viterbi_score = tf.contrib.crf.crf_decode(
+                inputs, transition_params, seq_length)
+
+
     # tain是选项
     if self.use_batch_norm:
         # If we don't include the update ops as dependencies on the train step, the

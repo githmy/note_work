@@ -120,6 +120,13 @@ class Sequence_chara():
         self.pf = self.pf.join(volrori)
         self.pf = self.pf.join(volrlog)
 
+    def chara_resample(self, ndays=5):
+        # 更改样本的尺度 :
+        if ndays is None:
+            raise Exception("error: no ndays")
+        df_ohlc = self.pf['close'].resample(ndays + 'D').ohlc()
+        df_volume = self.pf['volume'].resample(ndays + 'D').sum()
+
     def chara_CCI(self, ndays=5):
         # 随顺市势指标 : CCI（N日）=（TP－MA）÷Std÷0.015
         if ndays is None:

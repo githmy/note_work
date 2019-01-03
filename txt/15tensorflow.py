@@ -539,10 +539,17 @@ def drop_func():
 
 
 # 正则
+def normal_func():
+    # dim 0 按列 正则。# dim 1 按行 正则。
+    tf.nn.l2_normalize(x, dim, epsilon=1e-12, name=None)
+
 def regular_func():
     from tensorflow.contrib import layers
 
-    myreg1 = layers.l1_regularizer(0.01)  # 创建一个正则化方法， 0.01为系数，相当于给每个参数前乘以0.01,当然这里也可以是l2方法或者sum混合方法
+    myreg1 = layers.l1_regularizer(0.01)
+    # 创建一个正则化方法， 0.01为系数，相当于给每个参数前乘以0.01,当然这里也可以是l2方法或者sum混合方法
+    # weight = tf.constant([[1.0, -2.0], [-3.0, 4.0]])
+    # myreg1(weight) 输出为(1²+(-2)²+(-3)²+4²)/2*0.01=0.15 该项会加到weight上
     with tf.variable_scope('var', initializer=tf.random_normal_initializer(),
                            regularizer=myreg1):  # 高能！：参数里面指明了regularizer
         weight = tf.get_variable('weight', shape=[8], initializer=tf.ones_initializer())  # 逻辑函数
@@ -565,6 +572,13 @@ def regular_func():
         def inference(self):
             with tf.variable_scope('var', initializer=tf.random_normal_initializer(), regularizer=self.myreg1):
                 weight = tf.get_variable('weight', shape=[8], initializer=tf.ones_initializer())
+
+    # 或 损失正则项 取 L2 范数的值的一半，具体如下： output = sum(t ** 2) / 2
+    l2_reg_lambda = 0.01
+    l2_reg_loss = tf.constant(0.)
+    for var in tf.trainable_variables():
+        l2_reg_loss += tf.nn.l2_loss(var)
+    loss5 = tf.reduce_mean(-log_likelihood) + l2_reg_lambda * l2_reg_loss
 
     # 总述
     from tensorflow import contrib
