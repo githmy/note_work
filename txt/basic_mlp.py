@@ -10,7 +10,7 @@ import numpy as np
 import tushare as ts
 import matplotlib as mpl
 import matplotlib.pyplot as plt
-
+import seaborn as sns
 from mpl_finance import candlestick_ohlc
 from matplotlib.dates import DateFormatter, WeekdayLocator, DayLocator, MONDAY, date2num, datestr2num
 from datetime import datetime
@@ -263,6 +263,37 @@ def dim3():
 
     ax.plot_surface(x, y, z, rstride=1, cstride=1, cmap=plt.cm.coolwarm)  # 用取样点(x,y,z)去构建曲面
     plt.show()
+
+# 排序显示密度
+def sort_density():
+    target_col = "target"
+    plt.figure(figsize=(8, 6))
+    plt.scatter(range(train_df.shape[0]), np.sort(train_df[target_col].values))
+    plt.xlabel('index', fontsize=12)
+    plt.ylabel('Loyalty Score', fontsize=12)
+    plt.show()
+
+# 显示区间密度
+def range_density():
+    plt.figure(figsize=(12, 8))
+    sns.distplot(train_df[target_col].values, bins=50, kde=False, color="red")
+    plt.title("Histogram of Loyalty score")
+    plt.xlabel('Loyalty score', fontsize=12)
+    plt.show()
+
+# 不同特征数值 的 方差分布
+def chara_diffval_std():
+    plt.figure(figsize=(8, 4))
+    sns.violinplot(x="feature_3", y=target_col, data=train_df)
+    plt.xticks(rotation='vertical')
+    plt.xlabel('Feature 3', fontsize=12)
+    plt.ylabel('Loyalty score', fontsize=12)
+    plt.title("Feature 3 distribution")
+    plt.show()
+
+
+def func():
+    pass
 
 
 if __name__ == '__main__':

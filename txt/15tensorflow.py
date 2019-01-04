@@ -250,6 +250,17 @@ def dim_reverse():
     # 判断维度是否相同
     inputs.shape.assert_is_compatible_with(memory_mask.shape)
 
+    # Matrix multiplication
+    tf.einsum('ij,jk->ik', m0, m1)  # output[i,k] = sum_j m0[i,j] * m1[j, k]
+    # Dot product
+    tf.einsum('i,i->', u, v)  # output = sum_i u[i]*v[i]
+    # Outer product
+    tf.einsum('i,j->ij', u, v)  # output[i,j] = u[i]*v[j]
+    # Transpose
+    tf.einsum('ij->ji', m)  # output[j,i] = m[i,j]
+    # Batch matrix multiplication
+    tf.einsum('aij,ajk->aik', s, t)  # out[a,i,k] = sum_j s[a,i,j] * t[a, j, k]
+
 
 # 类型转化
 def type_trans():

@@ -1,17 +1,21 @@
 # -*- coding: utf-8 -*-
 from pyalgotrade import strategy
 from pyalgotrade import technical
-from pyalgotrade.barfeed import yahoofeed
 from pyalgotrade import plotter
 from pyalgotrade.stratanalyzer import returns, sharpe, drawdown, trades
-import tushare as ts
-import datetime
+from pyalgotrade import bar
 from pyalgotrade.bar import Frequency
 from pyalgotrade.barfeed.csvfeed import GenericBarFeed
-from pyalgotrade.technical import ma
-from pyalgotrade import broker
+from pyalgotrade.barfeed import yahoofeed
 from pyalgotrade.barfeed import membf
-from pyalgotrade import bar
+from pyalgotrade.technical import ma
+from pyalgotrade.technical import rsi
+from pyalgotrade import broker
+from pyalgotrade.optimizer import local
+import tushare as ts
+import datetime
+import itertools
+
 
 def parse_date(date):
     # This custom parsing works faster than:
@@ -23,10 +27,10 @@ def parse_date(date):
     if len(date) > 10:
         h = int(date[11:13])
         m = int(date[14:16])
-        t = datetime.time(h,m)
-        ret = datetime.combine(d,t)
+        t = datetime.time(h, m)
+        ret = datetime.combine(d, t)
     else:
-         ret = d
+        ret = d
     return ret
 
 
@@ -93,8 +97,13 @@ class MyStrategy(strategy.BacktestingStrategy):
         super(MyStrategy, self).__init__(feed, brk)
         self.__instrument = instrument
         self.__position = None
-        self.__sma = ma.SMA(feed[instrument].getCloseDataSeries(), 150)
-        self.setUseAdjustedValues(True)
+        self.__rsi = rsi.RSI(feed[instrument].getCloseDataSeries(), 14)
+        # technicals可以进行组合 如下：
+        # self.__sma = ma.SMA(self.__rsi, 15)
+        # 15 天均线
+        self.__sma = ma.SMA(feed[instrument].getCloseDataSeries(), 15)
+        # 用调整 收价 代替 普通收价
+        # self.setUseAdjustedValues(True)
         self.__prices = feed[instrument].getPriceDataSeries()
         self.__diff = Diff(self.__prices, diffPeriod)
         self.__break = 0.03
@@ -125,29 +134,41 @@ class MyStrategy(strategy.BacktestingStrategy):
 
     def onBars(self, bars):
         # 交易规则
+        # 1. 没有指标可用返回
+        if self.__sma[-1] is None:
+            return
         account = self.getBroker().getCash()
         bar = bars[self.__instrument]
+        # 策略过程 打印盘价
+        self.info("%s %s %s" % (bar.getClose(), self.__rsi[-1], self.__sma[-1]))
+        # 2. 该位置是否可以交易
         if self.__position is None:
-            one = bar.getPrice() * 100
-            oneUnit = account // one
-            if oneUnit > 0 and self.__diff[-1] > self.__break:
-                self.__position = self.enterLong(self.__instrument, oneUnit * 100, True)
-        elif self.__diff[-1] < self.__withdown and not self.__position.exitActive():
-            self.__position.exitMarket()
-            # # SMA的计算存在窗口，所以前面的几个bar下是没有SMA的数据的.
-            # if self.__sma[-1] is None:
-            #     return
-            #     # bar.getTyoicalPrice = (bar.getHigh() + bar.getLow() + bar.getClose())/ 3.0
-            #
-            # bar = bars[self.__instrument]
-            # # If a position was not opened, check if we should enter a long position.
-            # if self.__position is None:  # 如果手上没有头寸，那么
-            #     if bar.getPrice() > self.__sma[-1]:
-            #         # 开多，如果现价大于移动均线，且当前没有头寸.
-            #         self.__position = self.enterLong(self.__instrument, 100, True)
-            #         # 当前有多头头寸，平掉多头头寸.
-            # elif bar.getPrice() < self.__sma[-1] and not self.__position.exitActive():
-            #     self.__position.exitMarket()
+            if bar.getPrice() > self.__sma[-1]:
+                # Enter a buy market order for 10 shares. The order is good till canceled.
+                self.__position = self.enterLong(self.__instrument, 10, True)
+        # Check if we have to exit the position.
+        elif bar.getPrice() < self.__sma[-1] and not self.__position.exitActive():
+                self.__position.exitMarket()
+        #     one = bar.getPrice() * 100
+        #     oneUnit = account // one
+        #     if oneUnit > 0 and self.__diff[-1] > self.__break:
+        #         self.__position = self.enterLong(self.__instrument, oneUnit * 100, True)
+        # elif self.__diff[-1] < self.__withdown and not self.__position.exitActive():
+        #     self.__position.exitMarket()
+        #     # SMA的计算存在窗口，所以前面的几个bar下是没有SMA的数据的.
+        #     if self.__sma[-1] is None:
+        #         return
+        #         # bar.getTyoicalPrice = (bar.getHigh() + bar.getLow() + bar.getClose())/ 3.0
+        #
+        #     bar = bars[self.__instrument]
+        #     # If a position was not opened, check if we should enter a long position.
+        #     if self.__position is None:  # 如果手上没有头寸，那么
+        #         if bar.getPrice() > self.__sma[-1]:
+        #             # 开多，如果现价大于移动均线，且当前没有头寸.
+        #             self.__position = self.enterLong(self.__instrument, 100, True)
+        #             # 当前有多头头寸，平掉多头头寸.
+        #     elif bar.getPrice() < self.__sma[-1] and not self.__position.exitActive():
+        #         self.__position.exitMarket()
 
 
 def runStrategy():
@@ -164,12 +185,14 @@ def runStrategy():
     # jdf.to_csv("jdf.csv", index=False)
 
     # 2.获得回测数据，
-    code = "603019"
+    code = "600001"
     feed = Feed()
     # feed = yahoofeed.Feed()
     # feed = GenericBarFeed(Frequency.DAY, None, None)
-    # feed.addBarsFromCSV("jdf", "jdf.csv")
-    feed.addBarsFromCode(code, start='2018-01-29', end='2018-04-04')
+    # feed.addBarsFromCSV(code, code + ".csv")
+    feed.addBarsFromCode(code, start='2008-01-29', end='2019-01-03')
+    # for dateTime, value in feed:
+    #     print(dateTime, value)
     # 3.broker setting
     # 3.1 commission类设置
     # a.没有手续费
@@ -187,7 +210,7 @@ def runStrategy():
     brk.setFillStrategy(fill_stra)
 
     # 4.把策略跑起来
-    myStrategy = MyStrategy(feed, "jdf", brk)
+    myStrategy = MyStrategy(feed, code, brk)
     # Attach a returns analyzers to the strategy.
     trade_situation = trades.Trades()
     myStrategy.attachAnalyzer(trade_situation)
@@ -197,11 +220,23 @@ def runStrategy():
 
     # Attach the plotter to the strategy.
     plt = plotter.StrategyPlotter(myStrategy)
-    plt.getInstrumentSubplot("jdf")
+    plt.getInstrumentSubplot(code)
+    plt.getInstrumentSubplot(code).addDataSeries("SMA", myStrategy.getSMA())
     plt.getOrCreateSubplot("returns").addDataSeries("Simple returns", returnsAnalyzer.getReturns())
 
+    def parameters_generator():
+        instrument = ["dia"]
+        entrySMA = range(150, 251)
+        exitSMA = range(5, 16)
+        rsiPeriod = range(2, 11)
+        overBoughtThreshold = range(75, 96)
+        overSoldThreshold = range(5, 26)
+        return itertools.product(instrument, entrySMA, exitSMA, rsiPeriod, overBoughtThreshold, overSoldThreshold)
+
+    # local.run(rsi.RSI2, feed, parameters_generator())
     myStrategy.run()
     myStrategy.info("Final portfolio value: $%.2f" % myStrategy.getResult())
+    myStrategy.info("Final portfolio value: $%.2f" % myStrategy.getBroker().getEquity())
     plt.plot()
 
 

@@ -54,6 +54,9 @@ ts.asfreq("45Min", method="ffill")
 #        verigy_integrity=False)
 # print(df)
 
+# join
+# train_df = pd.merge(train_df, gdf, on="card_id", how="left")
+
 # 列行索引
 # orderl_pd[numf:numt]["index"]
 # plotlist_pd.loc[i, i2]
