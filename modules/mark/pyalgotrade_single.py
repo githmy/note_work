@@ -11,7 +11,6 @@ from pyalgotrade.barfeed import membf
 from pyalgotrade.technical import ma
 from pyalgotrade.technical import rsi
 from pyalgotrade import broker
-from pyalgotrade.optimizer import local
 import tushare as ts
 import datetime
 import itertools
@@ -103,7 +102,8 @@ class MyStrategy(strategy.BacktestingStrategy):
         # 15 天均线
         self.__sma = ma.SMA(feed[instrument].getCloseDataSeries(), 15)
         # 用调整 收价 代替 普通收价
-        # self.setUseAdjustedValues(True)
+        if feed.barsHaveAdjClose():
+            self.setUseAdjustedValues(True)
         self.__prices = feed[instrument].getPriceDataSeries()
         self.__diff = Diff(self.__prices, diffPeriod)
         self.__break = 0.03
@@ -175,9 +175,6 @@ def runStrategy():
     # # 1.下载数据
     # jdf = ts.get_k_data("000725")
     #
-    # # 新建Adj Close字段
-    # jdf["Adj Close"] = jdf.close
-    #
     # # 将tushare下的数据的字段保存为pyalgotrade所要求的数据格式
     # jdf.columns = ["Date", "Open", "Close", "High", "Low", "Volume", "code", "Adj Close"]
     #
@@ -218,11 +215,12 @@ def runStrategy():
     returnsAnalyzer = returns.Returns()
     myStrategy.attachAnalyzer(returnsAnalyzer)
 
-    # Attach the plotter to the strategy.
+    # 5. Attach the plotter to the strategy.
     plt = plotter.StrategyPlotter(myStrategy)
     plt.getInstrumentSubplot(code)
     plt.getInstrumentSubplot(code).addDataSeries("SMA", myStrategy.getSMA())
     plt.getOrCreateSubplot("returns").addDataSeries("Simple returns", returnsAnalyzer.getReturns())
+    plt.getOrCreateSubplot("returns2").addDataSeries("CumulativeReturns", returnsAnalyzer.getCumulativeReturns())
 
     def parameters_generator():
         instrument = ["dia"]
@@ -233,7 +231,7 @@ def runStrategy():
         overSoldThreshold = range(5, 26)
         return itertools.product(instrument, entrySMA, exitSMA, rsiPeriod, overBoughtThreshold, overSoldThreshold)
 
-    # local.run(rsi.RSI2, feed, parameters_generator())
+    # 6. 策略运行
     myStrategy.run()
     myStrategy.info("Final portfolio value: $%.2f" % myStrategy.getResult())
     myStrategy.info("Final portfolio value: $%.2f" % myStrategy.getBroker().getEquity())

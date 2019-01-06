@@ -166,6 +166,10 @@ class_data.loc[class_data['分类'] == 0, 'neutral'] = 1
 # # 2. 均线
 # ts_lag = ts.rolling(window=20)
 
+# 每日涨幅
+# df['close'].pct_change()
+
+
 # tsv 读写
 # infilename = "C:\\Users\\john\\Desktop\\train.tsv"
 # # df2 = pd.read_csv(infilename, header=None, encoding="utf8", sep='\t')

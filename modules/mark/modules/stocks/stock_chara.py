@@ -104,7 +104,6 @@ class Sequence_chara():
         # VOLUME（i）：当前柱的交易量；
         # MA（ApPRICE，N，i）：在任何一个时段内当前柱的任何移动平均线：
         # MA（ApPRICE，N，i-1）——前一柱的任何移动平均线。
-
         self.chara_FI(ndays) #归一化不方便，临时不用
         self.charaR_FI(ndays)
         # 变化速率ROC : 统计原理，求出股价的标准差及其信赖区间，从而确定股价的波动范围及未来走势，利用波带显示股价的安全高低价位，因而也被称为布林带。
@@ -121,6 +120,13 @@ class Sequence_chara():
         self.pf = self.pf.join(volori)
         self.pf = self.pf.join(volrori)
         self.pf = self.pf.join(volrlog)
+
+    def chara_resample(self, ndays=5):
+        # 更改样本的尺度 :
+        if ndays is None:
+            raise Exception("error: no ndays")
+        df_ohlc = self.pf['close'].resample(ndays + 'D').ohlc()
+        df_volume = self.pf['volume'].resample(ndays + 'D').sum()
 
     def chara_CCI(self, ndays=5):
         # 随顺市势指标 : CCI（N日）=（TP－MA）÷Std÷0.015

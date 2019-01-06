@@ -100,6 +100,22 @@ def plot_timesq(datas):
     # plt.savefig('./PDF/' + title + '.pdf', format='pdf')
 
 
+# 多只股票时间序列
+def nplot_timesq(datas):
+    # plt.clf()
+    plt.figure()
+    plt.grid()
+    colorlist = ["red", "blue", 'yellow', 'green', 'black']
+    counter = 0
+    for i1 in datas.columns:
+        plt.plot(datas[i1], color=colorlist[counter % len(colorlist)], label=i1)
+        counter += 1
+    plt.legend(loc='best')
+    plt.title('lines')
+    plt.show()
+    # plt.savefig('./PDF/' + title + '.pdf', format='pdf')
+
+
 # 相似曲线
 def plot_similar(y, yhat, filename):
     y = y * 0.01
@@ -237,6 +253,84 @@ def pd_similar(pdobj, filename):
     plt.show()
 
 
+# 相似曲线
+def npd_similar(pdobj, filename):
+    ma_map = {i1: max(pdobj[[i1, "predict_" + i1]].max()) for i1 in pdobj.columns if i1.startswith("ylabel_")}
+    mi_map = {i1: min(pdobj[[i1, "predict_" + i1]].min()) for i1 in pdobj.columns if i1.startswith("ylabel_")}
+
+    pagenum = 4
+    rown = 2
+    coln = 2
+    yindex = 0
+    fig, axes = plt.subplots(rown, coln)
+    for i1, i2 in enumerate(pdobj.columns):
+        if i2.startswith("ylabel_"):
+            if yindex > pagenum - 1:
+                yindex = 0
+                fig, axes = plt.subplots(rown, coln)
+            rowi = yindex // coln
+            coli = yindex % coln
+            # print(yindex ,rowi,coli)
+            expection = (pdobj["predict_" + i2] - pdobj[i2]).mean()
+            convar = (pdobj["predict_" + i2] - pdobj[i2]).std()
+            skew = (pdobj["predict_" + i2] - pdobj[i2]).skew()
+            kurt = (pdobj["predict_" + i2] - pdobj[i2]).kurt()
+            axes[rowi][coli].set_title("1:%.2f,2:%.2f,3:%.2f,4:%.2f" % (expection, convar, skew, kurt))
+            # axes[0].set_ylabel(ylabell)
+            # axes[rowi][coli].set_xlabel("predict_%s" % i2)
+            # x,y分别设置x轴，y轴的列标签或列的位置
+            ax0 = pdobj.plot(kind="scatter", ax=axes[rowi][coli], color='r', x="predict_%s" % i2, y=i2)
+            ax0.plot([mi_map[i2], ma_map[i2]], [mi_map[i2], ma_map[i2]], color='gray', linestyle=':', marker='o', lw=1)
+            ax0.grid(b=True)
+            yindex += 1
+
+    # ylabell = u'ylabel_p_change'
+    # axes[0][0].set_title(ylabell)
+    # # axes[0].set_ylabel(ylabell)
+    # # axes[0].set_xlabel(xlabell)
+    # ax0 = pdobj.plot(kind="scatter", ax=axes[0][0], color='r', x=xlabell, y=ylabell)  # x,y分别设置x轴，y轴的列标签或列的位置
+    # ax0.plot([mi, ma], [mi, ma], color='gray', linestyle=':', marker='o', lw=1)
+    # ax0.grid(b=True)
+
+    xlabell = u'predict_ylabel_p_change'
+    if yindex > pagenum - 1:
+        yindex = 0
+        fig, axes = plt.subplots(rown, coln)
+    rowi = yindex // coln
+    coli = yindex % coln
+    yindex += 1
+    # pdobj_positive = pdobj[["y/(yhat+1)", "(y-yhat)/(yhat+1)"]][pdobj["predict_ylabel_p_change"] > 0]
+    # bias_expect = pdobj_positive["(y-yhat)/(yhat+1)"].sum()/pdobj_positive.shape[0]
+    # ave_expect = pdobj_positive["y/(yhat+1)"].sum()/pdobj_positive.shape[0]
+    ylabell = '(y-yhat)/(yhat+1)'
+    # axes[rowi][coli].set_title(u'(y-yhat)/(yhat+1) >0 的期望' + str(bias_expect).encode("utf8"), fontsize=20)
+    ax1 = pdobj.plot(kind="scatter", ax=axes[rowi][coli], color='r', x=xlabell, y=ylabell)
+    ax1.grid(b=True)
+
+    if yindex > pagenum - 1:
+        yindex = 0
+        fig, axes = plt.subplots(rown, coln)
+    rowi = yindex // coln
+    coli = yindex % coln
+    yindex += 1
+    ylabell = 'y/(yhat+1)'
+    # axes[rowi][coli].set_title(u'y/(yhat+1) >0 的期望' + str(ave_expect).encode("utf8"), fontsize=20)
+    ax2 = pdobj.plot(kind="scatter", ax=axes[rowi][coli], color='r', x=xlabell, y=ylabell)  # x,y分别设置x轴，y轴的列标签或列的位置
+    ax2.grid(b=True)
+    # ax = pdobj.plot(secondary_y=['A', 'B'])  # 设置2个列轴，分别对各个列轴画折线图。ax（axes）可以理解为子图，也可以理解成对黑板进行切分，每一个板块就是一个axes
+    # ax.right_ax.set_ylabel('AB scale')
+    # ax.xaxis.grid(True, which='minor', linestyle='-', linewidth=0.25, ...)
+    # ax.legend(loc=2)  # 设置图例的位置
+    plt.legend(loc='best')
+    # plt.grid(b=True)
+
+    # plt.legend(loc=1)
+    if os.path.isfile(os.path.join(data_path_res, filename)):
+        os.remove(os.path.join(data_path_res, filename))
+    plt.savefig(os.path.join(data_path_res, filename))
+    plt.show()
+
+
 def dim3():
     from mpl_toolkits.mplot3d import Axes3D
     import matplotlib.pyplot as plt
@@ -277,6 +371,12 @@ def sort_density():
 def range_density():
     plt.figure(figsize=(12, 8))
     sns.distplot(train_df[target_col].values, bins=50, kde=False, color="red")
+    # 核密度估计 + 统计柱状图
+    sns.distplot(stock['Daily Return'].dropna(), bins=100)
+    # 核密度估计
+    sns.kdeplot(stock['Daily Return'].dropna())
+    # 两支股票的皮尔森相关系数
+    sns.jointplot(stock['Daily Return'], stock['Daily Return'], alpha=0.2)
     plt.title("Histogram of Loyalty score")
     plt.xlabel('Loyalty score', fontsize=12)
     plt.show()
@@ -285,10 +385,10 @@ def range_density():
 def chara_diffval_std():
     plt.figure(figsize=(8, 4))
     sns.violinplot(x="feature_3", y=target_col, data=train_df)
-    plt.xticks(rotation='vertical')
+    plt.title("Feature 3 distribution")
     plt.xlabel('Feature 3', fontsize=12)
     plt.ylabel('Loyalty score', fontsize=12)
-    plt.title("Feature 3 distribution")
+    plt.xticks(rotation='vertical')
     plt.show()
 
 

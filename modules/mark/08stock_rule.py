@@ -29,7 +29,6 @@ def tmp_test():
     # 10日的移动均线为目标
     df['SMA_10'] = talib.MA(np.array(close), timeperiod=10)
     close10 = df.SMA_10
-
     # 处理信号
     SmaSignal = pd.Series(0, index=close.index)
 
@@ -106,6 +105,66 @@ def main():
 
 
 if __name__ == '__main__':
+    import matplotlib.pyplot as plt
+    import seaborn as sns
+    # import seaborn.regression as snsl
+    from datetime import datetime
+    import tushare as ts
+
+    # 1. 数据选择
+    # 1.1. 筛选集合
+    stock_lis = ['300113', '300343', '300295', '300315']
+    end = datetime.today()  # 开始时间结束时间，选取最近一年的数据
+    start = datetime(end.year - 1, end.month, end.day)
+    end = str(end)[0:10]
+    start = str(start)[0:10]
+    df = pd.DataFrame()
+    for stock in stock_lis:
+        closing_df = ts.get_hist_data(stock, start, end)['close']
+        df = df.join(pd.DataFrame({stock: closing_df}), how='outer')
+    tech_rets = df.pct_change()
+    print(df.head(3))
+    print(df.tail(3))
+    print(tech_rets.head(3))
+    print(tech_rets.tail(3))
+
+    # pearson相关热图
+    rets = tech_rets.dropna()
+    plt.figure(1)
+    sns.heatmap(rets.corr(), annot=True)
+    plt.draw()
+    # plt.close(1)
+    # 收益风险图
+    plt.figure(2)
+    plt.scatter(rets.mean(), rets.std())
+    plt.xlabel('Excepted Return')
+    plt.ylabel('Risk')
+    for label, x, y in zip(rets.columns, rets.mean(), rets.std()):
+        plt.annotate(label, xy=(x, y), xytext=(15, 15), textcoords='offset points',
+                     arrowprops=dict(arrowstyle='-', connectionstyle='arc3,rad=-0.3'))
+    plt.draw()
+    # plt.close(2)
+    plt.show()
+
+    # snsl.corrplot(tech_rets.dropna())
+    # 1.2. 时段聚类α，β
+    # 1.2. 时段聚类α，β
+    # 遗传因子选特征
+    # 参数策略组合迭代回测
+    # 精确拟合度
+
+    # 2. 网络结构
+    # 2.1. (原始+深户)输入16 *log； 便于卷积
+    # 2.2. 长度为2的每维 卷积核valid step2，10-50个；历史收集 chara4层
+    # 2.3. catch 输入+卷积各层，full+-lrelu；迭代 2次 基层策略 出100
+    # 2.4. catch 3的relu各层 all dim，full drop 0.1-0.5 +-lrelu；迭代 2次 高层策略 出1000 出512
+
+    # 3. 回测 交易次数 单次均值是方差 年化值 置信度 置信区间
+    # 3.1 学习回归值 历史方差
+    # 3.2 方向概率 准确度
+
+    exit(0)
+
     main()
     # tmp_test()
     # deep_network()
