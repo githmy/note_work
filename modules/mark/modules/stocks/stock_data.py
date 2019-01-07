@@ -40,10 +40,10 @@ logger1.addHandler(fh)
 logger1.addHandler(ch)
 
 
-class TSstockdata:
-    def __init__(self):
+class TSstockScrap:
+    def __init__(self, nocode_path):
         cmd_path = os.getcwd()
-        self.data_path = os.path.join(cmd_path, "..", "nocode", "customer")
+        self.data_path = os.path.join(nocode_path, "nocode", "customer")
         data_pa = os.path.join(self.data_path, "input", "data")
         self.data_path_stock = os.path.join(data_pa, "stock")
         self.file_stock_info = os.path.join(self.data_path_stock, "stock_info.csv")
@@ -55,13 +55,14 @@ class TSstockdata:
         self.file_profit_date = os.path.join(self.data_path_res, "profit_date.csv")
 
     # 常规数据
-    def all_store(self, startdate):
+    def scrap_all_store(self, startdate):
         # 1.股票基本信息
         # 1.1 更新信息
         filePath = 'stock_info.csv'
         tmp_path = os.path.join(self.data_path_stock, filePath)
         if os.path.isfile(tmp_path):
-            df1 = pd.read_csv(tmp_path, header=0, encoding="gbk", dtype=str)
+            df1 = pd.read_csv(tmp_path, header=0, encoding="utf-8", dtype=str)
+            # df1 = pd.read_csv(tmp_path, header=0, encoding="gbk", dtype=str)
         else:
             df1 = None
         df2 = ts.get_stock_basics()  # 获取5分钟k线数据
@@ -151,19 +152,11 @@ class TSstockdata:
             if os.path.isfile(tmp_path):
                 os.remove(tmp_path)
             df1.to_csv(tmp_path)
+            print(tmp_path + " success")
         except Exception as e:
             pastr = "_".join([code, stype])
             logger1.info("error with parameters: %s" % pastr)
             logger1.info(e)
-
-    def panda_get_data(self):
-        # spy = wb.Datareader(
-        #     "SPY", "yahoo",
-        #     datetime.datetime(2007, 1, 1),
-        #     datetime.datetime(2015, 6, 15)
-        # )
-        # print(spy.tail())
-        pass
 
     def for_stock(self):
         # ts.get_hist_data('600848', start='2015-01-05', end='2015-01-09')
@@ -246,13 +239,13 @@ class Stockdata:
             'npr': np.float64,
             'holders': np.float64
         }
-        # df = pd.read_csv(self.file_stock_info, header=0, encoding="utf8", dtype=typedict)
-        df = pd.read_csv(self.file_stock_info, header=0, encoding="gbk", dtype=typedict)
+        df = pd.read_csv(self.file_stock_info, header=0, encoding="utf8", dtype=typedict)
+        # df = pd.read_csv(self.file_stock_info, header=0, encoding="gbk", dtype=typedict)
         return df
 
     def data_stocklist(self):
-        #df = pd.read_csv(self.file_stock_info, header=0, encoding="utf8", dtype=str)
-        df = pd.read_csv(self.file_stock_info, header=0, encoding="gbk", dtype=str)
+        df = pd.read_csv(self.file_stock_info, header=0, encoding="utf8", dtype=str)
+        # df = pd.read_csv(self.file_stock_info, header=0, encoding="gbk", dtype=str)
         droplist = ["name", "industry", "area", "pe", "outstanding", "totals", "totalAssets", "liquidAssets",
                     "fixedAssets", "reserved", "reservedPerShare", "esp", "bvps", "pb", "timeToMarket", "undp",
                     "perundp", "rev", "profit", "gpr", "npr", "holders"]

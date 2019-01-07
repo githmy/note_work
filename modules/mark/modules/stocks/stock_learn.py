@@ -22,7 +22,7 @@ from scipy import stats
 import pydotplus
 import pickle
 from sklearn.metrics.pairwise import pairwise_distances_argmin
-from txt.basic_tensorflow import neurous_network
+from modules.stocks.stock_tensor import neurous_network
 import warnings
 from hmmlearn import hmm
 from math import sqrt

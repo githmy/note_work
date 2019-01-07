@@ -8,8 +8,9 @@ import pandas as pd
 import os
 import numpy as np
 
+df = pd.DataFrame()
 # 列聚类统计
-# df['label_L4'].value_counts()
+df['label_L4'].value_counts()
 
 # 过去12的平均值
 moving_avg = pd.rolling_mean(ts_log, 12)
@@ -34,7 +35,6 @@ ts_log_diff = ts_log - ts_log.shift()
 # 时间过滤采样
 ts = pd.Series(list(range(50)), index=pd.date_range("2016 Jul 15 10:55", periods=10, freq='60T'))
 ts.asfreq("45Min", method="ffill")
-
 
 # 索引设为列
 # orderl_pd.reset_index(level=0, inplace=True)  # （the first）index 改为 column
@@ -69,6 +69,11 @@ ts.asfreq("45Min", method="ffill")
 # 选行按序号
 # df.iloc[0, :]
 
+# 行列索引
+# df.iat[2, 3]
+# df.at["gamma", "d"]
+
+
 # # 遍历每一行
 # for indexs in data.iterrows():
 #     row[0], row[1]
@@ -79,10 +84,20 @@ ts.asfreq("45Min", method="ffill")
 # for row in df.itertuples(index=True, name='Pandas'):
 #     print getattr(row, "c1"), getattr(row, "c2")
 
+# 空值丢弃
+df.dropna(subset=['closeprice'])
+# 空值丢弃阈值
+df.dropna(thresh=6)
+# 空值填充
+df.fillna(value=20181010)
+
 # 列行数据类型 空值处理
 # orderl_pd[[i]] = orderl_pd[[i]].fillna(1e6).astype(int)
 # typess={'a': np.float64, 'b': np.int32}
 # df2 = pd.read_csv(self.file_liquids_mount, header=0, encoding="utf8", sep='\t', dtype=typess)
+
+# 判断在之内
+df[df['secid'].isin([38, 24, 33])]
 
 # 所有列名
 # plotlist_pd.columns
@@ -100,8 +115,20 @@ ts.asfreq("45Min", method="ffill")
 # 列值排序
 # df.sort_values("age", ascending=False)
 
+# 排序
+df.sort(columns=["age", "tradedate"], ascending=[True, False])
+
 # 分组 (key1+key2都不同)
 # means = df['data1'].groupby([df['key1'], df['key2']]).mean()
+# group 批量函数
+# means = df['data1'].groupby([df['key1'], df['key2']]).mean()
+agg_func = {
+            'purchase_amount': ['count', 'sum', 'mean', 'min', 'max', 'std'],
+            'installments': ['count', 'sum', 'mean', 'min', 'max', 'std'],
+            }
+grouped = df.groupby(['card_id', 'month_lag'])
+intermediate_group = grouped.agg(agg_func)
+final_group = intermediate_group.groupby('card_id').agg(['mean', 'std'])
 
 # 列值排序的序号
 # orderl_pd[i] = liquids_pd[i].rank(ascending=1, method='first')
@@ -154,12 +181,15 @@ ts.asfreq("45Min", method="ffill")
 class_data.loc[class_data['分类'] == 1, 'postive'] = 1
 class_data.loc[class_data['分类'] == 0, 'neutral'] = 1
 
-
 # print(df['2013'].head(2)) # 获取2013年的数据
 # print(df['2013'].tail(2)) # 获取2013年的数据
 #
 # print(df['2016':'2017'].head(2))  #获取2016至2017年的数据
 # print(df['2016':'2017'].tail(2))  #获取2016至2017年的数据
+
+# 去重
+# 按secid去重，保留最后的
+pd.drop_duplicates(subset='secid', take_last=True)
 
 # 1. 序列处理，平移
 # ts_lag = ts.shift()
@@ -193,6 +223,23 @@ class_data.loc[class_data['分类'] == 0, 'neutral'] = 1
 #         # writer.writerow([i[0].encode("utf-8"), i[3].encode("utf-8"), i[4].encode("utf-8"), i[5].encode("utf-8")])  # 写入csv文件的表头
 #         writer.writerow([str(i[0].encode("utf-8")), i[3].encode("utf-8"), i[4].encode("utf-8"), i[5].encode("utf-8")])  # 写入csv文件的表头
 #         # writer.writerow([i[0], i[3], i[4], i[5]])  # 写入csv文件的表头
+
+# 区间切割
+# bins 为整数左右延长1% bins刀按输入的极限等比例，数组，按位置切。 右闭区间
+pandas.cut(x, bins, right=True, labels=None, retbins=False, precision=3, include_lowest=False)
+# qcut 按整数位切割
+pandas.qcut(x, bins, right=True, labels=None, retbins=False, precision=3, include_lowest=False)
+
+# 批量操作
+df["aaa"].map(func)
+df[["aaa"]].apply(lambda x: (x - x.min()) / (x.max() - x.min()))
+
+# 内存监控
+start_mem = df.memory_usage().sum() / 1024 ** 2
+end_mem = df.memory_usage().sum() / 1024 ** 2
+
+# 显示设置
+pd.set_option('display.max_columns', 500)
 
 
 def nomal_use():

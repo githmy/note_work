@@ -134,3 +134,11 @@ arr1 = np.ones((3, 3))
 # 数据源是ndarray时，array仍然会copy出一个副本，占用新的内存，但asarray不会。
 arr2 = np.array(arr1)
 arr3 = np.asarray(arr1)
+
+# 类型数值的上下限
+np.iinfo(np.int8).min
+np.iinfo(np.int8).max
+
+# 中位数
+a = np.array([[10., 7., 4.], [3., 2., 1.]])
+np.nanpercentile(a, 50)

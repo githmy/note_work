@@ -14,16 +14,16 @@ import simplejson
 import statsmodels.tsa.stattools as tsat
 from modules.stocks.stock_data import Stockdata
 from modules.stocks.stock_learn import StockLearn
-from txt.basic_mlp import plot_timesq, pd_similar
+from modules.stocks.stock_mlp import plot_timesq, pd_similar
 from sklearn.utils import shuffle
 
-# from get_data import all_store
+# from get_data import scrap_all_store
 # from modules.mystrategy import MyStrategy
 # from pyalgotrade import broker
 # from pyalgotrade import plotter
 
 cmd_path = os.getcwd()
-data_path = os.path.join(cmd_path, "..", "nocode", "customer")
+data_path = os.path.join(cmd_path, "..", "..", "..", "nocode", "customer")
 data_opath = os.path.join(data_path, "input", "data")
 data_path_recover = os.path.join(data_opath, "recover")
 data_path_res = os.path.join(data_opath, "res")
@@ -527,7 +527,7 @@ def prepare_data():
     # tmpfile = os.path.join(data_path_res, scode + "_" + stpye + "feature.csv")
     dclass.generate_feature("000001")
     # dclass.generate_middles()
-    # all_store(startdate)
+    # scrap_all_store(startdate)
     return 0
 
 

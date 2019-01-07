@@ -1,0 +1,56 @@
+{
+  "env": {
+    "epsilon": 0.5,
+    "min_epsilon": 0.1,
+    "epoch": 100000,
+    "single_num": 10,
+    "max_memory": 5000,
+    "batch_size": 128,
+    "discount": 0.8,
+    "start_date": "2013-08-26",
+    "end_date": "2099-08-25",
+    "learn_rate": 1e-11,
+    "sudden_death": -1.0,
+    "scope": 60,
+    "inputdim": 61,
+    "outspace": 3
+  },
+  "process": {
+    "plot": 0,
+    "debug": 0,
+    "nocode_path": "../../../"
+  },
+  "scrap_data": {
+    "usesig": 1,
+    "start_date": "2018-02-10",
+    "file": "learn_file"
+  },
+  "data_filter": {
+    "usesig": 0,
+    "file": "learn_file"
+  },
+  "get_chara": {
+    "usesig": 0,
+    "file": "learn_file"
+  },
+  "get_learn": {
+    "usesig": 0,
+    "file": "learn_file"
+  },
+  "back_test": {
+    "usesig": 0,
+    "file": "learn_file"
+  },
+  "trade_fun": {
+    "usesig": 0,
+    "file": "learn_file"
+  },
+  "model": {
+    "globalstep": 0,
+    "dropout": 1.0,
+    "normal": 1e-3,
+    "modelname": "one_attent60",
+    "sub_fix": "",
+    "file": "learn_file"
+  }
+}

@@ -166,13 +166,11 @@ if __name__ == '__main__':
     exit(0)
 
     main()
-    # tmp_test()
     # deep_network()
-    # panda_get_data()
     # startdate = "2018-02-10"
-    # all_store(startdate)
+    # scrap_all_store(startdate)
     # tmp_test()
-    # TSstockdata()
+    # TSstockScrap()
     # navigation()
     # exit(0)
     # store_recover()

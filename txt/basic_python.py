@@ -1,6 +1,9 @@
 import jieba
 import pandas as pd
 
+# 警告过滤
+import warnings
+warnings.simplefilter(action='ignore', category=FutureWarning)
 
 def cut_one_file(filename):
     print("cuting:" + filename)

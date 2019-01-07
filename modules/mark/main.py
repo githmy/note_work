@@ -1,19 +1,18 @@
 from modules.stocks.finance_frame import navigation
 from modules.stocks.stock_network import deep_network
+from modules.stocks.stock_data import TSstockScrap
 from modules.stocks.stock_chara import gene_allpd
 from modules.stocks.stock_learn import StockLearn
-from txt.basic_mlp import npd_similar, nplot_timesq
+from modules.stocks.stock_paras import parseArgs, bcolors, get_paras
+from modules.stocks.stock_mlp import npd_similar, nplot_timesq
+import tushare as ts
 from sklearn.utils import shuffle
 from datetime import datetime
+import sys
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
 import seaborn as sns
-import tushare as ts
-
-
-def tmp_test():
-    pass
 
 
 class Finan_frame(object):
@@ -53,18 +52,91 @@ class Finan_frame(object):
         # 1. 参数解析
         self.__parameters = parajson
         # 2. 数据下载，爬取，读取
+        self.__scrap_data(self.__parameters)
         # 4. 筛选数据
+        self.__data_filter(self.__parameters)
         # 5. 特征生成
+        self.__get_chara(self.__parameters)
         # 6. 学习规律
+        self.__get_learn(self.__parameters)
         # 7. 回测
+        self.__back_test(self.__parameters)
         # 8. 自动交易
-        self.__trade = __trade_fun
+        self.__trade_fun(self.__parameters)
 
-    def __trade_fun(self):
-        pass
+    def __scrap_data(self, para):
+        if para["scrap_data"]["usesig"] == 0:
+            return 0
+        print()
+        print("*" * 60)
+        print("begin __scrap_data")
+        scrap_data_class = TSstockScrap(para["process"]["nocode_path"])
+        scrap_data_class.scrap_all_store(para["scrap_data"]["start_date"])
+        print("finished __scrap_data")
+        print("*" * 60)
+
+    def __data_filter(self, para):
+        if para["data_filter"]["usesig"] == 0:
+            return 0
+        print("in __data_filter")
+        # 1. 数据选择
+        # 1.1. 筛选集合
+        stock_lis = ['300113', '300343', '300295', '300315']
+        end = datetime.today()  # 开始时间结束时间，选取最近一年的数据
+        start = datetime(end.year - 1, end.month, end.day)
+        end = str(end)[0:10]
+        start = str(start)[0:10]
+        df = pd.DataFrame()
+        for stock in stock_lis:
+            closing_df = ts.get_hist_data(stock, start, end)['close']
+            df = df.join(pd.DataFrame({stock: closing_df}), how='outer')
+        tech_rets = df.pct_change()
+        print(df.head(3))
+        print(df.tail(3))
+        print(tech_rets.head(3))
+        print(tech_rets.tail(3))
+
+    def __get_chara(self, para):
+        if para["get_chara"]["usesig"] == 0:
+            return 0
+        print("in __get_chara")
+        # 1.2. 时段聚类α，β
+        # 遗传因子选特征
+
+    def __get_learn(self, para):
+        if para["get_learn"]["usesig"] == 0:
+            return 0
+        print("in __get_learn")
+        # 2. 网络结构
+        # 2.1. (原始+深户)输入16 *log； 便于卷积
+        # 2.2. 长度为2的每维 卷积核valid step2，10-50个；历史收集 chara4层
+        # 2.3. catch 输入+卷积各层，full+-lrelu；迭代 2次 基层策略 出100
+        # 2.4. catch 3的relu各层 all dim，full drop 0.1-0.5 +-lrelu；迭代 2次 高层策略 出1000 出512
+
+    def __back_test(self, para):
+        if para["back_test"]["usesig"] == 0:
+            return 0
+        print("in __back_test")
+        # 参数策略组合迭代回测
+        # 精确拟合度
+        # 3. 回测 交易次数 单次均值是方差 年化值 置信度 置信区间
+        # 3.1 学习回归值 历史方差
+        # 3.2 方向概率 准确度
+
+    def __trade_fun(self, para):
+        if para["trade_fun"]["usesig"] == 0:
+            return 0
+        print("in __trade_fun")
 
 
-def main():
+def main(args=None):
+    # 1. 命令行
+    parajson = get_paras(args)
+    print(parajson)
+    # 2. 流程解析类
+    finish = Finan_frame(parajson)
+    return 0
+
     # 1. 生成特征
     parajson = {
         "avenlist": [5, 20],
@@ -95,79 +167,16 @@ def main():
     # 3.2 预测 实际 值 的相似分布。 均值方差描述
     # 3.3 不同 时间片 集合n 的偏离方差和均值
     # npd_similar(pdv_predict, "ttt123")
-    # 4. 策略标准
-    # 5. 自动交易
-    # 6. 模型方式
-    # 6.1 未来x分钟，涨跌y%.
-    # 6.2 强化买卖点
-    # 6.3 n只股票 各特征降维，
-    # 6.4 未来走势
 
 
 if __name__ == '__main__':
-    # 0. 参数解析
-    # 1. 数据选择
-    # 1.1. 筛选集合
-    stock_lis = ['300113', '300343', '300295', '300315']
-    end = datetime.today()  # 开始时间结束时间，选取最近一年的数据
-    start = datetime(end.year - 1, end.month, end.day)
-    end = str(end)[0:10]
-    start = str(start)[0:10]
-    df = pd.DataFrame()
-    for stock in stock_lis:
-        closing_df = ts.get_hist_data(stock, start, end)['close']
-        df = df.join(pd.DataFrame({stock: closing_df}), how='outer')
-    tech_rets = df.pct_change()
-    print(df.head(3))
-    print(df.tail(3))
-    print(tech_rets.head(3))
-    print(tech_rets.tail(3))
-
-    # pearson相关热图
-    rets = tech_rets.dropna()
-    plt.figure(1)
-    sns.heatmap(rets.corr(), annot=True)
-    plt.draw()
-    # plt.close(1)
-    # 收益风险图
-    plt.figure(2)
-    plt.scatter(rets.mean(), rets.std())
-    plt.xlabel('Excepted Return')
-    plt.ylabel('Risk')
-    for label, x, y in zip(rets.columns, rets.mean(), rets.std()):
-        plt.annotate(label, xy=(x, y), xytext=(15, 15), textcoords='offset points',
-                     arrowprops=dict(arrowstyle='-', connectionstyle='arc3,rad=-0.3'))
-    plt.draw()
-    # plt.close(2)
-    plt.show()
-
-    # snsl.corrplot(tech_rets.dropna())
-    # 1.2. 时段聚类α，β
-    # 1.2. 时段聚类α，β
-    # 遗传因子选特征
-    # 参数策略组合迭代回测
-    # 精确拟合度
-
-    # 2. 网络结构
-    # 2.1. (原始+深户)输入16 *log； 便于卷积
-    # 2.2. 长度为2的每维 卷积核valid step2，10-50个；历史收集 chara4层
-    # 2.3. catch 输入+卷积各层，full+-lrelu；迭代 2次 基层策略 出100
-    # 2.4. catch 3的relu各层 all dim，full drop 0.1-0.5 +-lrelu；迭代 2次 高层策略 出1000 出512
-
-    # 3. 回测 交易次数 单次均值是方差 年化值 置信度 置信区间
-    # 3.1 学习回归值 历史方差
-    # 3.2 方向概率 准确度
-
-    exit(0)
-
-    main()
+    # 1. 参数解析
     # tmp_test()
+    main(sys.argv[1:])
     # deep_network()
     # panda_get_data()
     # startdate = "2018-02-10"
-    # all_store(startdate)
-    # tmp_test()
-    # TSstockdata()
+    # scrap_all_store(startdate)
     # navigation()
     # exit(0)
     # store_recover()
