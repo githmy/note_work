@@ -71,7 +71,14 @@ class Finan_frame(object):
         print("*" * 60)
         print("begin __scrap_data")
         scrap_data_class = TSstockScrap(para["process"]["nocode_path"])
-        scrap_data_class.scrap_all_store(para["scrap_data"]["start_date"])
+        if para["scrap_data"]["way"]["normal"] == 1:
+            scrap_data_class.scrap_all_n_store(para["scrap_data"]["start_date"])
+        elif para["scrap_data"]["way"]["hist"] == 1:
+            scrap_data_class.scrap_all_h_store(para["scrap_data"]["start_date"])
+        elif para["scrap_data"]["way"]["web"] == 1:
+            pass
+        else:
+            pass
         print("finished __scrap_data")
         print("*" * 60)
 
@@ -134,7 +141,9 @@ def main(args=None):
     parajson = get_paras(args)
     print(parajson)
     # 2. 流程解析类
+    print("all start".center(20, " ").center(200, "#"))
     finish = Finan_frame(parajson)
+    print("all end".center(20, " ").center(200, "#"))
     return 0
 
     # 1. 生成特征
@@ -171,16 +180,6 @@ def main(args=None):
 
 if __name__ == '__main__':
     # 1. 参数解析
-    # tmp_test()
     main(sys.argv[1:])
     # deep_network()
-    # panda_get_data()
-    # startdate = "2018-02-10"
-    # scrap_all_store(startdate)
     # navigation()
-    # exit(0)
-    # store_recover()
-    # for i in ["000001"]:
-    #     single_store(i)
-    #     # single_stock_type("600848", "D")
-    #     # single_store(code, type)

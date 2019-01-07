@@ -23,27 +23,53 @@
   "scrap_data": {
     "usesig": 1,
     "start_date": "2018-02-10",
-    "file": "learn_file"
+    "way": {
+      "normal": 0,
+      "hist": 1,
+      "web": 0
+    }
   },
   "data_filter": {
     "usesig": 0,
-    "file": "learn_file"
+    "way": {
+      "mla": 1,
+      "edl": 0,
+      "dl": 0,
+      "rf": 0
+    }
   },
   "get_chara": {
     "usesig": 0,
-    "file": "learn_file"
+    "way": {
+      "mla": 1,
+      "edl": 0,
+      "dl": 0,
+      "rf": 0
+    }
   },
   "get_learn": {
     "usesig": 0,
-    "file": "learn_file"
+    "way": {
+      "mla": 1,
+      "edl": 0,
+      "dl": 0,
+      "rf": 0
+    }
   },
   "back_test": {
     "usesig": 0,
-    "file": "learn_file"
+    "way": {
+      "split": 0.1,
+      "date": {
+        "start": "2010-01-01",
+        "middle": "2016-01-01",
+        "end": "2019-01-01"
+      }
+    }
   },
   "trade_fun": {
     "usesig": 0,
-    "file": "learn_file"
+    "way": {}
   },
   "model": {
     "globalstep": 0,

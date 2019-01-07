@@ -164,17 +164,6 @@ if __name__ == '__main__':
     # 3.2 方向概率 准确度
 
     exit(0)
-
     main()
     # deep_network()
-    # startdate = "2018-02-10"
-    # scrap_all_store(startdate)
-    # tmp_test()
-    # TSstockScrap()
     # navigation()
-    # exit(0)
-    # store_recover()
-    # for i in ["000001"]:
-    #     single_store(i)
-    #     # single_stock_type("600848", "D")
-    #     # single_store(code, type)

@@ -16,8 +16,6 @@ cmd_path = os.getcwd()
 
 input_path = os.path.join(cmd_path, "..", "..", "..", "nocode", "customer", "input")
 data_path = os.path.join(cmd_path, "..", "..", "..", "nocode", "customer")
-# input_path = os.path.join(cmd_path, "..", "..", "..", "nocode", "customer", "input")
-# data_path = os.path.join(cmd_path, "..", "..", "..", "nocode", "customer")
 datalogfile = os.path.join(data_path, 'logs', 'finance_analysis.log')
 
 # 创建一个logger
@@ -45,8 +43,9 @@ class TSstockScrap:
         cmd_path = os.getcwd()
         self.data_path = os.path.join(nocode_path, "nocode", "customer")
         data_pa = os.path.join(self.data_path, "input", "data")
-        self.data_path_stock = os.path.join(data_pa, "stock")
-        self.file_stock_info = os.path.join(self.data_path_stock, "stock_info.csv")
+        self.data_path_n_stock = os.path.join(data_pa, "stock")
+        self.data_path_h_stock = os.path.join(data_pa, "hstock")
+        self.file_stock_info = os.path.join(self.data_path_n_stock, "stock_info.csv")
         self.data_path_recover = os.path.join(data_pa, "recover")
         self.data_path_res = os.path.join(data_pa, "res")
         # self.file_tmp_feature = os.path.join(self.data_path_res, "profit_date.csv")
@@ -55,14 +54,14 @@ class TSstockScrap:
         self.file_profit_date = os.path.join(self.data_path_res, "profit_date.csv")
 
     # 常规数据
-    def scrap_all_store(self, startdate):
+    def scrap_all_n_store(self, startdate):
         # 1.股票基本信息
         # 1.1 更新信息
         filePath = 'stock_info.csv'
-        tmp_path = os.path.join(self.data_path_stock, filePath)
+        tmp_path = os.path.join(self.data_path_n_stock, filePath)
         if os.path.isfile(tmp_path):
-            df1 = pd.read_csv(tmp_path, header=0, encoding="utf-8", dtype=str)
             # df1 = pd.read_csv(tmp_path, header=0, encoding="gbk", dtype=str)
+            df1 = pd.read_csv(tmp_path, header=0, encoding="utf-8", dtype=str)
         else:
             df1 = None
         df2 = ts.get_stock_basics()  # 获取5分钟k线数据
@@ -95,39 +94,75 @@ class TSstockScrap:
         otherlist = ['sh', 'sz', 'hs300', 'sz50', 'zxb', 'cyb']
         for i in otherlist:
             logger1.info(i)
-            self.single_store(i, startdate)
+            self.single_n_store(i, startdate)
         for i in df1["code"]:
             logger1.info(i)
-            self.single_store(str(i).rjust(6, "0"), startdate)
+            self.single_n_store(str(i).rjust(6, "0"), startdate)
 
-    # 复权数据，不完善
-    def store_recover(self):
-        tfunc = ts.get_hist_data
+    # 历史数据
+    def scrap_all_h_store(self, startdate):
+        # 1.股票基本信息
+        # 1.1 更新信息
+        filePath = 'stock_info.csv'
+        tmp_path = os.path.join(self.data_path_n_stock, filePath)
+        if os.path.isfile(tmp_path):
+            # df1 = pd.read_csv(tmp_path, header=0, encoding="gbk", dtype=str)
+            df1 = pd.read_csv(tmp_path, header=0, encoding="utf-8", dtype=str)
+        else:
+            df1 = None
         df2 = ts.get_stock_basics()  # 获取5分钟k线数据
+        # df2[['two', 'three']] = df2[['two', 'three']].astype(float)
         df2.reset_index(level=0, inplace=True)  # （the first）index 改为 column
-        for i in df2["code"]:
-            filePath = i + '.csv'
-            tmp_path = os.path.join(self.data_path_recover, filePath)
-            try:
-                logger1.info(i)
-                df1 = ts.get_h_data(i)
-                df1.sort_index(axis=0, ascending=True, inplace=True)
-                df1.to_csv(tmp_path)
-                if os.path.isfile(tmp_path):
-                    os.remove(tmp_path)
-                df1.to_csv(tmp_path)
-            except Exception as e:
-                logger1.info("error with code: %s" % i)
-                logger1.info(e)
+        df1 = pd.concat([df1, df2], join='outer', axis=0)
+        # df1.reset_index()  # （all）index 改为 column
+        df1.drop_duplicates(['code'], inplace=True)
+        df1.set_index('code', inplace=True)
+        df1.sort_index(axis=0, ascending=True, inplace=True)
+        # df.drop(df.index[[0]], axis=0, inplace=True)
+        # df.sort_values(by=['date'])
+        if os.path.isfile(tmp_path):
+            os.remove(tmp_path)
+        df1.to_csv(tmp_path)
 
-    def single_store(self, code, startdate):
+        # 1.2 去除多余列
+        # df = ts.get_stock_basics()
+        # df.to_csv('stock_info.csv')
+        df1.reset_index(level=0, inplace=True)  # （the first）index 改为 column
+        # print(df.head())
+        droplist = ["name", "industry", "area", "pe", "outstanding", "totals", "totalAssets", "liquidAssets",
+                    "fixedAssets",
+                    "reserved", "reservedPerShare", "esp", "bvps", "pb", "timeToMarket", "undp", "perundp", "rev",
+                    "profit",
+                    "gpr", "npr", "holders"]
+        df1.drop(droplist, axis=1, inplace=True)
+        # df1.drop([0], axis=0, inplace=True)
+        # 2.循环每一只股票
+        otherlist = ['sh', 'sz', 'hs300', 'sz50', 'zxb', 'cyb']
+        for i in otherlist:
+            logger1.info(i)
+            self.single_h_store(i, startdate)
+        for i in df1["code"]:
+            logger1.info(i)
+            self.single_h_store(str(i).rjust(6, "0"), startdate)
+
+
+    def single_n_store(self, code, startdate):
         ktpye = ["W", "M", "D", "5", "15", "30", "60"]
         for i in ktpye:
-            self.single_stock_type(code, i, startdate)
+            self.single_stock_n_type(code, i, startdate)
 
-    def single_stock_type(self, code, stype, startdate):
+    def single_h_store(self, code, startdate):
+        # ktpye = ["W", "M", "D", "5", "15", "30", "60"]
+        # for i in ktpye:
+        self.single_stock_h_type(code, startdate)
+
+    def single_stock_n_type(self, code, stype, startdate):
         tfunc = ts.get_hist_data
-        self.update_file_by_index(tfunc, code, stype, self.data_path_stock, startdate)
+        self.update_file_by_index(tfunc, code, stype, self.data_path_n_stock, startdate)
+
+    def single_stock_h_type(self, code, startdate):
+        tfunc = ts.get_h_data
+        self.replace_file_by_index(tfunc, code, self.data_path_h_stock, startdate)
 
     def update_file_by_index(self, func, code, stype, tpath, startdate):
         # print(func, code, stype, tpath)
@@ -156,6 +191,22 @@ class TSstockScrap:
         except Exception as e:
             pastr = "_".join([code, stype])
             logger1.info("error with parameters: %s" % pastr)
+            logger1.info(e)
+
+    def replace_file_by_index(self, func, code, tpath, startdate):
+        # print(func, code, stype, tpath)
+        filePath = code + '_D.csv'
+        tmp_path = os.path.join(tpath, filePath)
+        try:
+            df2 = func(code, start=startdate)  # 获取5分钟k线数据
+            df2.reset_index(level=0, inplace=True)  # （the first）index 改为 column
+            df2.sort_index(axis=0, ascending=True, inplace=True)
+            if os.path.isfile(tmp_path):
+                os.remove(tmp_path)
+            df2.to_csv(tmp_path)
+            print(tmp_path + " success")
+        except Exception as e:
+            logger1.info("error with parameters: %s" % code)
             logger1.info(e)
 
     def for_stock(self):
@@ -205,8 +256,8 @@ class Stockdata:
     def __init__(self):
         cmd_path = os.getcwd()
         data_pa = os.path.join(cmd_path, "..", "..", "..", "nocode", "customer", "input", "data")
-        self.data_path_stock = os.path.join(data_pa, "stock")
-        self.file_stock_info = os.path.join(self.data_path_stock, "stock_info.csv")
+        self.data_path_n_stock = os.path.join(data_pa, "stock")
+        self.file_stock_info = os.path.join(self.data_path_n_stock, "stock_info.csv")
         self.data_path_recover = os.path.join(data_pa, "recover")
         self.data_path_res = os.path.join(data_pa, "res")
         self.file_liquids_order = os.path.join(self.data_path_res, "liquids_order.csv")
@@ -276,7 +327,7 @@ class Stockdata:
             'turnover': np.float64
         }
         for i1 in datalist:
-            tmpfile = os.path.join(self.data_path_stock, i1[0] + "_" + stpye + ".csv")
+            tmpfile = os.path.join(self.data_path_n_stock, i1[0] + "_" + stpye + ".csv")
             try:
                 res.__setitem__(i1[0], pd.read_csv(tmpfile, header=0, encoding="utf8", parse_dates=[0], index_col=0,
                                                    dtype=typedict))
@@ -383,7 +434,7 @@ class Stockdata:
             'v_ma20': np.float64,
             'turnover': np.float64
         }
-        tmpfile = os.path.join(self.data_path_stock, scode + "_" + stpye + ".csv")
+        tmpfile = os.path.join(self.data_path_n_stock, scode + "_" + stpye + ".csv")
         single_pd = pd.read_csv(tmpfile, header=0, encoding="utf8", parse_dates=[0], index_col=0, dtype=typedict)
         # 1. 当日流动量生成
         lenth_col = len(single_pd[col])
@@ -421,7 +472,7 @@ class Stockdata:
             'v_ma20': np.float64,
             'turnover': np.float64
         }
-        tmpfile = os.path.join(self.data_path_stock, scode + "_" + stpye + ".csv")
+        tmpfile = os.path.join(self.data_path_n_stock, scode + "_" + stpye + ".csv")
         try:
             single_pd = pd.read_csv(tmpfile, header=0, encoding="utf8", parse_dates=[0], index_col=0, dtype=typedict)
         except Exception as e:
@@ -453,7 +504,7 @@ class Stockdata:
             'v_ma20': np.float64,
             'turnover': np.float64
         }
-        tmpfile = os.path.join(self.data_path_stock, scode + "_" + stpye + ".csv")
+        tmpfile = os.path.join(self.data_path_n_stock, scode + "_" + stpye + ".csv")
         try:
             single_pd = pd.read_csv(tmpfile, header=0, encoding="utf8", parse_dates=[0], index_col=0, dtype=typedict)
         except Exception as e:
@@ -486,7 +537,7 @@ class Stockdata:
             'v_ma20': np.float64,
             'turnover': np.float64
         }
-        tmpfile = os.path.join(self.data_path_stock, scode + "_" + stpye + ".csv")
+        tmpfile = os.path.join(self.data_path_n_stock, scode + "_" + stpye + ".csv")
         try:
             single_pd = pd.read_csv(tmpfile, header=0, encoding="utf8", parse_dates=[0], index_col=0, dtype=typedict)
         except Exception as e:

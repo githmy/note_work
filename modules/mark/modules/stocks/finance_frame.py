@@ -17,7 +17,7 @@ from modules.stocks.stock_learn import StockLearn
 from modules.stocks.stock_mlp import plot_timesq, pd_similar
 from sklearn.utils import shuffle
 
-# from get_data import scrap_all_store
+# from get_data import scrap_all_n_store
 # from modules.mystrategy import MyStrategy
 # from pyalgotrade import broker
 # from pyalgotrade import plotter
@@ -527,7 +527,7 @@ def prepare_data():
     # tmpfile = os.path.join(data_path_res, scode + "_" + stpye + "feature.csv")
     dclass.generate_feature("000001")
     # dclass.generate_middles()
-    # scrap_all_store(startdate)
+    # scrap_all_n_store(startdate)
     return 0
 
 
