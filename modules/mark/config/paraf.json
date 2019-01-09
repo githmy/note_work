@@ -21,8 +21,8 @@
     "nocode_path": "../../../"
   },
   "scrap_data": {
-    "usesig": 1,
-    "start_date": "2018-02-10",
+    "usesig": 0,
+    "start_date": "1990-02-10",
     "way": {
       "normal": 0,
       "hist": 1,
@@ -30,16 +30,22 @@
     }
   },
   "data_filter": {
-    "usesig": 0,
+    "usesig": 1,
     "way": {
-      "mla": 1,
-      "edl": 0,
-      "dl": 0,
+      "st": 1,
+      "lastopen": 1,
+      "300": 0,
       "rf": 0
     }
   },
   "get_chara": {
     "usesig": 0,
+    "date": {
+      "start": "2010-01-01",
+      "valid": "2017-01-01",
+      "test": "2018-01-01",
+      "end": "2019-01-01"
+    },
     "way": {
       "mla": 1,
       "edl": 0,

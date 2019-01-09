@@ -40,7 +40,7 @@ logger1.addHandler(ch)
 
 class TSstockScrap:
     def __init__(self, nocode_path):
-        cmd_path = os.getcwd()
+        # cmd_path = os.getcwd()
         self.data_path = os.path.join(nocode_path, "nocode", "customer")
         data_pa = os.path.join(self.data_path, "input", "data")
         self.data_path_n_stock = os.path.join(data_pa, "stock")
@@ -99,6 +99,16 @@ class TSstockScrap:
             logger1.info(i)
             self.single_n_store(str(i).rjust(6, "0"), startdate)
 
+    # 今日数据
+    def scrap_today(self):
+        hq = ts.get_today_all()
+        return hq
+
+    # 停牌则设置当前价格为上一个交易日股价
+    def stop_stock(self):
+        hq = self.scrap_today()
+        return hq[hq["trade"].isnull()]["code"]
+
     # 历史数据
     def scrap_all_h_store(self, startdate):
         # 1.股票基本信息
@@ -144,7 +154,6 @@ class TSstockScrap:
         for i in df1["code"]:
             logger1.info(i)
             self.single_h_store(str(i).rjust(6, "0"), startdate)
-
 
     def single_n_store(self, code, startdate):
         ktpye = ["W", "M", "D", "5", "15", "30", "60"]
@@ -252,10 +261,10 @@ class TSstockScrap:
         # df.to_csv(filePath, mode='a')
 
 
-class Stockdata:
-    def __init__(self):
-        cmd_path = os.getcwd()
-        data_pa = os.path.join(cmd_path, "..", "..", "..", "nocode", "customer", "input", "data")
+class LocalStockdata:
+    def __init__(self, nocode_path):
+        # cmd_path = os.getcwd()
+        data_pa = os.path.join(nocode_path, "nocode", "customer", "input", "data")
         self.data_path_n_stock = os.path.join(data_pa, "stock")
         self.file_stock_info = os.path.join(self.data_path_n_stock, "stock_info.csv")
         self.data_path_recover = os.path.join(data_pa, "recover")
@@ -302,6 +311,21 @@ class Stockdata:
                     "perundp", "rev", "profit", "gpr", "npr", "holders"]
         df.drop(droplist, axis=1, inplace=True)
         nparray = np.array(df)
+        # otherlist = ['sh', 'sz', 'hs300', 'sz50', 'zxb', 'cyb']
+        otherlist = []
+        # 添加行
+        nparray = np.row_stack((nparray, np.transpose([otherlist])))
+        return nparray
+
+    def data_ST_list(self):
+        df = pd.read_csv(self.file_stock_info, header=0, encoding="utf8", dtype=str)
+        # df = pd.read_csv(self.file_stock_info, header=0, encoding="gbk", dtype=str)
+        stdf = df[df["name"].str.contains('ST')]
+        droplist = ["name", "industry", "area", "pe", "outstanding", "totals", "totalAssets", "liquidAssets",
+                    "fixedAssets", "reserved", "reservedPerShare", "esp", "bvps", "pb", "timeToMarket", "undp",
+                    "perundp", "rev", "profit", "gpr", "npr", "holders"]
+        stdf.drop(droplist, axis=1, inplace=True)
+        nparray = np.array(stdf)
         # otherlist = ['sh', 'sz', 'hs300', 'sz50', 'zxb', 'cyb']
         otherlist = []
         # 添加行
@@ -566,7 +590,7 @@ class Stockdata:
 
 if __name__ == '__main__':
     # 1. 测试
-    dclass = Stockdata()
+    dclass = LocalStockdata()
     dclass.data_stock_info()
     aa = dclass.generate_middles()
     print(aa)

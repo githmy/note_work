@@ -24,6 +24,7 @@ np.set_printoptions(precision=None,
 # edgeitems:在array已经被折叠后，开头和结尾都会显示edgeitems个数
 # formatter:这个很有意思，像python3里面str.format(),就是可以对你的输出进行自定义的格式化
 # 其他的暂时没用到
+np.set_printoptions(suppress=True) # 不用科学计数法
 
 
 # # 数组初始化
@@ -76,6 +77,12 @@ a.min()
 a.sum()
 a.sum(axis=0)  # 计算每一列（二维数组中类似于矩阵的列）的和
 
+# 差值
+np.ptp(grade)
+# 等价
+np.max(grade)-np.min(grade)
+
+
 # numpy 转pandas
 # dtype = [('Col1','int32'), ('Col2','float32'), ('Col3','float32')]
 # values = numpy.zeros(20, dtype=dtype)
@@ -106,6 +113,9 @@ a.sum(axis=0)  # 计算每一列（二维数组中类似于矩阵的列）的和
 # # 转置
 # a.transpose()
 
+# 删除不要的维度
+np.squeeze(x)
+
 # # 本征值
 # import numpy.linalg as nplg
 #
@@ -124,6 +134,7 @@ a.sum(axis=0)  # 计算每一列（二维数组中类似于矩阵的列）的和
 # x_test = x_test[order]
 # print(y_test)
 # print(x_test)
+# np.msort(c)
 
 # # 位置
 # np.argmax([[], []], axis=1)
@@ -142,3 +153,6 @@ np.iinfo(np.int8).max
 # 中位数
 a = np.array([[10., 7., 4.], [3., 2., 1.]])
 np.nanpercentile(a, 50)
+
+# 中位数
+np.median(c)
