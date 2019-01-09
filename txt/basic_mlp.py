@@ -397,6 +397,7 @@ def chara_diffval_std():
 # 中位数切割，区间画方差
 def middle_split_box():
     bins = np.nanpercentile(train_df["sum_merch_trans"], range(0, 101, 10))
+    # bins = [0, 10, 20, 30, 40, 50, 75, 10000]
     print(bins)
     train_df['binned_sum_merch_trans'] = pd.cut(train_df['sum_merch_trans'], bins)
     # cnt_srs = train_df.groupby("binned_sum_hist_trans")[target_col].mean()
@@ -439,3 +440,38 @@ if __name__ == '__main__':
     plot_line_scatter_demo(df["open"], df["high"])
     # 2. 蜡烛图测试
     pandas_candlestick_ohlc(df)
+    # ~)c. 图示示例
+    # # 1表. 用户，特征，分值
+    # # 2表. 用户，特征，历史时间
+    # ~)c. 图示示例 h1. 静态属性回归
+    # # 1. score排序，索引重置
+    # plt.scatter(range(train_df.shape[0]), np.sort(train_df[target_col].values))
+    # # 2. score区间数量统计，分布曲线
+    # sns.distplot(train_df[target_col].values, bins=50, kde=False, color="red")
+    # # 3. 某特征不同离散值，对score的方差分布
+    # sns.violinplot(x="feature_3", y=target_col, data=train_df)
+    #
+    # ~)c. 图示示例 h1. 历史属性回归
+    # # 1. 时段，数量统计图(userid聚类)
+    # cnt_srs = train_df['first_active_month'].dt.date.value_counts()
+    # cnt_srs = cnt_srs.sort_index()
+    # sns.barplot(cnt_srs.index, cnt_srs.values, alpha=0.8, color='green')
+    #
+    # ~)c. 图示示例 h1. 静态join历史的聚合
+    # # 1. userid历史量计数聚合 --> 相同数量的分值聚合求均值：数量 分值图
+    # import plotly.offline as py
+    # py.init_notebook_mode(connected=True)
+    # import plotly.graph_objs as go
+    #
+    # gdf = hist_df.groupby("card_id")
+    # gdf = gdf["purchase_amount"].size().reset_index()
+    # # -->
+    # cnt_srs = train_df.groupby("num_hist_transactions")[target_col].mean()
+    # cnt_srs = cnt_srs.sort_index()
+    #
+    # # 2. 数量 分值图的区间方差图
+    # bins = [0, 10, 20, 30, 40, 50, 75, 100, 150, 200, 500, 10000]
+    # train_df['binned_num_hist_transactions'] = pd.cut(train_df['num_hist_transactions'], bins)
+    #
+    # sns.boxplot(x="binned_num_hist_transactions", y=target_col, data=train_df, showfliers=False)
+    #

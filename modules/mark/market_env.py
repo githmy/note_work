@@ -5,7 +5,7 @@ import math
 import time
 import gym
 from gym import spaces
-from modules.stocks.stock_data import Stockdata
+from modules.stocks.stock_data import LocalStockdata
 from modules.stocks.stock_chara import gene_1pd
 
 
@@ -43,7 +43,7 @@ class MarketEnv(gym.Env):
 
     def _get_ori_data_list(self):
         # 获取原始数据 和 名称列表
-        dclass = Stockdata()
+        dclass = LocalStockdata()
         stocklist = dclass.data_stocklist()
         self.targetCodes_all = list(stocklist.reshape(-1))
         self.dataMap = dclass.data_stocklist_value("D", stocklist)

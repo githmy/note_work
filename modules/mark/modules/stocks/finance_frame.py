@@ -12,7 +12,7 @@ import numpy as np
 import pandas as pd
 import simplejson
 import statsmodels.tsa.stattools as tsat
-from modules.stocks.stock_data import Stockdata
+from modules.stocks.stock_data import LocalStockdata
 from modules.stocks.stock_learn import StockLearn
 from modules.stocks.stock_mlp import plot_timesq, pd_similar
 from sklearn.utils import shuffle
@@ -310,7 +310,7 @@ def navigation():
     modeltype = "iter"
 
     # 1. 数据加载
-    dclass = Stockdata()
+    dclass = LocalStockdata()
     stock_info = dclass.data_stock_info()
     # print(stock_info.columns)
     print(stock_info.head(1))
@@ -521,7 +521,7 @@ def prepare_data():
     startdate = '2018-02-05'
     exit(0)
     # 2. 中间数据生成
-    dclass = Stockdata()
+    dclass = LocalStockdata()
     # scode = "000001"
     # stpye = "D"
     # tmpfile = os.path.join(data_path_res, scode + "_" + stpye + "feature.csv")

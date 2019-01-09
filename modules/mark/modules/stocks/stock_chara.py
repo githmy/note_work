@@ -13,7 +13,7 @@ import datetime
 import re
 import matplotlib.pyplot as plt
 from itertools import combinations
-from modules.stocks.stock_data import Stockdata
+from modules.stocks.stock_data import LocalStockdata
 
 
 class Sequence_chara():
@@ -294,14 +294,14 @@ def gene_1pd(pdobj, parajson):
 
 def gene_allpd(parajson):
     # 1. 获取列表
-    dclass = Stockdata()
+    dclass = LocalStockdata()
     stk_list = dclass.data_stocklist()
     print(stk_list)
     return 0
     # 2. 生成特征
     pdobj = ts.get_hist_data('600848', start='2017-01-01', end='2017-12-31')
     # print(pdobj.head(5))
-    # , 64, 128, 256
+    # 64, 128, 256
     pd_1 = gene_1pd(pdobj, parajson)
     return pd_1
 

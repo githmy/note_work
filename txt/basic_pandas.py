@@ -36,6 +36,14 @@ ts_log_diff = ts_log - ts_log.shift()
 ts = pd.Series(list(range(50)), index=pd.date_range("2016 Jul 15 10:55", periods=10, freq='60T'))
 ts.asfreq("45Min", method="ffill")
 
+# 时间段 取均值
+df1 = pd.DataFrame()
+DF = df.set_index(df1['time_slot1'])
+DF.index = pd.to_datetime(DF.index, unit='ns')
+ticket = DF.ix[:, ['all_time']]
+# 以20分钟为一个时间间隔，求出所有间隔的平均时间
+A_2analysisResult = ticket.all_time.resample('20min').mean()
+
 # 索引设为列
 # orderl_pd.reset_index(level=0, inplace=True)  # （the first）index 改为 column
 # orderl_pd.reset_index()  # 丢弃原有的重赋值
@@ -91,6 +99,9 @@ df.dropna(thresh=6)
 # 空值填充
 df.fillna(value=20181010)
 
+# one hot 转化
+pd.get_dummies(df, columns=['category_2', 'category_3'])
+
 # 列行数据类型 空值处理
 # orderl_pd[[i]] = orderl_pd[[i]].fillna(1e6).astype(int)
 # typess={'a': np.float64, 'b': np.int32}
@@ -123,12 +134,18 @@ df.sort(columns=["age", "tradedate"], ascending=[True, False])
 # group 批量函数
 # means = df['data1'].groupby([df['key1'], df['key2']]).mean()
 agg_func = {
-            'purchase_amount': ['count', 'sum', 'mean', 'min', 'max', 'std'],
-            'installments': ['count', 'sum', 'mean', 'min', 'max', 'std'],
-            }
+    'purchase_amount': ['count', 'sum', 'mean', 'min', 'max', 'std'],
+    'installments': ['count', 'sum', 'mean', 'min', 'max', 'std'],
+}
 grouped = df.groupby(['card_id', 'month_lag'])
 intermediate_group = grouped.agg(agg_func)
 final_group = intermediate_group.groupby('card_id').agg(['mean', 'std'])
+# 自定义group操作
+def sort_df2(data):
+    data = data.sort_values(by='df2', ascending=False)  # df2：品种列 ascending：排序方式
+    return data
+# groupby以及apply的结合使用
+group = df.groupby(df['df1']).apply(sort_df2)
 
 # 列值排序的序号
 # orderl_pd[i] = liquids_pd[i].rank(ascending=1, method='first')
@@ -180,6 +197,8 @@ final_group = intermediate_group.groupby('card_id').agg(['mean', 'std'])
 # 筛选赋值
 class_data.loc[class_data['分类'] == 1, 'postive'] = 1
 class_data.loc[class_data['分类'] == 0, 'neutral'] = 1
+# 根据条件赋值
+df['panduan'] = df.city.apply(lambda x: 1 if 'ing' in x else 0)
 
 # print(df['2013'].head(2)) # 获取2013年的数据
 # print(df['2013'].tail(2)) # 获取2013年的数据
@@ -234,11 +253,20 @@ pandas.qcut(x, bins, right=True, labels=None, retbins=False, precision=3, includ
 df["aaa"].map(func)
 df[["aaa"]].apply(lambda x: (x - x.min()) / (x.max() - x.min()))
 
+# 日期转化
+# 把时间列标准化时间格式
+df['time_slot1'] = pd.to_datetime(df['time_slot1'])
+# 输出这一天是周中的第几天，Monday=0, Sunday=6
+df['dayofweek'] = df['time_slot1'].dt.dayofweek
+df['daynameofweek'] = df['time_slot1'].dt.weekday_name
+
 # 内存监控
 start_mem = df.memory_usage().sum() / 1024 ** 2
 end_mem = df.memory_usage().sum() / 1024 ** 2
 
 # 显示设置
+pd.options.mode.chained_assignment = None
+pd.options.display.max_columns = 999
 pd.set_option('display.max_columns', 500)
 
 

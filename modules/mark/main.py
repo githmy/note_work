@@ -1,7 +1,8 @@
 from modules.stocks.finance_frame import navigation
 from modules.stocks.stock_network import deep_network
-from modules.stocks.stock_data import TSstockScrap
+from modules.stocks.stock_data import TSstockScrap, LocalStockdata
 from modules.stocks.stock_chara import gene_allpd
+from modules.stocks.stock_chara import gene_1pd
 from modules.stocks.stock_learn import StockLearn
 from modules.stocks.stock_paras import parseArgs, bcolors, get_paras
 from modules.stocks.stock_mlp import npd_similar, nplot_timesq
@@ -51,9 +52,17 @@ class Finan_frame(object):
     def __init__(self, parajson):
         # 1. 参数解析
         self.__parameters = parajson
+        self.__scrap_data_class = TSstockScrap(self.__parameters["process"]["nocode_path"])
         # 2. 数据下载，爬取，读取
         self.__scrap_data(self.__parameters)
         # 4. 筛选数据
+        self.__stock_list = None
+        self.__ori_datas = None
+        self.__start = None
+        self.__valid = None
+        self.__test = None
+        self.__end = None
+        self.__local_data_class = LocalStockdata(self.__parameters["process"]["nocode_path"])
         self.__data_filter(self.__parameters)
         # 5. 特征生成
         self.__get_chara(self.__parameters)
@@ -70,13 +79,14 @@ class Finan_frame(object):
         print()
         print("*" * 60)
         print("begin __scrap_data")
-        scrap_data_class = TSstockScrap(para["process"]["nocode_path"])
+        # 获取网络数据
+        # scrap_data_class = TSstockScrap(para["process"]["nocode_path"])
         if para["scrap_data"]["way"]["normal"] == 1:
-            scrap_data_class.scrap_all_n_store(para["scrap_data"]["start_date"])
+            self.__scrap_data_class.scrap_all_n_store(para["scrap_data"]["start_date"])
         elif para["scrap_data"]["way"]["hist"] == 1:
-            scrap_data_class.scrap_all_h_store(para["scrap_data"]["start_date"])
+            self.__scrap_data_class.scrap_all_h_store(para["scrap_data"]["start_date"])
         elif para["scrap_data"]["way"]["web"] == 1:
-            pass
+            raise Exception("not yet!")
         else:
             pass
         print("finished __scrap_data")
@@ -85,16 +95,37 @@ class Finan_frame(object):
     def __data_filter(self, para):
         if para["data_filter"]["usesig"] == 0:
             return 0
-        print("in __data_filter")
+        print()
+        print("*" * 60)
+        print("begin __data_filter")
         # 1. 数据选择
-        # 1.1. 筛选集合
-        stock_lis = ['300113', '300343', '300295', '300315']
-        end = datetime.today()  # 开始时间结束时间，选取最近一年的数据
-        start = datetime(end.year - 1, end.month, end.day)
-        end = str(end)[0:10]
-        start = str(start)[0:10]
+        self.__stock_list = list(np.squeeze(self.__local_data_class.data_stocklist()))
+        # 1.1. 过滤st
+        if para["data_filter"]["way"]["st"] == 1:
+            st_stocklist = list(np.squeeze(self.__local_data_class.data_ST_list()))
+            self.__stock_list = [i1 for i1 in self.__stock_list if i1 not in st_stocklist]
+        if para["data_filter"]["way"]["lastopen"] == 1:
+            # stop_list = self.__scrap_data_class.stop_stock()
+            stop_list = list(np.squeeze(self.__scrap_data_class.stop_stock()))
+            print("stop_list:", stop_list)
+            self.__stock_list = [i1 for i1 in self.__stock_list if i1 not in stop_list]
+            print("all_list:", self.__stock_list)
+        print("finished __data_filter")
+        print("*" * 60)
+
+    def __get_chara(self, para):
+        if para["get_chara"]["usesig"] == 0:
+            return 0
+        print()
+        print("*" * 60)
+        print("begin __get_chara")
+        # 1.1. 数据读入
+        stpye = "D"
+        self.__ori_datas = self.__local_data_class.data_stocklist_value(stpye, self.__stock_list)
+        # 1.2. 时段聚类α，β
+        # 遗传因子选特征
         df = pd.DataFrame()
-        for stock in stock_lis:
+        for stock in self.__stock_list:
             closing_df = ts.get_hist_data(stock, start, end)['close']
             df = df.join(pd.DataFrame({stock: closing_df}), how='outer')
         tech_rets = df.pct_change()
@@ -103,37 +134,68 @@ class Finan_frame(object):
         print(tech_rets.head(3))
         print(tech_rets.tail(3))
 
-    def __get_chara(self, para):
-        if para["get_chara"]["usesig"] == 0:
+        # 1.3. 数据集切分
+        self.__data_split(para)
+        print("finished __get_chara")
+        print("*" * 60)
+
+    def __data_split(self, para):
+        if para["get_chara"]["date"]["start"] is None:
+            pass
+        if para["get_chara"]["date"]["valid"] is None:
             return 0
-        print("in __get_chara")
-        # 1.2. 时段聚类α，β
-        # 遗传因子选特征
+        if para["get_chara"]["date"]["test"] is None:
+            return 0
+        if para["get_chara"]["date"]["end"] is None:
+            pass
+        self.input_target_all = gene_1pd(self.dataMap[self.targetCode], parajson)
+        self.__train_datas = self.__local_data_class.data_stocklist_value(stpye, nplist)
+        self.__valid_datas = self.__local_data_class.data_stocklist_value(stpye, nplist)
+        self.__test_datas = self.__local_data_class.data_stocklist_value(stpye, nplist)
+        end = datetime.today()  # 开始时间结束时间，选取最近一年的数据
+        start = datetime(end.year - 1, end.month, end.day)
+        end = str(end)[0:10]
+        start = str(start)[0:10]
 
     def __get_learn(self, para):
         if para["get_learn"]["usesig"] == 0:
             return 0
-        print("in __get_learn")
+        print()
+        print("*" * 60)
+        print("begin __get_learn")
+        pass
         # 2. 网络结构
         # 2.1. (原始+深户)输入16 *log； 便于卷积
         # 2.2. 长度为2的每维 卷积核valid step2，10-50个；历史收集 chara4层
         # 2.3. catch 输入+卷积各层，full+-lrelu；迭代 2次 基层策略 出100
         # 2.4. catch 3的relu各层 all dim，full drop 0.1-0.5 +-lrelu；迭代 2次 高层策略 出1000 出512
+        print("finished __get_learn")
+        print("*" * 60)
 
     def __back_test(self, para):
         if para["back_test"]["usesig"] == 0:
             return 0
-        print("in __back_test")
+        print()
+        print("*" * 60)
+        print("begin __back_test")
+        pass
         # 参数策略组合迭代回测
         # 精确拟合度
         # 3. 回测 交易次数 单次均值是方差 年化值 置信度 置信区间
         # 3.1 学习回归值 历史方差
         # 3.2 方向概率 准确度
+        print("finished __back_test")
+        print("*" * 60)
 
     def __trade_fun(self, para):
         if para["trade_fun"]["usesig"] == 0:
             return 0
-        print("in __trade_fun")
+        print()
+        print("*" * 60)
+        print("begin __trade_fun")
+        pass
+        print("finished __trade_fun")
+        print("*" * 60)
 
 
 def main(args=None):
