@@ -37,6 +37,7 @@ import pandas as pd
 from sklearn import datasets
 from sklearn import preprocessing
 from sklearn import neighbors
+from sklearn.cluster import KMeans
 from sklearn.discriminant_analysis import LinearDiscriminantAnalysis
 from sklearn import svm
 from sklearn.ensemble import RandomForestClassifier
@@ -134,6 +135,12 @@ def getData_3():
 # K近邻（K Nearest Neighbor）
 def KNN():
     clf = neighbors.KNeighborsClassifier()
+    return clf
+
+
+# Kmean
+def Kmean():
+    clf = KMeans(n_clusters=4, init='k-means++')
     return clf
 
 
