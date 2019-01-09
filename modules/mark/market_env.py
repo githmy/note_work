@@ -6,7 +6,7 @@ import time
 import gym
 from gym import spaces
 from modules.stocks.stock_data import LocalStockdata
-from modules.stocks.stock_chara import gene_1pd
+from modules.stocks.stock_chara import Component_charas
 
 
 class MarketEnv(gym.Env):
@@ -19,6 +19,7 @@ class MarketEnv(gym.Env):
         self.scope = scope
         self.sudden_death = sudden_death
         self.cumulative_reward = cumulative_reward
+        self.chara_class = Component_charas()
 
         # 数据定义获取
         self.inputCodes = []
@@ -125,7 +126,7 @@ class MarketEnv(gym.Env):
             "labellist": [1, 2],
         }
         split_n = 0.8
-        self.input_target_all = gene_1pd(self.dataMap[self.targetCode], parajson)
+        self.input_target_all = self.chara_class.reforce_charas(self.dataMap[self.targetCode], parajson)
         charalist = self.input_target_all.columns
         charalist = [i for i in charalist if i not in ["open", "high", "close", "low", "volume", "price_change"]]
         charalist = [i for i in charalist if not (i.startswith("ma") or i.startswith("v_ma"))]

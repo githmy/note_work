@@ -16,7 +16,8 @@ from itertools import combinations
 from modules.stocks.stock_data import LocalStockdata
 
 
-class Sequence_chara():
+# 生成序列特征
+class Sequence_chara(object):
     def __init__(self, pf, parajson):
         # 0. 基本元素
         self.charamember = ['CCI', 'EVM', 'SMA', 'BBup', 'BBdown', 'EWMA', 'FI', 'ROC']
@@ -25,9 +26,13 @@ class Sequence_chara():
         # 2. 默认参数
         if parajson is None:
             self.parajson = {
-                "avenlist": [5, 20, 60],
-                "labellist": [1, 2, 4, 8, 16, 32, 64, 128, 256],
+                "avenlist": [],
+                "labellist": [1],
             }
+            # self.parajson = {
+            #     "avenlist": [5, 20, 60],
+            #     "labellist": [1, 2, 4, 8, 16, 32, 64, 128, 256],
+            # }
         else:
             self.parajson = parajson
         # 3. 基本曲线
@@ -47,8 +52,10 @@ class Sequence_chara():
     def get_label_avelist(self, lists):
         if lists is not None:
             for i1 in lists:
-                lup = (self.pf['high'].rolling(window=i1).max() - self.pf['close'].shift(i1)) / self.pf['close'].shift(i1)
-                ldw = (self.pf['low'].rolling(window=i1).max() - self.pf['close'].shift(i1)) / self.pf['close'].shift(i1)
+                lup = (self.pf['high'].rolling(window=i1).max() - self.pf['close'].shift(i1)) / self.pf['close'].shift(
+                    i1)
+                ldw = (self.pf['low'].rolling(window=i1).max() - self.pf['close'].shift(i1)) / self.pf['close'].shift(
+                    i1)
                 lcu = (self.pf['close'] - self.pf['close'].shift(i1)) / self.pf['close'].shift(i1)
                 lb = pd.Series(lup.shift(-i1), name='ylabel_' + str(i1) + "_u")
                 lc = pd.Series(lcu.shift(-i1), name='ylabel_' + str(i1) + "_c")
@@ -104,7 +111,7 @@ class Sequence_chara():
         # VOLUME（i）：当前柱的交易量；
         # MA（ApPRICE，N，i）：在任何一个时段内当前柱的任何移动平均线：
         # MA（ApPRICE，N，i-1）——前一柱的任何移动平均线。
-        self.chara_FI(ndays) #归一化不方便，临时不用
+        self.chara_FI(ndays)  # 归一化不方便，临时不用
         self.charaR_FI(ndays)
         # 变化速率ROC : 统计原理，求出股价的标准差及其信赖区间，从而确定股价的波动范围及未来走势，利用波带显示股价的安全高低价位，因而也被称为布林带。
         self.chara_ROC(ndays)
@@ -266,44 +273,67 @@ class Sequence_chara():
         self.pf = self.pf.join(ROCrlog)
 
 
-def gene_1pd(pdobj, parajson):
-    dclass = Sequence_chara(pdobj, parajson)
-    respd = dclass.pf
-    # charalist = [i for i in respd.columns if not (i.startswith("ma") or i.startswith("v_ma"))]
-    # respd = respd[charalist][respd["ylabel_1_c"].notnull()]
-    respd = respd[respd.columns]
-    respd.dropna(inplace=True)
-    return respd
-    # charalist = [i for i in respd.columns if
-    #              i.startswith("ylabel_") or i.startswith("charaR_") or i.startswith(
-    #                  "charao_") or i.startswith("charas_")]
-    # # 待学习内容列
-    # charapd = respd[charalist]
-    # learn_list = [i for i in charalist if i.startswith("charas_")]
-    # learn_pd = pd.DataFrame()
-    # for i1 in learn_list:
-    #     learn_pd = pd.concat([learn_pd, charapd[(charapd[i1] == -1)]], axis=0, join='outer')
-    # # 排序
-    # learn_pd.sort_index(axis=0, ascending=True, inplace=True)
-    # # 去重
-    # learn_pd.drop_duplicates(inplace=True)
-    # # 去空
-    # learn_pd.dropna(inplace=True)
-    # return learn_pd
+# 需求特征的组合
+class Component_charas(object):
+    def __init__(self):
+        pass
 
+    # 强化学习所需特征
+    def reforce_charas(self, pdobj, parajson):
+        # 可多可少，临时用。
+        parajson = {
+            "avenlist": [5, 20, 60],
+            "labellist": [1, 2, 4, 8, 16],
+        }
+        dclass = Sequence_chara(pdobj, parajson)
+        respd = dclass.pf
+        # charalist = [i for i in respd.columns if not (i.startswith("ma") or i.startswith("v_ma"))]
+        # respd = respd[charalist][respd["ylabel_1_c"].notnull()]
+        respd = respd[respd.columns]
+        del respd["turnover"]
+        respd.dropna(inplace=True)
+        return respd
+        # charalist = [i for i in respd.columns if
+        #              i.startswith("ylabel_") or i.startswith("charaR_") or i.startswith(
+        #                  "charao_") or i.startswith("charas_")]
+        # # 待学习内容列
+        # charapd = respd[charalist]
+        # learn_list = [i for i in charalist if i.startswith("charas_")]
+        # learn_pd = pd.DataFrame()
+        # for i1 in learn_list:
+        #     learn_pd = pd.concat([learn_pd, charapd[(charapd[i1] == -1)]], axis=0, join='outer')
+        # # 排序
+        # learn_pd.sort_index(axis=0, ascending=True, inplace=True)
+        # # 去重
+        # learn_pd.drop_duplicates(inplace=True)
+        # # 去空
+        # learn_pd.dropna(inplace=True)
+        # return learn_pd
 
-def gene_allpd(parajson):
-    # 1. 获取列表
-    dclass = LocalStockdata()
-    stk_list = dclass.data_stocklist()
-    print(stk_list)
-    return 0
-    # 2. 生成特征
-    pdobj = ts.get_hist_data('600848', start='2017-01-01', end='2017-12-31')
-    # print(pdobj.head(5))
-    # 64, 128, 256
-    pd_1 = gene_1pd(pdobj, parajson)
-    return pd_1
+    # 深度学习所需特征
+    def deeplearn_charas(self, pdobj, parajson):
+        # 只有基本输入，特征是学出来的。
+        dclass = Sequence_chara(pdobj, None)
+        mainlist = ["open", "high", "close", "low", "volume"]
+        for stock in dclass.pf:
+            dclass.pf[stock] = dclass.pf[stock][mainlist]
+            for i2 in mainlist:
+                dclass.pf[stock][i2] = dclass.pf[stock][i2].pct_change()
+        return dclass.pf
+
+    # 机器学习所需特征
+    def mla_charas(self, pdobj, parajson):
+        # 全面的人工特征
+        parajson = {
+            "avenlist": [5, 20, 60],
+            "labellist": [1, 2, 4, 8, 16],
+        }
+        dclass = Sequence_chara(pdobj, parajson)
+        respd = dclass.pf
+        respd = respd[respd.columns]
+        del respd["turnover"]
+        respd.dropna(inplace=True)
+        return respd
 
 
 def main():
@@ -312,5 +342,5 @@ def main():
 
 if __name__ == '__main__':
     # 1. 测试
-    gene_allpd()
+    main()
     # 随机森林输入

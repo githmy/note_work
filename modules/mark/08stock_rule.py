@@ -1,7 +1,6 @@
 # -*- coding: utf-8 -*-
 from modules.stocks.finance_frame import navigation
 from modules.stocks.stock_network import deep_network
-from modules.stocks.stock_chara import gene_allpd
 from modules.stocks.stock_learn import StockLearn
 from txt.basic_mlp import npd_similar, nplot_timesq
 from sklearn.utils import shuffle
@@ -70,7 +69,6 @@ def main():
         "avenlist": [5, 20],
         "labellist": [i for i in range(1, 129)],
     }
-    label_pd = gene_allpd(parajson)
     # 2. 数据乱序
     splitn = 5
     datalenth = label_pd.shape[0]

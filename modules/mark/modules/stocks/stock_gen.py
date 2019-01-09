@@ -254,4 +254,4 @@ def main():
 
 if __name__ == '__main__':
     # 1. 测试
-    gene_allpd()
+    main()

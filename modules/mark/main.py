@@ -1,8 +1,7 @@
 from modules.stocks.finance_frame import navigation
 from modules.stocks.stock_network import deep_network
 from modules.stocks.stock_data import TSstockScrap, LocalStockdata
-from modules.stocks.stock_chara import gene_allpd
-from modules.stocks.stock_chara import gene_1pd
+from modules.stocks.stock_chara import Component_charas
 from modules.stocks.stock_learn import StockLearn
 from modules.stocks.stock_paras import parseArgs, bcolors, get_paras
 from modules.stocks.stock_mlp import npd_similar, nplot_timesq
@@ -30,24 +29,6 @@ class Finan_frame(object):
         "test": None,
         "trade": None,
     }
-    map_data = {
-        "mla": None,
-        "edl": None,
-        "dl": None,
-        "rf": None,
-    }
-    map_chara = {
-        "mla": None,
-        "edl": None,
-        "dl": None,
-        "rf": None,
-    }
-    map_learn = {
-        "mla": None,
-        "edl": None,
-        "dl": None,
-        "rf": None,
-    }
 
     def __init__(self, parajson):
         # 1. 参数解析
@@ -65,6 +46,7 @@ class Finan_frame(object):
         self.__local_data_class = LocalStockdata(self.__parameters["process"]["nocode_path"])
         self.__data_filter(self.__parameters)
         # 5. 特征生成
+        self.__chara_class = Component_charas()
         self.__get_chara(self.__parameters)
         # 6. 学习规律
         self.__get_learn(self.__parameters)
@@ -120,24 +102,31 @@ class Finan_frame(object):
         print("*" * 60)
         print("begin __get_chara")
         # 1.1. 数据读入
-        stpye = "D"
-        self.__ori_datas = self.__local_data_class.data_stocklist_value(stpye, self.__stock_list)
-        # 1.2. 时段聚类α，β
-        # 遗传因子选特征
-        df = pd.DataFrame()
-        for stock in self.__stock_list:
-            closing_df = ts.get_hist_data(stock, start, end)['close']
-            df = df.join(pd.DataFrame({stock: closing_df}), how='outer')
-        tech_rets = df.pct_change()
-        print(df.head(3))
-        print(df.tail(3))
-        print(tech_rets.head(3))
-        print(tech_rets.tail(3))
-
+        self.__ori_datas = self.__local_data_class.data_stocklist_value("D", self.__stock_list)
+        # 1.2. 特征获取
+        self.__data_and_char(para)
         # 1.3. 数据集切分
         self.__data_split(para)
+        # 1.4. 时段聚类α，β
+        self.__data_cluster(para)
+        # 遗传因子选特征
         print("finished __get_chara")
         print("*" * 60)
+
+    def __data_and_char(self, para):
+        df = pd.DataFrame()
+        if para["get_chara"]["way"]["mla"] == 1:
+            self.__ori_datas = self.__chara_class.mla_charas(self.__ori_datas,
+                                                             para["get_chara"]["way"]["charparas"])
+            return 0
+        if para["get_chara"]["way"]["dl"] == 1:
+            self.__ori_datas = self.__chara_class.deeplearn_charas(self.__ori_datas,
+                                                                   para["get_chara"]["way"]["charparas"])
+            return 0
+        if para["get_chara"]["way"]["rf"] == 1:
+            self.__ori_datas = self.__chara_class.reforce_charas(self.__ori_datas,
+                                                                 para["get_chara"]["way"]["charparas"])
+            return 0
 
     def __data_split(self, para):
         if para["get_chara"]["date"]["start"] is None:
@@ -148,7 +137,6 @@ class Finan_frame(object):
             return 0
         if para["get_chara"]["date"]["end"] is None:
             pass
-        self.input_target_all = gene_1pd(self.dataMap[self.targetCode], parajson)
         self.__train_datas = self.__local_data_class.data_stocklist_value(stpye, nplist)
         self.__valid_datas = self.__local_data_class.data_stocklist_value(stpye, nplist)
         self.__test_datas = self.__local_data_class.data_stocklist_value(stpye, nplist)
@@ -156,6 +144,12 @@ class Finan_frame(object):
         start = datetime(end.year - 1, end.month, end.day)
         end = str(end)[0:10]
         start = str(start)[0:10]
+
+    def __data_cluster(self, para):
+        # todo: 调用相似内积函数求矩阵
+        if para["get_chara"]["cluster"]["use"] == 0:
+            return 0
+            # 调用相似内积函数求矩阵
 
     def __get_learn(self, para):
         if para["get_learn"]["usesig"] == 0:
@@ -213,7 +207,6 @@ def main(args=None):
         "avenlist": [5, 20],
         "labellist": [i for i in range(1, 129)],
     }
-    label_pd = gene_allpd(parajson)
     # 2. 数据乱序
     splitn = 5
     datalenth = label_pd.shape[0]

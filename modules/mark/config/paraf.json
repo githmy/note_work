@@ -30,7 +30,7 @@
     }
   },
   "data_filter": {
-    "usesig": 1,
+    "usesig": 0,
     "way": {
       "st": 1,
       "lastopen": 1,
@@ -39,18 +39,35 @@
     }
   },
   "get_chara": {
-    "usesig": 0,
+    "usesig": 1,
     "date": {
       "start": "2010-01-01",
       "valid": "2017-01-01",
       "test": "2018-01-01",
       "end": "2019-01-01"
     },
+    "cluster": {
+      "use": 1,
+      "num": 5
+    },
     "way": {
-      "mla": 1,
-      "edl": 0,
-      "dl": 0,
+      "mla": 0,
+      "dl": 1,
       "rf": 0
+    },
+    "charparas": {
+      "avenlist": [
+        5,
+        20,
+        60
+      ],
+      "labellist": [
+        1,
+        2,
+        4,
+        8,
+        16
+      ]
     }
   },
   "get_learn": {
