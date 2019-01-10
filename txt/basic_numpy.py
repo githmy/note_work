@@ -116,6 +116,9 @@ np.max(grade)-np.min(grade)
 # 删除不要的维度
 np.squeeze(x)
 
+# 增加维度
+np.expand_dims(x, -1)
+
 # # 本征值
 # import numpy.linalg as nplg
 #

@@ -304,8 +304,8 @@ class LocalStockdata:
         return df
 
     def data_stocklist(self):
-        df = pd.read_csv(self.file_stock_info, header=0, encoding="utf8", dtype=str)
-        # df = pd.read_csv(self.file_stock_info, header=0, encoding="gbk", dtype=str)
+        # df = pd.read_csv(self.file_stock_info, header=0, encoding="utf8", dtype=str)
+        df = pd.read_csv(self.file_stock_info, header=0, encoding="gbk", dtype=str)
         droplist = ["name", "industry", "area", "pe", "outstanding", "totals", "totalAssets", "liquidAssets",
                     "fixedAssets", "reserved", "reservedPerShare", "esp", "bvps", "pb", "timeToMarket", "undp",
                     "perundp", "rev", "profit", "gpr", "npr", "holders"]

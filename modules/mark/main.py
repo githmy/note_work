@@ -7,7 +7,8 @@ from modules.stocks.stock_paras import parseArgs, bcolors, get_paras
 from modules.stocks.stock_mlp import npd_similar, nplot_timesq
 import tushare as ts
 from sklearn.utils import shuffle
-from sklearn.decomposition import PCA, KernelPCA
+# from sklearn.decomposition import PCA, KernelPCA
+from sklearn.cluster import AffinityPropagation
 from datetime import datetime
 import sys
 import numpy as np
@@ -50,6 +51,7 @@ class Finan_frame(object):
         self.__sequence_lenth = None
         self.__cluster_num = None
         self.__chara_class = Component_charas()
+        self.__cluster_map = {}
         self.__get_chara(self.__parameters)
         # 6. 学习规律
         self.__get_learn(self.__parameters)
@@ -105,7 +107,8 @@ class Finan_frame(object):
         print("*" * 60)
         print("begin __get_chara")
         # 1.1. 数据读入
-        self.__ori_datas = self.__local_data_class.data_stocklist_value("D", self.__stock_list)
+        stocklist = np.expand_dims(self.__stock_list, -1)
+        self.__ori_datas = self.__local_data_class.data_stocklist_value("D", stocklist)
         # 1.2. 特征获取
         self.__data_and_char(para)
         # 1.3. 数据集切分
@@ -117,18 +120,17 @@ class Finan_frame(object):
         print("*" * 60)
 
     def __data_and_char(self, para):
-        df = pd.DataFrame()
         if para["get_chara"]["way"]["mla"] == 1:
             self.__ori_datas = self.__chara_class.mla_charas(self.__ori_datas,
-                                                             para["get_chara"]["way"]["charparas"])
+                                                             para["get_chara"]["charparas"])
             return 0
         if para["get_chara"]["way"]["dl"] == 1:
             self.__ori_datas = self.__chara_class.deeplearn_charas(self.__ori_datas,
-                                                                   para["get_chara"]["way"]["charparas"])
+                                                                   para["get_chara"]["charparas"])
             return 0
         if para["get_chara"]["way"]["rf"] == 1:
             self.__ori_datas = self.__chara_class.reforce_charas(self.__ori_datas,
-                                                                 para["get_chara"]["way"]["charparas"])
+                                                                 para["get_chara"]["charparas"])
             self.__sequence_lenth = para["get_chara"]["way"]["charparas"]["sequence_lenth"]
             self.__sequence_lenth = 16
             return 0
@@ -146,14 +148,21 @@ class Finan_frame(object):
         # todo: 调用相似内积函数求矩阵 各维度的方差为特征
         if para["get_chara"]["cluster"]["use"] == 0:
             return 0
-            # 调用相似内积函数求矩阵
+        # 1. 调用相似内积函数求矩阵
+        self.__ori_datas = self.__ori_datas
+        codelist = list(self.__ori_datas)
+        concatpf = pd.concat(
+                [self.__ori_datas[i1].loc[self.__date_start:self.__date_valid, ["close"]].rename(columns={"close": i1})
+                 for i1 in codelist], axis=1)
+        X = np.array(concatpf).T
+        print(X)
+        # 2. 机器学习聚类
         self.__cluster_num = para["get_chara"]["cluster"]["num"]
-        X = []
-        kpca = KernelPCA(4, kernel="rbf", eigen_solver="auto")
-        X_kpca = kpca.fit_transform(X)
-        X_back = kpca.inverse_transform(X_kpca)
-        pca = PCA()
-        X_pca = pca.fit_transform(X)
+        af = AffinityPropagation().fit(X)
+        cluster_centers_indices = af.cluster_centers_indices_
+        print(cluster_centers_indices)
+        labels = af.labels_
+        print(labels )
 
     def __get_learn(self, para):
         if para["get_learn"]["usesig"] == 0:

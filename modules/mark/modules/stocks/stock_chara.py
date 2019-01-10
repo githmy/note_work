@@ -313,14 +313,14 @@ class Component_charas(object):
     # 深度学习所需特征
     def deeplearn_charas(self, pdobj, parajson):
         # 只有基本输入，特征是学出来的。
-        dclass = Sequence_chara(pdobj, None)
+        pf = pdobj
         mainlist = ["open", "high", "close", "low", "volume"]
-        for stock in dclass.pf:
-            dclass.pf[stock] = dclass.pf[stock][mainlist]
+        for stock in pf:
+            pf[stock] = pf[stock][mainlist]
             for i2 in mainlist:
-                dclass.pf[stock][i2] = dclass.pf[stock][i2].pct_change()
-                dclass.pf[stock][i2] = np.log(dclass.pf[stock][i2])
-        return dclass.pf
+                pf[stock][i2] = pf[stock][i2].pct_change() + 1
+                pf[stock][i2] = np.log(pf[stock][i2])
+        return pf
 
     # 机器学习所需特征
     def mla_charas(self, pdobj, parajson):

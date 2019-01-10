@@ -30,10 +30,10 @@
     }
   },
   "data_filter": {
-    "usesig": 0,
+    "usesig": 1,
     "way": {
-      "st": 1,
-      "lastopen": 1,
+      "st": 0,
+      "lastopen": 0,
       "300": 0,
       "rf": 0
     }
@@ -41,7 +41,7 @@
   "get_chara": {
     "usesig": 1,
     "date": {
-      "start": "2010-01-01",
+      "start": "2016-01-01",
       "valid": "2017-01-01",
       "test": "2018-01-01",
       "end": "2019-01-01"
