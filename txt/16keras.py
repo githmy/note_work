@@ -124,7 +124,6 @@ def load_varia2constant():
 
 # 加载 + 变量固化 + 本地保存
 def keras_migration():
-
     top_model = Sequential()
     top_model.add(Flatten(input_shape=model.output_shape[1:]))
     top_model.add(Dense(64, activation='relu', W_regularizer=EigenvalueRegularizer(10)))
@@ -133,6 +132,41 @@ def keras_migration():
 
     # add the model on top of the convolutional base
     model.add(top_model)
+
+
+# 结构查看
+def print_struture():
+    model.summary()
+    from keras.utils.visualize_util import plot
+    plot(model, to_file='model1.png', show_shapes=True)
+
+
+# 学习率
+def learn_rate():
+    import keras.backend as K
+    from keras.callbacks import LearningRateScheduler
+    def scheduler(epoch):
+        # 每隔100个epoch，学习率减小为原来的1/10
+        if epoch % 100 == 0 and epoch != 0:
+            lr = K.get_value(model.optimizer.lr)
+            K.set_value(model.optimizer.lr, lr * 0.1)
+            print("lr changed to {}".format(lr * 0.1))
+        return K.get_value(model.optimizer.lr)
+
+    reduce_lr = LearningRateScheduler(scheduler)
+    model.fit(train_x, train_y, batch_size=32, epochs=5, callbacks=[reduce_lr])
+
+# 元素转层
+def var2layer():
+    from keras import backend as K
+    from keras.layers import Lambda
+
+    def var_trans(input):
+        a, b = input
+        return a + b
+
+    vartt = K.random_uniform_variable(shape=(1, 5), low=-1, high=1, dtype="float32")
+    x_ex_in = Lambda(var_trans, name='varlay')([vartt, vartt])
 
 
 if __name__ == '__main__':

@@ -7,6 +7,7 @@ from modules.stocks.stock_paras import parseArgs, bcolors, get_paras
 from modules.stocks.stock_mlp import npd_similar, nplot_timesq
 import tushare as ts
 from sklearn.utils import shuffle
+from sklearn.decomposition import PCA, KernelPCA
 from datetime import datetime
 import sys
 import numpy as np
@@ -46,6 +47,8 @@ class Finan_frame(object):
         self.__local_data_class = LocalStockdata(self.__parameters["process"]["nocode_path"])
         self.__data_filter(self.__parameters)
         # 5. 特征生成
+        self.__sequence_lenth = None
+        self.__cluster_num = None
         self.__chara_class = Component_charas()
         self.__get_chara(self.__parameters)
         # 6. 学习规律
@@ -126,30 +129,31 @@ class Finan_frame(object):
         if para["get_chara"]["way"]["rf"] == 1:
             self.__ori_datas = self.__chara_class.reforce_charas(self.__ori_datas,
                                                                  para["get_chara"]["way"]["charparas"])
+            self.__sequence_lenth = para["get_chara"]["way"]["charparas"]["sequence_lenth"]
+            self.__sequence_lenth = 16
             return 0
 
     def __data_split(self, para):
-        if para["get_chara"]["date"]["start"] is None:
-            pass
-        if para["get_chara"]["date"]["valid"] is None:
-            return 0
-        if para["get_chara"]["date"]["test"] is None:
-            return 0
-        if para["get_chara"]["date"]["end"] is None:
-            pass
-        self.__train_datas = self.__local_data_class.data_stocklist_value(stpye, nplist)
-        self.__valid_datas = self.__local_data_class.data_stocklist_value(stpye, nplist)
-        self.__test_datas = self.__local_data_class.data_stocklist_value(stpye, nplist)
-        end = datetime.today()  # 开始时间结束时间，选取最近一年的数据
-        start = datetime(end.year - 1, end.month, end.day)
-        end = str(end)[0:10]
-        start = str(start)[0:10]
+        self.__date_start = para["get_chara"]["date"]["start"]
+        self.__date_valid = para["get_chara"]["date"]["valid"]
+        self.__date_test = para["get_chara"]["date"]["test"]
+        self.__date_end = para["get_chara"]["date"]["end"]
+        # self.__train_datas = self.__local_data_class.data_stocklist_value(stpye, nplist)
+        # self.__valid_datas = self.__local_data_class.data_stocklist_value(stpye, nplist)
+        # self.__test_datas = self.__local_data_class.data_stocklist_value(stpye, nplist)
 
     def __data_cluster(self, para):
-        # todo: 调用相似内积函数求矩阵
+        # todo: 调用相似内积函数求矩阵 各维度的方差为特征
         if para["get_chara"]["cluster"]["use"] == 0:
             return 0
             # 调用相似内积函数求矩阵
+        self.__cluster_num = para["get_chara"]["cluster"]["num"]
+        X = []
+        kpca = KernelPCA(4, kernel="rbf", eigen_solver="auto")
+        X_kpca = kpca.fit_transform(X)
+        X_back = kpca.inverse_transform(X_kpca)
+        pca = PCA()
+        X_pca = pca.fit_transform(X)
 
     def __get_learn(self, para):
         if para["get_learn"]["usesig"] == 0:

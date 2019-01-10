@@ -61,7 +61,7 @@ def parseArgs(args):
     globalArgs.add_argument('--debug', action='store_true',
                             help='run DeepQA with Tensorflow debug mode. Read TF documentation for more details on this.')
     globalArgs.add_argument('--keepAll', action='store_true',
-                            help='If this option is set, all saved model will be kept (Warning: make sure you have enough free disk space or increase saveEvery)')  # TODO: Add an option to delimit the max size
+                            help='If this option is set, all saved model will be kept (Warning: make sure you have enough free disk space or increase saveEvery)')
     globalArgs.add_argument('--modelTag', type=str, default=None, help='tag to differentiate which model to store/load')
     globalArgs.add_argument('--rootDir', type=str, default=None, help='folder where to look for the models and data')
     globalArgs.add_argument('--watsonMode', action='store_true',

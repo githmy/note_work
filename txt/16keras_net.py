@@ -38,3 +38,6 @@ score = model.evaluate(x={'main_input': main_data, 'aux_input': aux_data},
                        y={'main_output': main_labels, 'aux_output': main_labels},
                        batch_size=10, verbose=1)
 print(score)
+
+prediction = model.predict(main_data)
+print(prediction)

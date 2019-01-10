@@ -319,6 +319,7 @@ class Component_charas(object):
             dclass.pf[stock] = dclass.pf[stock][mainlist]
             for i2 in mainlist:
                 dclass.pf[stock][i2] = dclass.pf[stock][i2].pct_change()
+                dclass.pf[stock][i2] = np.log(dclass.pf[stock][i2])
         return dclass.pf
 
     # 机器学习所需特征
