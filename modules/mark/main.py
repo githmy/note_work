@@ -154,6 +154,8 @@ class Finan_frame(object):
         concatpf = pd.concat(
                 [self.__ori_datas[i1].loc[self.__date_start:self.__date_valid, ["close"]].rename(columns={"close": i1})
                  for i1 in codelist], axis=1)
+        concatpf.fillna(method='ffill')
+        concatpf.fillna(method='bfill')
         X = np.array(concatpf).T
         print(X)
         # 2. 机器学习聚类
