@@ -76,7 +76,7 @@ class TSstockScrap:
         # df.sort_values(by=['date'])
         if os.path.isfile(tmp_path):
             os.remove(tmp_path)
-        df1.to_csv(tmp_path)
+        df1.to_csv(tmp_path, encoding='utf-8')
 
         # 1.2 去除多余列
         # df = ts.get_stock_basics()
@@ -132,11 +132,9 @@ class TSstockScrap:
         # df.sort_values(by=['date'])
         if os.path.isfile(tmp_path):
             os.remove(tmp_path)
-        df1.to_csv(tmp_path)
+        df1.to_csv(tmp_path, encoding='utf-8', index=False)
 
         # 1.2 去除多余列
-        # df = ts.get_stock_basics()
-        # df.to_csv('stock_info.csv')
         df1.reset_index(level=0, inplace=True)  # （the first）index 改为 column
         # print(df.head())
         droplist = ["name", "industry", "area", "pe", "outstanding", "totals", "totalAssets", "liquidAssets",
@@ -195,7 +193,7 @@ class TSstockScrap:
             # df.sort_values(by=['date'])
             if os.path.isfile(tmp_path):
                 os.remove(tmp_path)
-            df1.to_csv(tmp_path)
+            df1.to_csv(tmp_path, encoding='utf-8')
             print(tmp_path + " success")
         except Exception as e:
             pastr = "_".join([code, stype])
@@ -212,7 +210,7 @@ class TSstockScrap:
             df2.sort_index(axis=0, ascending=True, inplace=True)
             if os.path.isfile(tmp_path):
                 os.remove(tmp_path)
-            df2.to_csv(tmp_path)
+            df2.to_csv(tmp_path, encoding='utf-8')
             print(tmp_path + " success")
         except Exception as e:
             logger1.info("error with parameters: %s" % code)
@@ -249,7 +247,7 @@ class TSstockScrap:
         # df.sort_values(by=['date'])
         if os.path.isfile(filePath):
             os.remove(filePath)
-        df1.to_csv(filePath)
+        df1.to_csv(filePath, encoding='utf-8')
 
         # # axis=0 是行拼接，拼接之后行数增加，列数也根据join来定，join=’outer’时，列数是两表并集。同理join=’inner’,列数是两表交集。
         # concat(objs, axis=0, join='outer', join_axes=None, ignore_index=False, keys=None, levels=None, names=None,
@@ -403,7 +401,7 @@ class LocalStockdata:
         # 1.4 流动量每日情况
         if os.path.isfile(self.file_liquids_mount):
             os.remove(self.file_liquids_mount)
-        liquids_pd.to_csv(self.file_liquids_mount, index=True, index_label="code")
+        liquids_pd.to_csv(self.file_liquids_mount, index=True, index_label="code", encoding='utf-8')
         print("file: %s" % self.file_liquids_mount)
         # 2. 流动量排序号
         orderl_pd = pd.DataFrame(data={})
@@ -413,7 +411,7 @@ class LocalStockdata:
         # 2.1 流动量每日排序
         if os.path.isfile(self.file_liquids_order):
             os.remove(self.file_liquids_order)
-        orderl_pd.to_csv(self.file_liquids_order, index=True, index_label="code")
+        orderl_pd.to_csv(self.file_liquids_order, index=True, index_label="code", encoding='utf-8')
         print("file: %s" % self.file_liquids_order)
         # 3. 每日利润
         col = "close"
@@ -431,7 +429,7 @@ class LocalStockdata:
         # 3.1 流动量每日排序
         if os.path.isfile(self.file_profit_date):
             os.remove(self.file_profit_date)
-        profile_pd.to_csv(self.file_profit_date, index=True, index_label="code")
+        profile_pd.to_csv(self.file_profit_date, index=True, index_label="code", encoding='utf-8')
         print("file: %s" % self.file_profit_date)
         return 0
 

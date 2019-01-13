@@ -3,16 +3,18 @@ from modules.stocks.stock_network import deep_network
 from modules.stocks.stock_data import TSstockScrap, LocalStockdata
 from modules.stocks.stock_chara import Component_charas
 from modules.stocks.stock_learn import StockLearn
-from modules.stocks.stock_paras import parseArgs, bcolors, get_paras
-from modules.stocks.stock_mlp import npd_similar, nplot_timesq
+from modules.stocks.stock_paras import parseArgs, get_paras
+from modules.stocks.stock_mlp import bcolors, npd_similar, nplot_timesq
 import tushare as ts
 from sklearn.utils import shuffle
 # from sklearn.decomposition import PCA, KernelPCA
 from sklearn.cluster import AffinityPropagation
 from datetime import datetime
+from sklearn.cluster import KMeans
 import sys
 import numpy as np
 import pandas as pd
+import matplotlib
 import matplotlib.pyplot as plt
 import seaborn as sns
 
@@ -109,6 +111,7 @@ class Finan_frame(object):
         # 1.1. 数据读入
         stocklist = np.expand_dims(self.__stock_list, -1)
         self.__ori_datas = self.__local_data_class.data_stocklist_value("D", stocklist)
+        self.__stock_list = list(self.__ori_datas)
         # 1.2. 特征获取
         self.__data_and_char(para)
         # 1.3. 数据集切分
@@ -120,6 +123,12 @@ class Finan_frame(object):
         print("*" * 60)
 
     def __data_and_char(self, para):
+        # 1. 填充原始的空值
+        for i1 in self.__ori_datas:
+            # 先向下填充
+            self.__ori_datas[i1].fillna(method='ffill', inplace=True)
+            # 再向上填充
+            self.__ori_datas[i1].fillna(method='bfill', inplace=True)
         if para["get_chara"]["way"]["mla"] == 1:
             self.__ori_datas = self.__chara_class.mla_charas(self.__ori_datas,
                                                              para["get_chara"]["charparas"])
@@ -140,31 +149,75 @@ class Finan_frame(object):
         self.__date_valid = para["get_chara"]["date"]["valid"]
         self.__date_test = para["get_chara"]["date"]["test"]
         self.__date_end = para["get_chara"]["date"]["end"]
-        # self.__train_datas = self.__local_data_class.data_stocklist_value(stpye, nplist)
-        # self.__valid_datas = self.__local_data_class.data_stocklist_value(stpye, nplist)
-        # self.__test_datas = self.__local_data_class.data_stocklist_value(stpye, nplist)
 
     def __data_cluster(self, para):
-        # todo: 调用相似内积函数求矩阵 各维度的方差为特征
         if para["get_chara"]["cluster"]["use"] == 0:
             return 0
         # 1. 调用相似内积函数求矩阵
-        self.__ori_datas = self.__ori_datas
-        codelist = list(self.__ori_datas)
         concatpf = pd.concat(
-                [self.__ori_datas[i1].loc[self.__date_start:self.__date_valid, ["close"]].rename(columns={"close": i1})
-                 for i1 in codelist], axis=1)
-        concatpf.fillna(method='ffill')
-        concatpf.fillna(method='bfill')
-        X = np.array(concatpf).T
-        print(X)
+            [self.__ori_datas[i1].loc[self.__date_start:self.__date_valid, ["close"]].rename(columns={"close": i1})
+             for i1 in self.__stock_list], axis=1)
+        concatpf.replace([np.inf, -np.inf], np.nan)
+        concatpf.fillna(method='ffill', inplace=True)
+        concatpf.fillna(method='bfill', inplace=True)
+        df2 = concatpf.stack()
+        df3 = df2.unstack(0)
+        X = np.array(df3)
         # 2. 机器学习聚类
         self.__cluster_num = para["get_chara"]["cluster"]["num"]
-        af = AffinityPropagation().fit(X)
+        # preference 尝试 -1 ~ -100
+        p = -1
+        model = AffinityPropagation(affinity='euclidean', preference=None)
+        af = model.fit(X)
         cluster_centers_indices = af.cluster_centers_indices_
-        print(cluster_centers_indices)
+        n_clusters = len(cluster_centers_indices)
+        print(('p ='), p, '聚类簇的个数为：', n_clusters)
         labels = af.labels_
-        print(labels )
+        print('聚类簇的个数为：', labels)
+        # # 3. 绘图
+        if para["process"]["plot"] == 1:
+            # 3.1 振幅均值 方差相关图
+            # end = datetime.today()  # 开始时间结束时间，选取最近一年的数据
+            # start = datetime(end.year - 1, end.month, end.day)
+            # end = str(end)[0:10]
+            # start = str(start)[0:10]
+            # df = pd.DataFrame()
+            # for stock in self.__stock_list:
+            #     closing_df = ts.get_hist_data(stock, start, end)['close']
+            #     df = df.join(pd.DataFrame({stock: closing_df}), how='outer')
+            # tech_rets = df.pct_change()
+
+            # pearson相关热图
+            # rets = tech_rets.dropna()
+            rets = concatpf
+            plt.figure(1)
+            sns.heatmap(rets.corr(), annot=True)
+            plt.draw()
+            # plt.close(1)
+            # 收益风险图
+            plt.figure(2)
+            plt.scatter(rets.mean(), rets.std())
+            plt.xlabel('Excepted Return')
+            plt.ylabel('Risk')
+            for label, x, y in zip(rets.columns, rets.mean(), rets.std()):
+                plt.annotate(label, xy=(x, y), xytext=(15, 15), textcoords='offset points',
+                             arrowprops=dict(arrowstyle='-', connectionstyle='arc3,rad=-0.3'))
+            plt.draw()
+            # plt.close(2)
+            plt.show()
+            #     matplotlib.rcParams['font.sans-serif'] = [u'SimHei']
+        #     matplotlib.rcParams['axes.unicode_minus'] = False
+        #     plt.figure(figsize=(12, 9), facecolor='w')
+        #
+        #     plt.subplot(3, 3, i+1)
+        #     plt.title(u'Preference：%.2f，簇个数：%d' % (p, n_clusters))
+        #     plt.scatter(data[center_indices, 0], data[center_indices, 1], s=100, c=clrs, marker='*', edgecolors='k', zorder=2)
+        #     plt.grid(True)
+        #
+        #     plt.tight_layout()
+        #     plt.suptitle(u'AP聚类', fontsize=20)
+        #     plt.subplots_adjust(top=0.92)
+        #     plt.show()
 
     def __get_learn(self, para):
         if para["get_learn"]["usesig"] == 0:
@@ -172,12 +225,32 @@ class Finan_frame(object):
         print()
         print("*" * 60)
         print("begin __get_learn")
-        pass
-        # 2. 网络结构
-        # 2.1. (原始+深户)输入16 *log； 便于卷积
-        # 2.2. 长度为2的每维 卷积核valid step2，10-50个；历史收集 chara4层
-        # 2.3. catch 输入+卷积各层，full+-lrelu；迭代 2次 基层策略 出100
-        # 2.4. catch 3的relu各层 all dim，full drop 0.1-0.5 +-lrelu；迭代 2次 高层策略 出1000 出512
+        if para["get_learn"]["way"]["mla"] == 1:
+            # todo: 待整合
+            # self.__ori_datas = self.__chara_class.mla_charas(self.__ori_datas,
+            #                                                  para["get_chara"]["charparas"])
+            return 0
+        if para["get_learn"]["way"]["dl"] == 1:
+            # todo: 待添加
+            # 2. 网络结构
+            # 2.1. (原始+深户)输入16 *log； 便于卷积
+            # 2.2. 长度为2的每维 卷积核valid step2，10-50个；历史收集 chara4层
+            # 2.3. catch 输入+卷积各层，full+-lrelu；迭代 2次 基层策略 出100
+            # 2.4. catch 3的relu各层 all dim，full drop 0.1-0.5 +-lrelu；迭代 2次 高层策略 出1000 出512
+            return 0
+        if para["get_learn"]["way"]["edl"] == 1:
+            # todo: 待整合
+            self.__ori_datas = self.__chara_class.reforce_charas(self.__ori_datas,
+                                                                 para["get_chara"]["charparas"])
+            self.__sequence_lenth = para["get_chara"]["way"]["charparas"]["sequence_lenth"]
+            self.__sequence_lenth = 16
+            return 0
+        if para["get_learn"]["way"]["rf"] == 1:
+            # self.__ori_datas = self.__chara_class.reforce_charas(self.__ori_datas,
+            #                                                      para["get_chara"]["charparas"])
+            # self.__sequence_lenth = para["get_chara"]["way"]["charparas"]["sequence_lenth"]
+            # self.__sequence_lenth = 16
+            return 0
         print("finished __get_learn")
         print("*" * 60)
 
@@ -246,6 +319,13 @@ def main(args=None):
     # 3.2 预测 实际 值 的相似分布。 均值方差描述
     # 3.3 不同 时间片 集合n 的偏离方差和均值
     # npd_similar(pdv_predict, "ttt123")
+    # 4. 策略标准
+    # 5. 自动交易
+    # 6. 模型方式
+    # 6.1 未来x分钟，涨跌y%.
+    # 6.2 强化买卖点
+    # 6.3 n只股票 各特征降维，
+    # 6.4 未来走势
 
 
 if __name__ == '__main__':

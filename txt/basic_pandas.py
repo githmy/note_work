@@ -98,6 +98,13 @@ df.dropna(subset=['closeprice'])
 df.dropna(thresh=6)
 # 空值填充
 df.fillna(value=20181010)
+# 先向下填充
+df.fillna(method='ffill', inplace=True)
+# 再向上填充
+df.fillna(method='bfill', inplace=True)
+
+# 无穷处理
+df.replace([np.inf, -np.inf], np.nan)
 
 # one hot 转化
 pd.get_dummies(df, columns=['category_2', 'category_3'])
@@ -140,10 +147,14 @@ agg_func = {
 grouped = df.groupby(['card_id', 'month_lag'])
 intermediate_group = grouped.agg(agg_func)
 final_group = intermediate_group.groupby('card_id').agg(['mean', 'std'])
+
+
 # 自定义group操作
 def sort_df2(data):
     data = data.sort_values(by='df2', ascending=False)  # df2：品种列 ascending：排序方式
     return data
+
+
 # groupby以及apply的结合使用
 group = df.groupby(df['df1']).apply(sort_df2)
 
@@ -242,6 +253,24 @@ pd.drop_duplicates(subset='secid', take_last=True)
 #         # writer.writerow([i[0].encode("utf-8"), i[3].encode("utf-8"), i[4].encode("utf-8"), i[5].encode("utf-8")])  # 写入csv文件的表头
 #         writer.writerow([str(i[0].encode("utf-8")), i[3].encode("utf-8"), i[4].encode("utf-8"), i[5].encode("utf-8")])  # 写入csv文件的表头
 #         # writer.writerow([i[0], i[3], i[4], i[5]])  # 写入csv文件的表头
+
+# 列为行的聚类索引
+#     three  two  one
+# AA      0    1    2
+# BB      3    4    5
+df.unstack()
+df.unstack(0)
+df.unstack(-1)
+# three  AA    0
+#        BB    3
+# two    AA    1
+#        BB    4
+# one    AA    2
+#        BB    5
+# 转置 分两步
+# 1.
+df2 = df.stack()
+df = df2.unstack(0)
 
 # 区间切割
 # bins 为整数左右延长1% bins刀按输入的极限等比例，数组，按位置切。 右闭区间
