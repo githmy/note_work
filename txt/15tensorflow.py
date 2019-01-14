@@ -63,6 +63,48 @@ def feed_format():
         feed_dict[dropout] = config["dropout_keep"]
     return feed_dict
 
+# 数据操作
+def data_manipulate():
+    # # 1. 将dataset缓存在内存或者本地硬盘,默认是内存
+    # cache(filename='')
+    # # 2. 将 [file, label] 变换到 [img_data, label],预处理一般用cpu
+    # map(
+    #     map_func,
+    #     num_parallel_calls=None
+    # )
+    def _mapfunc(file, label):
+      with tf.device('/cpu:0'):
+        img_raw = tf.read_file(file)
+        decoded = tf.image.decode_bmp(img_raw)
+        resized = tf.image.resize_images(decoded, [h, w])
+      return resized, label
+    # # 3. shuffle
+    # shuffle(
+    #     buffer_size,
+    #     seed=None,
+    #     reshuffle_each_iteration=None
+    # )
+    # reshuffle_each_iteration 默认 True
+    # buffer_size 比样本数+1
+    # 9. 使用组合
+    # 0. 获取目录标签
+    filelist = os.listdir(img_dir)
+    # lable_list = ... # 标签列表根据自己的情况获取
+    # 两个tensor
+    t_flist = tf.constant(filelist)
+    t_labellist = tf.constant(lable_list)
+    # 构造 Dataset
+    dataset = tf.data.Dataset().from_tensor_slices(t_flist, t_labellist)
+    # 2. map文件
+    dset = dataset.map(_mapfunc)
+    _iter = dset.make_one_shot_iterator()
+    next_one = _iter.get_next()
+    # next_one 作为tensor正常使用. type: tuple
+    img, label = next_one
+    # 一般会报 channel 最后这个维度为 None
+    # 必须加这个reshape
+    out = tf.reshape(img, [-1, h, w, c])
+
 
 # 加载数据文件
 def read_csv(line):

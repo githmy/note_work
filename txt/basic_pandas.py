@@ -93,11 +93,11 @@ A_2analysisResult = ticket.all_time.resample('20min').mean()
 #     print getattr(row, "c1"), getattr(row, "c2")
 
 # 空值丢弃
-df.dropna(subset=['closeprice'])
+df.dropna(subset=['closeprice'], inplace=True)
 # 空值丢弃阈值
-df.dropna(thresh=6)
+df.dropna(thresh=6, inplace=True)
 # 空值填充
-df.fillna(value=20181010)
+df.fillna(value=20181010, inplace=True)
 
 # one hot 转化
 pd.get_dummies(df, columns=['category_2', 'category_3'])
@@ -140,10 +140,14 @@ agg_func = {
 grouped = df.groupby(['card_id', 'month_lag'])
 intermediate_group = grouped.agg(agg_func)
 final_group = intermediate_group.groupby('card_id').agg(['mean', 'std'])
+
+
 # 自定义group操作
 def sort_df2(data):
     data = data.sort_values(by='df2', ascending=False)  # df2：品种列 ascending：排序方式
     return data
+
+
 # groupby以及apply的结合使用
 group = df.groupby(df['df1']).apply(sort_df2)
 
@@ -208,7 +212,7 @@ df['panduan'] = df.city.apply(lambda x: 1 if 'ing' in x else 0)
 
 # 去重
 # 按secid去重，保留最后的
-pd.drop_duplicates(subset='secid', take_last=True)
+pd.drop_duplicates(subset='secid', keep='last', inplace=True)
 
 # 1. 序列处理，平移
 # ts_lag = ts.shift()

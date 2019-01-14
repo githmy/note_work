@@ -167,7 +167,8 @@ def var2layer():
 
     vartt = K.random_uniform_variable(shape=(1, 5), low=-1, high=1, dtype="float32")
     x_ex_in = Lambda(var_trans, name='varlay')([vartt, vartt])
-
+    # 或
+    vartt = Lambda(lambda x: x)(vartt)
 
 if __name__ == '__main__':
     pass
