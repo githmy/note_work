@@ -15,26 +15,27 @@ if __name__ == "__main__":
     data, y = ds.make_blobs(N, n_features=2, centers=centers, cluster_std=[0.5, 0.25, 0.7, 0.5], random_state=0)
     m = euclidean_distances(data, squared=True)
     preference = -np.median(m)
-    print 'Preference：', preference
+    print('Preference：', preference)
 
     matplotlib.rcParams['font.sans-serif'] = [u'SimHei']
     matplotlib.rcParams['axes.unicode_minus'] = False
     plt.figure(figsize=(12, 9), facecolor='w')
     for i, mul in enumerate(np.linspace(1, 4, 9)):
-        print mul
+        print(mul)
         p = mul * preference
         model = AffinityPropagation(affinity='euclidean', preference=p)
         af = model.fit(data)
         center_indices = af.cluster_centers_indices_
         n_clusters = len(center_indices)
-        print ('p = %.1f' % mul), p, '聚类簇的个数为：', n_clusters
+        print(('p = %.1f' % mul), p, '聚类簇的个数为：', n_clusters)
+        # 各个标签的索引，为点的总数
         y_hat = af.labels_
 
         plt.subplot(3, 3, i+1)
         plt.title(u'Preference：%.2f，簇个数：%d' % (p, n_clusters))
         clrs = []
         for c in np.linspace(16711680, 255, n_clusters):
-            clrs.append('#%06x' % c)
+            clrs.append('#%06x' % int(c))
         # clrs = plt.cm.Spectral(np.linspace(0, 1, n_clusters))
         for k, clr in enumerate(clrs):
             cur = (y_hat == k)

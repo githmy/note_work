@@ -23,18 +23,6 @@ def parseArgs(args):
     return parser.parse_args(args)
 
 
-class bcolors:
-    PINK = '\033[95m'
-    BLUE = '\033[94m'
-    GREEN = '\033[92m'
-    YELLOW = '\033[93m'
-    RED = '\033[91m'
-
-    ENDC = '\033[0m'
-    BOLD = '\033[1m'
-    UNDERLINE = '\033[4m'
-
-
 class ExperienceReplay(object):
     def __init__(self, max_memory=100, discount=.9):
         self.max_memory = max_memory

@@ -23,6 +23,18 @@ data_pa = os.path.join(cmd_path, "data")
 data_path_res = os.path.join(data_pa, "res")
 
 
+class bcolors:
+    PINK = '\033[95m'
+    BLUE = '\033[94m'
+    GREEN = '\033[92m'
+    YELLOW = '\033[93m'
+    RED = '\033[91m'
+
+    ENDC = '\033[0m'
+    BOLD = '\033[1m'
+    UNDERLINE = '\033[4m'
+
+
 def pandas_candlestick_ohlc(stock_data, otherseries=None):
     # 设置绘图参数，主要是坐标轴
     mondays = WeekdayLocator(MONDAY)
@@ -394,6 +406,7 @@ def chara_diffval_std():
     plt.xticks(rotation='vertical')
     plt.show()
 
+
 # 中位数切割，区间画方差
 def middle_split_box():
     bins = np.nanpercentile(train_df["sum_merch_trans"], range(0, 101, 10))
@@ -410,6 +423,7 @@ def middle_split_box():
     plt.title("Sum of New merchants transaction value (Binned) distribution")
     plt.show()
 
+
 # 相关性热图
 def heat_fun():
     heatmap.set_clim(-1, 1)
@@ -418,6 +432,7 @@ def heat_fun():
     plt.figure(1)
     sns.heatmap(rets.corr(), annot=True)
     plt.show()
+
 
 # 散点标注
 def scatter_fun():

@@ -112,6 +112,7 @@ np.max(grade)-np.min(grade)
 
 # # 转置
 # a.transpose()
+X = np.array([]).T
 
 # 删除不要的维度
 np.squeeze(x)
