@@ -503,7 +503,7 @@ def gradients_update():
 
     train_op = opt.apply_gradients(capped_grads_and_vars)
     sess.run(train_op, feed_dict=feed_dict)
-
+#
 
 # 梯度更新 动图
 def gradients_update1():
@@ -535,6 +535,20 @@ def gradients_update2():
     learning_step = tf.train.GradientDescentOptimizer(learning_rate).minimize(loss, global_step=global_step)
     # 上面这段代码中设定了初始学习率为0.1，因为指定了staircase = True，所以每训练100轮后学习率乘以0.96。
 
+# 梯度限制
+def gradients_limit():
+    # 方式一
+    optimizer = tf.train.AdamOptimizer(learning_rate=0.001, beta1=0.5)
+    grads = optimizer.compute_gradients(loss)
+    for i, (g, v) in enumerate(grads):
+        if g is not None:
+            grads[i] = (tf.clip_by_norm(g, 5), v)  # 阈值这里设为5
+    train_op = optimizer.apply_gradients(grads)
+    # 方式二
+    optimizer = tf.train.AdamOptimizer(learning_rate=0.001, beta1=0.5)
+    grads, variables = zip(*optimizer.compute_gradients(loss))
+    grads, global_norm = tf.clip_by_global_norm(grads, 5)
+    train_op = optimizer.apply_gradients(zip(grads, variables))
 
 # 激活函数
 def activate_func():
