@@ -177,7 +177,7 @@ class Finan_frame(object):
         # # 3. 绘图
         if para["process"]["plot"] == 1:
             # 3.1 振幅均值 方差相关图
-            # end = datetime.today()  # 开始时间结束时间，选取最近一年的数据
+            # DenseDensend = datetime.today()  # 开始时间结束时间，选取最近一年的数据
             # start = datetime(end.year - 1, end.month, end.day)
             # end = str(end)[0:10]
             # start = str(start)[0:10]

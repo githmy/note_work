@@ -8,6 +8,7 @@ import pandas as pd
 import os
 import numpy as np
 
+# 控制输入样式
 np.set_printoptions(edgeitems=3, infstr='inf',
                     linewidth=75, nanstr='nan', precision=8,
                     suppress=False, threshold=1000, formatter=None)
