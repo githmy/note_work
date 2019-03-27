@@ -47,10 +47,20 @@ def plot_data():
     # 4. 属性的数量，一级二级分类
 
 
+def predict():
+    print("predict")
+
+def train():
+    print("train")
+
+
 def main():
     get_data()
     deal_data()
     plot_data()
+    print("tmp end")
+    train()
+    predict()
 
 
 if __name__ == '__main__':
