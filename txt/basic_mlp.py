@@ -15,6 +15,8 @@ from mpl_finance import candlestick_ohlc
 from matplotlib.dates import DateFormatter, WeekdayLocator, DayLocator, MONDAY, date2num, datestr2num
 from datetime import datetime
 
+# %matplotlib
+
 mpl.rcParams[u'font.sans-serif'] = u'SimHei'
 mpl.rcParams[u'axes.unicode_minus'] = False
 
@@ -356,6 +358,7 @@ def dim3():
     ax = Axes3D(fig)
 
     ax.plot_surface(x, y, z, rstride=1, cstride=1, cmap=plt.cm.coolwarm)  # 用取样点(x,y,z)去构建曲面
+    ax.plot_surface(x, y, z, rstride=1, cstride=1, cmap=plt.get_cmap('rainbow'))  # 用取样点(x,y,z)去构建曲面
     plt.show()
 
 

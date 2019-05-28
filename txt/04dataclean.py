@@ -1,4 +1,6 @@
 import pandas as pd
+import numpy as np
+
 # ~)01. 大数据量处理
 
 # ~)02. normalize
@@ -14,9 +16,22 @@ def over_sample(pdin, col):
     return pdin
 
 
+def over_sample2():
+    from imblearn.over_sampling import SMOTE
+    from sklearn.model_selection import train_test_split
+    over_sampler = SMOTE(random_state=0)
+    features = pd.DataFrame()["datas"]
+    labels = pd.DataFrame()["labels"]
+    feature_train, feature_test, label_train, label_test = train_test_split(features, labels, test_size=0.2,
+                                                                            random_state=0)
+    os_feature, os_label = over_sampler.fit_sample(feature_train, label_train)
+    return os_feature, os_label
+
+
 # ~)04. 数据分割
 # 时间序列
 from sklearn.model_selection import TimeSeriesSplit
+
 X = np.array([[1, 2], [3, 4], [1, 2], [3, 4]])
 y = np.array([1, 2, 3, 4])
 tscv = TimeSeriesSplit(n_splits=3)

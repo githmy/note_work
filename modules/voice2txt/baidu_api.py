@@ -62,7 +62,7 @@ def baidu_picture():
     request.add_header('Content-Type', 'application/x-www-form-urlencoded')
     response = urllib.request.urlopen(request)
     content = response.read().decode('utf-8')
-    content = simplejson.loads(content )
+    content = simplejson.loads(content)
     if (content):
         for i in content["words_result"]:
             print(i["words"])

@@ -292,6 +292,12 @@ def iris_demo():
     iri = load_iris()
     print(iri)
 
+def surprise_demo():
+    ### 使用SVD
+    from surprise import SVD, evaluate
+    algo = SVD()
+    perf = evaluate(algo, music_data, measures=['RMSE', 'MAE'])
+
 
 def tmp_test():
     # 但只测试

@@ -22,6 +22,8 @@ if __name__ == "__main__":
     y3 = np.array([0] * 100 + [1] * 50 + [2] * 20 + [3] * 5)
 
     cls = KMeans(n_clusters=4, init='k-means++')
+    print(type(data))
+    print(data)
     y_hat = cls.fit_predict(data)
     y2_hat = cls.fit_predict(data2)
     y3_hat = cls.fit_predict(data3)

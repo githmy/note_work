@@ -6,7 +6,7 @@ from __future__ import absolute_import
 
 import os
 import logging
-
+import logging.handlers
 
 cmd_path = os.getcwd()
 data_path = os.path.join(cmd_path, "data")
@@ -17,6 +17,10 @@ datalogfile = os.path.join(datalogfile, 'log.log')
 # 创建一个logger
 logger1 = logging.getLogger('logger_out')
 logger1.setLevel(logging.DEBUG)
+
+# 写入文件，如果文件超过100个Bytes，仅保留5个文件。
+fh = logging.handlers.TimedRotatingFileHandler(filename="all.log",when='S',interval=1, backupCount=3)
+fh = logging.handlers.RotatingFileHandler('logs/myapp.log', maxBytes=100, backupCount=5)
 
 # 创建一个handler，用于写入日志文件
 fh = logging.FileHandler(datalogfile)

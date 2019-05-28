@@ -6,15 +6,20 @@ from __future__ import absolute_import
 
 import pandas as pd
 import os
+import re
 import numpy as np
 
 df = pd.DataFrame()
 # 列聚类统计
 df['label_L4'].value_counts()
 
+# 滑动窗口
 # 过去12的平均值
 moving_avg = pd.rolling_mean(ts_log, 12)
 TP.rolling(window=ndays).mean()
+# 自定义函数
+TP.rolling().apply().plot()
+b[0].apply(pd.Series).rolling(2).apply(lambda x: x[1]-x[0]).apply(tuple, axis=1)
 # 指数加权移动平均法
 expwighted_avg = pd.ewma(ts_log, halflife=12)
 # 一阶差分
@@ -26,9 +31,14 @@ ts_log_diff = ts_log - ts_log.shift()
 # orderl_pd = pd.DataFrame(np.random(2,2),index=["first","second"],columns=["phone","age"])
 # index=[10, 20, 30, 40, 50]
 
+# 2D 每2天，B工作日，H小时，T或min 分钟，S，L或ms毫秒，U微秒，M每月最后一天，BM每月最后一个工作日，MS每月第一天，BMS每月第一个工作日
+# indexpd = pd.date_range("20160615", periods=10, freq='D')
+# orderl_pd = pd.DataFrame(np.random.rand(10), index=indexpd)
 # orderl_pd = pd.date_range("2016 Jul 15 10:55", periods=10,freq='M')
 # orderl_pd = pd.date_range("2016-01-02 10:50:00", periods=10,freq='2h12min')
 # orderl_pd = pd.period_range("2016 Jul 15 10:55", periods=10,freq='60T')
+orderl_pd = pd.date_range(start="20160615", end="20180615", freq='10D')
+orderl_pd = pd.date_range(start="20160615", periods=10, freq='10D')
 
 # orderl_pd = pd.Timestamp("2016-01-02 10:50:00", tzinfo="shanghai")
 
@@ -40,13 +50,25 @@ ts.asfreq("45Min", method="ffill")
 df1 = pd.DataFrame()
 DF = df.set_index(df1['time_slot1'])
 DF.index = pd.to_datetime(DF.index, unit='ns')
+DF.truncate(before="20190102")
+DF.truncate(after="20190102")
+df["timestamp"] = pd.to_datetime(df["timestamp"], format='')
 ticket = DF.ix[:, ['all_time']]
 # 以20分钟为一个时间间隔，求出所有间隔的平均时间
 A_2analysisResult = ticket.all_time.resample('20min').mean()
+A_2analysisResult = ticket.all_time.resample('20min').sum()
+A_2analysisResult = ticket.all_time.resample('D').asfreq(freq='30S').bfill()
+A_2analysisResult = ticket.all_time.resample('D').ffill(1)
+A_2analysisResult = ticket.all_time.resample('D').interpolate('linear')
 
 # 索引设为列
 # orderl_pd.reset_index(level=0, inplace=True)  # （the first）index 改为 column
 # orderl_pd.reset_index()  # 丢弃原有的重赋值
+# 时间索引
+stock = pd.read_csv('select.csv', index_col='Time')
+stock['date'] = pd.to_datetime(stock['date'])
+stock.set_index("date", inplace=True)
+# stock.index = pd.DatetimeIndex(stock.index)
 
 # 列设为索引
 # orderl_pd.set_index(i, inplace=True)
@@ -64,6 +86,7 @@ A_2analysisResult = ticket.all_time.resample('20min').mean()
 
 # join
 # train_df = pd.merge(train_df, gdf, on="card_id", how="left")
+# new_pd =pd.merge(attri_df, detail_df, on="OrderID", how="left")
 
 # 列行索引
 # orderl_pd[numf:numt]["index"]
@@ -128,7 +151,7 @@ df[df['secid'].isin([38, 24, 33])]
 # plotlist_pd.loc['Row_sum'] = plotlist_pd.apply(lambda x: x.sum() / len(liquids_pd.columns))
 # print(plotlist_pd)
 
-# 索引排序
+# 索引排序 0为索引，1为第一列
 # orderl_pd.sort_index(axis=0, ascending=True, inplace=True)
 
 # 列值排序
@@ -158,6 +181,17 @@ def sort_df2(data):
 
 # groupby以及apply的结合使用
 group = df.groupby(df['df1']).apply(sort_df2)
+grou = df.groupby(['user_id'], as_index=False).apply(sort_df2)
+
+
+def sort_df1(data):
+    lists = list(data["CommodityID"])
+    return lists
+
+
+info_new = pd.DataFrame()
+info_new["skus"] = df.groupby(["OrderID"]).apply(sort_df2)
+info_new["length"] = info_new["skus"].map(len)
 
 # 列值排序的序号
 # orderl_pd[i] = liquids_pd[i].rank(ascending=1, method='first')
@@ -165,6 +199,8 @@ group = df.groupby(df['df1']).apply(sort_df2)
 # # 添加增列
 # datalists[i1].insert(1, "liquid", 1.0)
 # datalists[i1].insert(0, "liquid", 1.3)
+# datalists["shelf"] = y_hat
+
 # # 添加增行
 # row = pd.DataFrame([[sstrr[6], 0, sstrr[7]]], columns=["评论内容", "评论数", "点赞数"])
 # pddata.append(row, ignore_index=True)
@@ -177,8 +213,28 @@ group = df.groupby(df['df1']).apply(sort_df2)
 # df2.to_excel(writer, sheet_name='sheet2')
 # writer.save()
 # 读文件
+date_spec = {"SubmitDate1": [1], "SaleDate1": [3], "CreateDate1": [7], "DeliveryPlanTime1": [14]}
+# dateparse = lambda x: pd.datetime.strptime(x,'%Y-%m-%d %H:%M:%S.%f')
+# date_parser=dateparse,
+# date_spec = {'nominal': [1, 2], 'actual': [1, 3]}
+# order_info_data = pd.read_csv(inpath, header=0, parse_dates=True,encoding="utf8", dtype=typedict, sep=',',low_memory=True, keep_date_col=False)
+order_info_data = pd.read_csv("a.csv", index_col=0, parse_dates=[0])
 # df1 = pd.read_csv(self.file_liquids_order, header=None, encoding="utf8", dtype=str,sep='\t')
 # data = pd.read_excel(io='Current.xls', sheet_name='Sheet1', header=0)
+# 分次读
+inpath = "./a.csv"
+reader = pd.read_csv(inpath, header=0, iterator=True)
+chunks = []
+chunk_size = 50000
+loop = True
+while loop:
+    try:
+        chunk = reader.get_chunk(chunk_size)[["user_id", "type"]]
+        chunks.append(chunk)
+    except StopIteration:
+        loop = False
+        print("iteration is stopped.")
+df_ac = pd.concat(chunks, ignore_index=True)
 
 # 删除列
 # del df2["date"]
@@ -206,22 +262,21 @@ group = df.groupby(df['df1']).apply(sort_df2)
 # print(df['2016':'2017'].head(2))  #获取2016至2017年的数据
 # print(df['2016':'2017'].tail(2))  #获取2016至2017年的数据
 
+# 筛选列
+# data_pd.ix[:, data_pd.columns != "label"]
+
 # 筛选赋值
 class_data.loc[class_data['分类'] == 1, 'postive'] = 1
 class_data.loc[class_data['分类'] == 0, 'neutral'] = 1
 # 根据条件赋值
 df['panduan'] = df.city.apply(lambda x: 1 if 'ing' in x else 0)
 
-# print(df['2013'].head(2)) # 获取2013年的数据
-# print(df['2013'].tail(2)) # 获取2013年的数据
-#
-# print(df['2016':'2017'].head(2))  #获取2016至2017年的数据
-# print(df['2016':'2017'].tail(2))  #获取2016至2017年的数据
 
 # 去重
 # 按secid去重，保留最后的
 pd.drop_duplicates(subset='secid', keep='last', inplace=True)
 
+# 特征统计
 # 1. 序列处理，平移
 # ts_lag = ts.shift()
 # # 2. 均线
@@ -230,6 +285,15 @@ pd.drop_duplicates(subset='secid', keep='last', inplace=True)
 # 每日涨幅
 # df['close'].pct_change()
 
+# 3. 偏度 (x-u)/sigma ^3
+df['close'].skew()
+# 4. 峰度 (x-u)/sigma ^4
+df['close'].kurt()
+# 或
+df['close'].kurtosis()
+
+# 替换
+df.str.replace(r"iphone\s+7", "iphone7")
 
 # tsv 读写
 # infilename = "C:\\Users\\john\\Desktop\\train.tsv"
@@ -281,6 +345,8 @@ pandas.qcut(x, bins, right=True, labels=None, retbins=False, precision=3, includ
 
 # 批量操作
 df["aaa"].map(func)
+jsons = {"汽车1": 1, "汽车2": 2}
+df["aaa"].map(jsons)
 df[["aaa"]].apply(lambda x: (x - x.min()) / (x.max() - x.min()))
 
 # 日期转化
@@ -289,6 +355,20 @@ df['time_slot1'] = pd.to_datetime(df['time_slot1'])
 # 输出这一天是周中的第几天，Monday=0, Sunday=6
 df['dayofweek'] = df['time_slot1'].dt.dayofweek
 df['daynameofweek'] = df['time_slot1'].dt.weekday_name
+df['time'] = df['time'].apply(lambda x: x.weekday() + 1)
+
+# # 时间清理
+# def reperror(instr):
+#     subarry = instr.split(".")
+#     p = re.compile(r'[^0-9]+')
+#     if len(subarry) > 1:
+#         subarry[1] = p.sub('', subarry[1])
+#     return ".".join(subarry)
+# df["SubmitDate"] = df["SubmitDate"].map(reperror)
+# df['SubmitDate'] = pd.to_datetime(df['SubmitDate'])
+# df.set_index("SubmitDate", inplace=True)
+# df.sort_index(axis=0, ascending=True, inplace=True)
+
 
 # 内存监控
 start_mem = df.memory_usage().sum() / 1024 ** 2
@@ -298,6 +378,12 @@ end_mem = df.memory_usage().sum() / 1024 ** 2
 pd.options.mode.chained_assignment = None
 pd.options.display.max_columns = 999
 pd.set_option('display.max_columns', 500)
+# 显示所有列
+pd.set_option('display.max_columns', None)
+# 显示所有行
+pd.set_option('display.max_rows', None)
+# 设置value的显示长度为100，默认为50
+pd.set_option('max_colwidth', 100)
 
 
 def nomal_use():

@@ -198,6 +198,7 @@ def drop_duplicate_json(jsonfin, jsonfout):
         # 1. 取唯一
         for i in setting['rasa_nlu_data']['common_examples']:
             # i['entities'] = []
+            # if not i['text'] in maptxt:
             if not maptxt.has_key(i['text']):
                 maptxt.__setitem__(i['text'], 0)
             maptxt[i['text']] = i

@@ -1,16 +1,79 @@
 # -*- coding: UTF-8 -*-
-
-from pyspark import SparkContext
-
+from pyspark.sql import SQLContext
+from pyspark.sql import SparkSession
+from pyspark import SparkConf, SparkContext
+import pandas as pd
+from pyspark.sql.types import IntegerType, StringType, StructField, StructType, LongType,FloatType
+import os
+from pyspark.sql import Row
 
 def main():
+    # 初始化SparkSession
+    spark = SparkSession.builder.master("local[*]").appName("test").getOrCreate()
+    sc = spark.sparkContext
+
+    # 读文件
+    # 直接读rdd转DataFrame
+    fpath = os.path.join("..", "data", "tt_orderdetail7tt.csv", )
+    lines = sc.textFile(fpath, minPartitions=2)
+    header = lines.first()  # 第一行
+    print(header)
+    lines = lines.filter(lambda row: row != header)  # 删除第一行
+    parts = lines.map(lambda l: l.split(","))
+    linesdf = parts.map(lambda x: Row(
+        OrderDetailID=x[0],
+        OrderID=x[1],
+        CommodityID=int(x[2]),
+        Amount=int(x[3]),
+        TotalPrice=float(x[4]),
+        total=float(x[5]),
+    ))
+    lines_df = spark.createDataFrame(linesdf)
+    lines_df.show()
+
+    # demo 2
+    conf = SparkConf().setMaster("local[*]").setAppName("My App")
+    sc = SparkContext(conf=conf)
+
+    # 借助pandas 转rdd
+    sc = SparkContext()
+    sqlContext = SQLContext(sc)
+    df = pd.read_csv(r'game-clicks.csv')
+    sdf = sqlContext.createDataFrame(df)
+
+    # 借助pandas
+    sc = SparkContext()
+    sqlContext = SQLContext(sc)
+    sqlContext.read.format('spark.csv').options(header='true', inferschema='true').load('game-clicks.csv')
+
+    # 直接转RDD
+    sc = SparkContext()
+    lines = sc.textFile('file', minPartitions=2)
+    # 第一行
+    header = lines.first()
+    # 删除第一行
+    csvRDD = lines.filter(lambda row: row != header)
+    # RDD。如果需要转换成dataframe
+    schema = StructType([
+        StructField("id", LongType(), True),
+        StructField("name", StringType(), True),
+        StructField("age", LongType(), True),
+        StructField("eyeColor", StringType(), True)
+    ])
+    lines_df = sqlContext.createDataFrame(csvRDD, schema)  # 指定schema。
+    lines_df.show()
+
+    # hdfs上的csv文件读取
+    sqlContext = SQLContext(sc)
+    sqlContext.read.format('com.databricks.spark.csv').options(header='true', inferschema='true').load('file')
+
     # Map、Reduce API 基本
     sc = SparkContext('local')
     # 第二个参数2代表的是分区数，默认为1
     old = sc.parallelize([1, 2, 3, 4, 5], 2)
     newMap = old.map(lambda x: (x, x ** 2))
     newReduce = old.reduce(lambda a, b: a + b)
-    print(newMap.glom().collect())
+    print(newMap.collect())
     print(newReduce)
 
     # flatMap、filter、distinc API 数据的拆分、过滤和去重
