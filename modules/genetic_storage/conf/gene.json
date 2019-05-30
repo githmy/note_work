@@ -1,0 +1,12 @@
+{
+  "bench_queue_up": 10,
+  "bench_queue_down": 4,
+  "replenish_queue_up": 5,
+  "replenish_queue_down": 2,
+  "bench_queue_ave": 5,
+  "cell_num_thresh": 0.5,
+  "batch_num": 5,
+  "cold_round": 10,
+  "cold_seconds": 10000,
+  "order_buff_low": 1
+}

@@ -7,6 +7,23 @@ import warnings
 warnings.simplefilter(action='ignore', category=FutureWarning)
 warnings.filterwarnings(action='ignore', category=FutureWarning)
 
+# !pip install goto-statement
+from goto import with_goto
+
+
+@with_goto
+def goto_demo():
+    i = 1
+    result = []
+    label .begin
+    if i == 2:
+        goto .end
+
+    result.append(i)
+    i += 1
+    goto .begin
+    label .end
+
 
 def list_deal():
     listA = [1, 2, 3, 4, 5]

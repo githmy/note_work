@@ -1,0 +1,5 @@
+/.idea
+*.py[cod]
+/logs
+/server/tools/tenant_app.xls
+/upload/*
