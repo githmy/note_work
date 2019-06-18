@@ -63,6 +63,7 @@ A_2analysisResult = ticket.all_time.resample('D').interpolate('linear')
 
 # 索引设为列
 # orderl_pd.reset_index(level=0, inplace=True)  # （the first）index 改为 column
+orderl_pd.reset_index(drop=True)  # 删除原有的
 # orderl_pd.reset_index()  # 丢弃原有的重赋值
 # 时间索引
 stock = pd.read_csv('select.csv', index_col='Time')
