@@ -19,7 +19,7 @@ moving_avg = pd.rolling_mean(ts_log, 12)
 TP.rolling(window=ndays).mean()
 # 自定义函数
 TP.rolling().apply().plot()
-b[0].apply(pd.Series).rolling(2).apply(lambda x: x[1]-x[0]).apply(tuple, axis=1)
+b[0].apply(pd.Series).rolling(2).apply(lambda x: x[1] - x[0]).apply(tuple, axis=1)
 # 指数加权移动平均法
 expwighted_avg = pd.ewma(ts_log, halflife=12)
 # 一阶差分
@@ -96,7 +96,7 @@ stock.set_index("date", inplace=True)
 # df.loc[0:3, ['a', 'b']]
 
 # 多行索引
-# pddata.loc[indexres,]
+# pddata.loc[indexres,:]
 
 # 选行按序号
 # df.iloc[0, :]
@@ -115,6 +115,9 @@ stock.set_index("date", inplace=True)
 #     row['c1'], row['c2']
 # for row in df.itertuples(index=True, name='Pandas'):
 #     print getattr(row, "c1"), getattr(row, "c2")
+
+# 按索引删除行
+df.drop([0, 1, 3, 5])
 
 # 空值丢弃
 df.dropna(subset=['closeprice'], inplace=True)
@@ -271,7 +274,6 @@ class_data.loc[class_data['分类'] == 1, 'postive'] = 1
 class_data.loc[class_data['分类'] == 0, 'neutral'] = 1
 # 根据条件赋值
 df['panduan'] = df.city.apply(lambda x: 1 if 'ing' in x else 0)
-
 
 # 去重
 # 按secid去重，保留最后的
