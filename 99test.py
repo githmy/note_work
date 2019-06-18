@@ -19,6 +19,7 @@ from keras.layers import Lambda
 # if __name__ == '__main__':
 #     test()
 #     exit(0)
+"如图，在△ABC中，D，E分别在边AC与AB上，DE∥BC，BD、CE相交于点O，已知∠AOB=25°42'，则∠AOB的余角为"
 
 class Card_my(object):
     def __init__(self, config):

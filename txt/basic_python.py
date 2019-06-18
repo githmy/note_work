@@ -28,6 +28,11 @@ def goto_demo():
 def list_deal():
     listA = [1, 2, 3, 4, 5]
     listB = [3, 4, 5, 6, 7]
+    # 逆序列
+    listB.reverse()
+    # # 元素的序号
+    # your_list.index('your_item')
+    # your_list.sort(cmp=None, key=None, reverse=False)
     # 交集
     retA = [i for i in listA if i in listB]
     retB = list(set(listA).intersection(set(listB)))

@@ -40,6 +40,7 @@ def hdf5_only_weight_save():
 
 def hdf5_model_weight_save():
     from keras.models import load_model
+    # from keras.models import Graph
     model.save('model_weight.h5')  # creates a HDF5 file 'my_model.h5'
 
 
