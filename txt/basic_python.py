@@ -15,14 +15,14 @@ from goto import with_goto
 def goto_demo():
     i = 1
     result = []
-    label .begin
+    label.begin
     if i == 2:
-        goto .end
+        goto.end
 
     result.append(i)
     i += 1
-    goto .begin
-    label .end
+    goto.begin
+    label.end
 
 
 def list_deal():
@@ -48,8 +48,8 @@ def list_deal():
     retE = [i for i in listB if i not in listA]
     print("retE is: ", retE)
 
-
     dict_data = {6: 109, 10: 105, 3: 211, 8: 102, 7: 106}
+
 
 def json_sort():
     # json 字典排序
@@ -154,6 +154,16 @@ def itertools():
     batchbetch_all = {"19": 2, "31": 6}
     batchbetch1 = {"1": 2, "9": 2, "3": 4, "5": 6}
     batchbetch_all.update(batchbetch1)
+
+
+def json_manipulate():
+    import json
+    tmpjson = {"a": 1, "b": 2}
+    # 不用ascii编码，缩进4格
+    jsonstr = json.dumps(tmpjson, ensure_ascii=False, indent=4)
+    # 用utf-8编码，缩进4格
+    jsonobj = json.loads(jsonstr, encoding="utf-8")
+
 
 
 if __name__ == '__main__':

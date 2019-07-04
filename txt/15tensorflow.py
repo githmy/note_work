@@ -63,6 +63,7 @@ def feed_format():
         feed_dict[dropout] = config["dropout_keep"]
     return feed_dict
 
+
 # 数据操作
 def data_manipulate():
     # # 1. 将dataset缓存在内存或者本地硬盘,默认是内存
@@ -73,11 +74,12 @@ def data_manipulate():
     #     num_parallel_calls=None
     # )
     def _mapfunc(file, label):
-      with tf.device('/cpu:0'):
-        img_raw = tf.read_file(file)
-        decoded = tf.image.decode_bmp(img_raw)
-        resized = tf.image.resize_images(decoded, [h, w])
-      return resized, label
+        with tf.device('/cpu:0'):
+            img_raw = tf.read_file(file)
+            decoded = tf.image.decode_bmp(img_raw)
+            resized = tf.image.resize_images(decoded, [h, w])
+        return resized, label
+
     # # 3. shuffle
     # shuffle(
     #     buffer_size,
@@ -503,6 +505,8 @@ def gradients_update():
 
     train_op = opt.apply_gradients(capped_grads_and_vars)
     sess.run(train_op, feed_dict=feed_dict)
+
+
 #
 
 # 梯度更新 动图
@@ -535,6 +539,7 @@ def gradients_update2():
     learning_step = tf.train.GradientDescentOptimizer(learning_rate).minimize(loss, global_step=global_step)
     # 上面这段代码中设定了初始学习率为0.1，因为指定了staircase = True，所以每训练100轮后学习率乘以0.96。
 
+
 # 梯度限制
 def gradients_limit():
     # 方式一
@@ -549,6 +554,7 @@ def gradients_limit():
     grads, variables = zip(*optimizer.compute_gradients(loss))
     grads, global_norm = tf.clip_by_global_norm(grads, 5)
     train_op = optimizer.apply_gradients(zip(grads, variables))
+
 
 # 激活函数
 def activate_func():
@@ -807,7 +813,7 @@ def load_model1():
 
 
 def load_model2():
-    # 方式一
+    # 方式一  不需要重新定义网络结构
     saver = tf.train.import_meta_graph('save/filename.meta')
     saver.restore(tf.get_default_session(), 'save/filename.ckpt-16000')
 
@@ -850,7 +856,7 @@ def load_and_add():
     # Create some variables.
     v1 = tf.Variable([11.0, 16.3], name="v1")
 
-    # ** 导入训练好的模型
+    # ** 导入训练好的模型 这种方式需要重新定义网络结构。
     saver = tf.train.Saver()
     ckpt_path = '../ckpt/test-model.ckpt'
     saver.restore(sess, ckpt_path + '-' + str(1))
@@ -866,7 +872,7 @@ def load_and_add():
 
     # ** 保存新的模型。
     #  注意！注意！注意！ 一定一定一定要重新定义 saver, 这样才能把 v3 添加到 checkpoint 中
-    saver = tf.train.Saver()
+    saver = tf.train.Saver(tf.global_variables(), max_to_keep=5)
     saver.save(sess, ckpt_path, global_step=2)
 
 

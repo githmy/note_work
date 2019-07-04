@@ -1,0 +1,123 @@
+
+~)0. way
+18721986267
+96465174
+
+1. 登录
+2. 章节视频大分类
+3. 循环 当前页面索引
+4. 在循环中获得 视频种子地址
+5. 下载
+
+
+~)1. login
+
+~)1. login h1.url
+https://api-v5-0.yangcong345.com/login
+post
+name="18721986267",
+password="fff111QQQ",
+
+~)1. login h1.返回
+
+
+~)2. 章节
+主页页面当前列表
+
+~)2. 章节 h1.url
+http://www.leleketang.com/cr/categories.php
+get
+Accept: text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3
+Accept-Encoding: gzip, deflate
+Accept-Language: zh-CN,zh;q=0.9,en;q=0.8
+Cache-Control: no-cache
+Connection: keep-alive
+Cookie: gs_browser=pc; gs_browse_mode=desktop; gs_anony=O%3A4%3A%22User%22%3A33%3A%7Bs%3A2%3A%22id%22%3Bi%3A1355491920%3Bs%3A6%3A%22fromId%22%3Bs%3A5%3A%22anony%22%3Bs%3A5%3A%22snsId%22%3Bi%3A0%3Bs%3A8%3A%22nickname%22%3Bs%3A16%3A%22%E6%B8%B8%E5%AE%A21355491920%22%3Bs%3A6%3A%22gender%22%3Bi%3A0%3Bs%3A6%3A%22avatar%22%3Bs%3A23%3A%22%2Flogin%2Fimage%2Fanony2.png%22%3Bs%3A5%3A%22space%22%3Bs%3A0%3A%22%22%3Bs%3A5%3A%22email%22%3Bs%3A0%3A%22%22%3Bs%3A6%3A%22mobile%22%3Bs%3A0%3A%22%22%3Bs%3A8%3A%22realName%22%3Bs%3A0%3A%22%22%3Bs%3A8%3A%22location%22%3Bs%3A0%3A%22%22%3Bs%3A5%3A%22brief%22%3Bs%3A0%3A%22%22%3Bs%3A9%3A%22signature%22%3Bs%3A0%3A%22%22%3Bs%3A10%3A%22createTime%22%3Bs%3A0%3A%22%22%3Bs%3A4%3A%22fans%22%3Bi%3A0%3Bs%3A7%3A%22follows%22%3Bi%3A0%3Bs%3A8%3A%22articles%22%3Bi%3A0%3Bs%3A4%3A%22role%22%3Bi%3A0%3Bs%3A8%3A%22roleName%22%3Bs%3A0%3A%22%22%3Bs%3A6%3A%22skinId%22%3Bi%3A0%3Bs%3A8%3A%22birthday%22%3Bs%3A0%3A%22%22%3Bs%3A10%3A%22locationId%22%3Bi%3A0%3Bs%3A9%3A%22famillyId%22%3Bi%3A0%3Bs%3A6%3A%22visits%22%3Bi%3A0%3Bs%3A13%3A%22lastVisitTime%22%3BN%3Bs%3A4%3A%22days%22%3Bi%3A0%3Bs%3A8%3A%22lastDays%22%3Bi%3A0%3Bs%3A5%3A%22coins%22%3Bi%3A0%3Bs%3A4%3A%22gems%22%3Bi%3A0%3Bs%3A11%3A%22experiences%22%3Bi%3A0%3Bs%3A19%3A%22current_experiences%22%3Bi%3A0%3Bs%3A5%3A%22level%22%3Bi%3A0%3Bs%3A6%3A%22awards%22%3Bi%3A0%3B%7D; grade_id=20; course_id=2
+Host: www.leleketang.com
+Pragma: no-cache
+Referer: http://www.leleketang.com/cr/index.php
+Upgrade-Insecure-Requests: 1
+User-Agent: Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/76.0.3809.25 Safari/537.36
+
+~)2. 章节 h1.返回
+Set-Cookie: grade_id=20; path=/; domain=.leleketang.com
+Set-Cookie: course_id=2; path=/; domain=.leleketang.com
+
+	<div class="knowledge_course">初中数学</div>			<a class="kc_item " title="有理数（I）" rel="nofollow" href="stages.php?id=173750">
+                    <div class="kc_complete" style="display: "></div>
+                    <div class="kc_wrapper clearfix">
+					<div class="kc_name ellipsis">1. 有理数（I）</div>
+					<div class="kc_finished"><span class="finish">0</span><span class="split">/</span><span class="total">27</span></div>
+				</div>
+			</a>			<a class="kc_item kc_item_right" title="有理数（II）" rel="nofollow" href="stages.php?id=170881">
+                    <div class="kc_complete" style="display: "></div>
+                    <div class="kc_wrapper clearfix">
+					<div class="kc_name ellipsis">2. 有理数（II）</div>
+					<div class="kc_finished"><span class="finish">0</span><span class="split">/</span><span class="total">33</span></div>
+				</div>
+			</a>			<a class="kc_item " title="整式的加减" rel="nofollow" href="stages.php?id=173751">
+                    <div class="kc_complete" style="display: "></div>
+
+
+
+
+~)3. 视频索引
+多视频辅助文字,衍生两个视频的连接
+~)3. 视频索引 h1.url
+http://www.leleketang.com/cr/stages.php?id=173750
+get
+Accept: text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3
+Accept-Encoding: gzip, deflate
+Accept-Language: zh-CN,zh;q=0.9,en;q=0.8
+Cache-Control: no-cache
+Connection: keep-alive
+Cookie: gs_browser=pc; gs_browse_mode=desktop; gs_anony=O%3A4%3A%22User%22%3A33%3A%7Bs%3A2%3A%22id%22%3Bi%3A1355491920%3Bs%3A6%3A%22fromId%22%3Bs%3A5%3A%22anony%22%3Bs%3A5%3A%22snsId%22%3Bi%3A0%3Bs%3A8%3A%22nickname%22%3Bs%3A16%3A%22%E6%B8%B8%E5%AE%A21355491920%22%3Bs%3A6%3A%22gender%22%3Bi%3A0%3Bs%3A6%3A%22avatar%22%3Bs%3A23%3A%22%2Flogin%2Fimage%2Fanony2.png%22%3Bs%3A5%3A%22space%22%3Bs%3A0%3A%22%22%3Bs%3A5%3A%22email%22%3Bs%3A0%3A%22%22%3Bs%3A6%3A%22mobile%22%3Bs%3A0%3A%22%22%3Bs%3A8%3A%22realName%22%3Bs%3A0%3A%22%22%3Bs%3A8%3A%22location%22%3Bs%3A0%3A%22%22%3Bs%3A5%3A%22brief%22%3Bs%3A0%3A%22%22%3Bs%3A9%3A%22signature%22%3Bs%3A0%3A%22%22%3Bs%3A10%3A%22createTime%22%3Bs%3A0%3A%22%22%3Bs%3A4%3A%22fans%22%3Bi%3A0%3Bs%3A7%3A%22follows%22%3Bi%3A0%3Bs%3A8%3A%22articles%22%3Bi%3A0%3Bs%3A4%3A%22role%22%3Bi%3A0%3Bs%3A8%3A%22roleName%22%3Bs%3A0%3A%22%22%3Bs%3A6%3A%22skinId%22%3Bi%3A0%3Bs%3A8%3A%22birthday%22%3Bs%3A0%3A%22%22%3Bs%3A10%3A%22locationId%22%3Bi%3A0%3Bs%3A9%3A%22famillyId%22%3Bi%3A0%3Bs%3A6%3A%22visits%22%3Bi%3A0%3Bs%3A13%3A%22lastVisitTime%22%3BN%3Bs%3A4%3A%22days%22%3Bi%3A0%3Bs%3A8%3A%22lastDays%22%3Bi%3A0%3Bs%3A5%3A%22coins%22%3Bi%3A0%3Bs%3A4%3A%22gems%22%3Bi%3A0%3Bs%3A11%3A%22experiences%22%3Bi%3A0%3Bs%3A19%3A%22current_experiences%22%3Bi%3A0%3Bs%3A5%3A%22level%22%3Bi%3A0%3Bs%3A6%3A%22awards%22%3Bi%3A0%3B%7D; grade_id=20; course_id=2
+Host: www.leleketang.com
+Pragma: no-cache
+Referer: http://www.leleketang.com/cr/categories.php
+Upgrade-Insecure-Requests: 1
+User-Agent: Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/76.0.3809.25 Safari/537.36
+
+
+~)3. 视频索引 h1. 返回
+<a class="kn_one  " data-stage_mine="1" data-stage_id="8763" data-stage_valid="1" data-stage_type="1" data-no="1" data-is_vip="" href="stage.php?id=8763">
+<a class="kn_one kn_one_lock  " data-stage_mine="1" data-stage_id="8766" data-stage_valid="1" data-stage_type="1" data-no="7" data-is_vip="1" href="javascript:;">
+
+
+~)4. 视频播放页面
+内容可以构造
+http://v.leleketang.com/dat/ms/ma/k/video/19383.ogv
+http://v.leleketang.com/dat/ms/ma/k/video/19383.mp4
+
+~)4. 视频播放页面 h1. url
+http://www.leleketang.com/cr/stage.php?id=8763
+get
+Accept: text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3
+Accept-Encoding: gzip, deflate
+Accept-Language: zh-CN,zh;q=0.9,en;q=0.8
+Cache-Control: no-cache
+Connection: keep-alive
+Cookie: gs_browser=pc; gs_browse_mode=desktop; gs_anony=O%3A4%3A%22User%22%3A33%3A%7Bs%3A2%3A%22id%22%3Bi%3A1355491920%3Bs%3A6%3A%22fromId%22%3Bs%3A5%3A%22anony%22%3Bs%3A5%3A%22snsId%22%3Bi%3A0%3Bs%3A8%3A%22nickname%22%3Bs%3A16%3A%22%E6%B8%B8%E5%AE%A21355491920%22%3Bs%3A6%3A%22gender%22%3Bi%3A0%3Bs%3A6%3A%22avatar%22%3Bs%3A23%3A%22%2Flogin%2Fimage%2Fanony2.png%22%3Bs%3A5%3A%22space%22%3Bs%3A0%3A%22%22%3Bs%3A5%3A%22email%22%3Bs%3A0%3A%22%22%3Bs%3A6%3A%22mobile%22%3Bs%3A0%3A%22%22%3Bs%3A8%3A%22realName%22%3Bs%3A0%3A%22%22%3Bs%3A8%3A%22location%22%3Bs%3A0%3A%22%22%3Bs%3A5%3A%22brief%22%3Bs%3A0%3A%22%22%3Bs%3A9%3A%22signature%22%3Bs%3A0%3A%22%22%3Bs%3A10%3A%22createTime%22%3Bs%3A0%3A%22%22%3Bs%3A4%3A%22fans%22%3Bi%3A0%3Bs%3A7%3A%22follows%22%3Bi%3A0%3Bs%3A8%3A%22articles%22%3Bi%3A0%3Bs%3A4%3A%22role%22%3Bi%3A0%3Bs%3A8%3A%22roleName%22%3Bs%3A0%3A%22%22%3Bs%3A6%3A%22skinId%22%3Bi%3A0%3Bs%3A8%3A%22birthday%22%3Bs%3A0%3A%22%22%3Bs%3A10%3A%22locationId%22%3Bi%3A0%3Bs%3A9%3A%22famillyId%22%3Bi%3A0%3Bs%3A6%3A%22visits%22%3Bi%3A0%3Bs%3A13%3A%22lastVisitTime%22%3BN%3Bs%3A4%3A%22days%22%3Bi%3A0%3Bs%3A8%3A%22lastDays%22%3Bi%3A0%3Bs%3A5%3A%22coins%22%3Bi%3A0%3Bs%3A4%3A%22gems%22%3Bi%3A0%3Bs%3A11%3A%22experiences%22%3Bi%3A0%3Bs%3A19%3A%22current_experiences%22%3Bi%3A0%3Bs%3A5%3A%22level%22%3Bi%3A0%3Bs%3A6%3A%22awards%22%3Bi%3A0%3B%7D; grade_id=20; course_id=2
+Host: www.leleketang.com
+Pragma: no-cache
+Referer: http://www.leleketang.com/cr/stages.php?id=173750
+Upgrade-Insecure-Requests: 1
+User-Agent: Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/76.0.3809.25 Safari/537.36
+
+~)4. 视频播放页面 h1. 返回
+	<script type="text/javascript">
+	$(document).ready(function(){
+		$.jPlayer.timeFormat.showHour = true;
+		$("#pb_player").jPlayer({
+			ready: function () {
+				$(this).jPlayer("setMedia", {
+					m4v: "//v.leleketang.com/dat/ms/ma/k/video/18363.mp4",
+					ogv: "//v.leleketang.com/dat/ms/ma/k/video/18363.ogv",
+					poster: "//www.leleketang.com/dat/knowledge/pic/default2.png"
+				});
+			}
+
+'passed-171193-1355491920': 'deleted',
+'newclover-171151-1355491920': 'deleted',
+'passed-171151-1355491920': 'deleted',
+'newclover-171054-1355491920': 'deleted',

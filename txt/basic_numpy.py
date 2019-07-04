@@ -30,6 +30,8 @@ np.set_printoptions(suppress=True)  # 不用科学计数法
 # # 数组初始化
 # [np.nan,] * 4
 # items_matrix = np.full((2, 3, 4), np.nan)
+# 字符串初始化，它可以存储最多256个字符的10个字符串
+# strArr = np.empty(10, dtype=np.str)
 
 # # 属性
 # print(a.ndim)   #数组的维数

@@ -13,6 +13,10 @@ print("sys.argv[0]=%s" % sys.argv[0])
 # 目录
 os.path.exists("modelName")
 
+# 如果不存在则创建目录
+if not os.path.exists(path):
+    os.makedirs(path)
+
 # 判断目录
 if os.path.isfile(modelpath):
     pass
@@ -28,5 +32,21 @@ if os._exists("reslogfile"):
 
 # 拼接
 os.path.join("rootDir", 'data', 'embeddings', "embeddingSource")
+
 # 分割
 embeddings_format = os.path.splitext("")[1][1:]
+
+# 某文件的基本路径
+os.path.basename("full_path")
+
+# 切换工作路径
+os.chdir("user_path")
+
+# 程序当前路径
+os.getcwd()
+
+# 绝对路径
+os.path.abspath(__file__)
+
+# 相对路径
+os.path.realpath(__file__)

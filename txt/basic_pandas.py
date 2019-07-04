@@ -76,6 +76,7 @@ stock.set_index("date", inplace=True)
 
 # 列改名
 # plotlist = [data_list[i2].rename(columns={"close": i2})[i2] for i2 in orderl_pd[numf:numt]["index"]]
+# df.rename(columns={'oldName1': 'newName1', 'oldName2': 'newName2'}, inplace=True)
 
 # 列合并
 # plotlist_pd = pd.concat(plotlist, axis=1)
@@ -216,6 +217,11 @@ info_new["length"] = info_new["skus"].map(len)
 # df1.to_excel(writer, sheet_name='sheet1')
 # df2.to_excel(writer, sheet_name='sheet2')
 # writer.save()
+
+# # 导出json
+# have_res = pdobj.to_json(orient='records', force_ascii=False)
+# have_res = json.loads(have_res, encoding="utf-8")
+
 # 读文件
 date_spec = {"SubmitDate1": [1], "SaleDate1": [3], "CreateDate1": [7], "DeliveryPlanTime1": [14]}
 # dateparse = lambda x: pd.datetime.strptime(x,'%Y-%m-%d %H:%M:%S.%f')
@@ -224,6 +230,7 @@ date_spec = {"SubmitDate1": [1], "SaleDate1": [3], "CreateDate1": [7], "Delivery
 # order_info_data = pd.read_csv(inpath, header=0, parse_dates=True,encoding="utf8", dtype=typedict, sep=',',low_memory=True, keep_date_col=False)
 order_info_data = pd.read_csv("a.csv", index_col=0, parse_dates=[0])
 # df1 = pd.read_csv(self.file_liquids_order, header=None, encoding="utf8", dtype=str,sep='\t')
+# train = pd.read_csv("f.tsv", header=0, delimiter="\t", quoting=3)
 # data = pd.read_excel(io='Current.xls', sheet_name='Sheet1', header=0)
 # 分次读
 inpath = "./a.csv"

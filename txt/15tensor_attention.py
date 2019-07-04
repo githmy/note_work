@@ -3,6 +3,7 @@ import tensorflow as tf
 
 import numpy as np
 
+
 # ******************************** 1. 工具部分 ******************************************
 def zero_pad(X, seq_len):
     return np.array([x[:seq_len - 1] + [0] * max(seq_len - len(x), 1) for x in X])
@@ -166,7 +167,10 @@ test_batch_generator = batch_generator(X_test, y_test, BATCH_SIZE)
 train_writer = tf.summary.FileWriter('./logdir/train', accuracy.graph)
 test_writer = tf.summary.FileWriter('./logdir/test', accuracy.graph)
 
-session_conf = tf.ConfigProto(gpu_options=tf.GPUOptions(allow_growth=True))
+session_conf = tf.ConfigProto(
+    gpu_options=tf.GPUOptions(allow_growth=True),
+    allow_soft_placement=True,  # 如果指定的设备不存在，允许tf自动分配设备
+    log_device_placement=False)  # 不打印设备分配日志
 
 saver = tf.train.Saver()
 

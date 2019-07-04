@@ -1,0 +1,166 @@
+[
+  {
+    "process": {
+      "illustration": "node_file的键，本身可以转为整数，即输入节点号。",
+      "innode_file": {
+        "5": [
+          "rasa_train.csv",
+          "comment_text"
+        ]
+      },
+      "outnode_file": {
+        "42": [
+          "rasa_train.csv",
+          "colname1"
+        ],
+        "43": [
+          "rasa_train.csv",
+          "colname2"
+        ],
+        "15": [
+          "rasa_train.csv",
+          "colname3"
+        ]
+      },
+      "分词__1": {
+        "inout": [
+          [
+            22,
+            23
+          ],
+          [
+            5
+          ]
+        ],
+        "paras": {
+          "chara": 300,
+          "kvalue": 5
+        }
+      },
+      "分词__2": {
+        "inout": [
+          [
+            32,
+            33
+          ],
+          [
+            15
+          ]
+        ],
+        "paras": {
+          "chara": 300,
+          "kvalue": 5
+        }
+      },
+      "分类__1": {
+        "inout": [
+          [
+            42,
+            43
+          ],
+          [
+            25
+          ]
+        ],
+        "paras": {
+          "chara": 300,
+          "kvalue": 5
+        }
+      },
+      "分类__2": {
+        "inout": [
+          [
+            52,
+            53
+          ],
+          [
+            35
+          ]
+        ],
+        "paras": {
+          "chara": 300,
+          "kvalue": 5
+        }
+      },
+      "link_list": [
+        [
+          35,
+          24
+        ],
+        [
+          1,
+          2
+        ]
+      ]
+    },
+    "parse": null,
+    "version": null,
+    "illustration": "配置文件格式：第一个pipline同级(包含)之上的键只能取一个。pipline之下的键为功能模块，功能模块下的数组为可选方式，功能模块下的键为参数，参数的实值为类型。label_map下的键为自定义项。"
+  },
+  {
+    "illustration": "node_file的键，本身可以转为整数，即输入节点号。",
+    "innode_file": {
+      "5": [
+        "rasa_train.csv",
+        "comment_text"
+      ]
+    },
+    "outnode_file": {
+      "6": [
+        "rasa_train.csv",
+        "colname1"
+      ],
+      "7": [
+        "rasa_train.csv",
+        "colname2"
+      ]
+    },
+    "分词__1": {
+      "inout": [
+        [
+          8
+        ],
+        [
+          9
+        ]
+      ],
+      "paras": {
+        "chara": 300,
+        "type": "jieba"
+      }
+    },
+    "分词3__2": {
+      "inout": [
+        [
+          10
+        ],
+        [
+          11
+        ]
+      ],
+      "paras": {
+        "chara": 300,
+        "type": "jieba",
+        "kvalue": 5
+      }
+    },
+    "link_list": [
+      [
+        5,
+        8
+      ],
+      [
+        5,
+        10
+      ],
+      [
+        9,
+        6
+      ],
+      [
+        11,
+        7
+      ]
+    ]
+  }
+]
