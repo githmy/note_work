@@ -63,6 +63,7 @@ def feed_format():
         feed_dict[dropout] = config["dropout_keep"]
     return feed_dict
 
+
 # 数据操作
 def data_manipulate():
     # # 1. 将dataset缓存在内存或者本地硬盘,默认是内存
@@ -73,11 +74,12 @@ def data_manipulate():
     #     num_parallel_calls=None
     # )
     def _mapfunc(file, label):
-      with tf.device('/cpu:0'):
-        img_raw = tf.read_file(file)
-        decoded = tf.image.decode_bmp(img_raw)
-        resized = tf.image.resize_images(decoded, [h, w])
-      return resized, label
+        with tf.device('/cpu:0'):
+            img_raw = tf.read_file(file)
+            decoded = tf.image.decode_bmp(img_raw)
+            resized = tf.image.resize_images(decoded, [h, w])
+        return resized, label
+
     # # 3. shuffle
     # shuffle(
     #     buffer_size,
@@ -335,6 +337,8 @@ def array_var_manipulation():
     tf.logical_not(False)
     tf.logical_and(True, False)
     tf.logical_or(True, False)
+    # 异或
+    tf.bitwise.bitwise_or(predictions_m, input_y_m)
     """
     [[1 0 1],[1 1 1]]
     [2 3]
@@ -470,6 +474,22 @@ def check_var_func():
     char_lookup.assign(emb_weights)
 
 
+# 可训练方式
+def trainable_func():
+    # 1. trainable设置为True
+    # trainable设置为True，就会把变量添加到GraphKeys.TRAINABLE_VARIABLES集合中，
+    # 如果是False，则不添加。
+    # 而在计算梯度进行后向传播时，我们一般会使用一个optimizer，然后调用该optimizer的compute_gradients方法。
+    # 在compute_gradients中，第二个参数var_list如果不传入，则默认为GraphKeys.TRAINABLE_VARIABLES。
+    # 自定义变量列表，那么即使设置了trainable=False，只要把该变量加入到自定义变量列表中，变量还是会参与后向传播的
+    # 2. 方式2
+    tf.stop_gradient(var)
+    # 3. 方式3
+    trainable_vars = tf.trainable_variables()
+    freeze_conv_var_list = [t for t in trainable_vars if not t.name.startswith(u'conv')]
+    grads = opt.compute_gradients(loss, var_list=freeze_conv_var_list)
+
+
 # 参数更新
 def vari_change():
     # tf.assign(ref, value) 的方式来把 value 值赋给 ref 变量
@@ -503,6 +523,8 @@ def gradients_update():
 
     train_op = opt.apply_gradients(capped_grads_and_vars)
     sess.run(train_op, feed_dict=feed_dict)
+
+
 #
 
 # 梯度更新 动图
@@ -535,6 +557,7 @@ def gradients_update2():
     learning_step = tf.train.GradientDescentOptimizer(learning_rate).minimize(loss, global_step=global_step)
     # 上面这段代码中设定了初始学习率为0.1，因为指定了staircase = True，所以每训练100轮后学习率乘以0.96。
 
+
 # 梯度限制
 def gradients_limit():
     # 方式一
@@ -549,6 +572,7 @@ def gradients_limit():
     grads, variables = zip(*optimizer.compute_gradients(loss))
     grads, global_norm = tf.clip_by_global_norm(grads, 5)
     train_op = optimizer.apply_gradients(zip(grads, variables))
+
 
 # 激活函数
 def activate_func():
