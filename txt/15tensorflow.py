@@ -831,7 +831,7 @@ def load_model1():
 
 
 def load_model2():
-    # 方式一
+    # 方式一  不需要重新定义网络结构
     saver = tf.train.import_meta_graph('save/filename.meta')
     saver.restore(tf.get_default_session(), 'save/filename.ckpt-16000')
 
@@ -874,7 +874,7 @@ def load_and_add():
     # Create some variables.
     v1 = tf.Variable([11.0, 16.3], name="v1")
 
-    # ** 导入训练好的模型
+    # ** 导入训练好的模型 这种方式需要重新定义网络结构。
     saver = tf.train.Saver()
     ckpt_path = '../ckpt/test-model.ckpt'
     saver.restore(sess, ckpt_path + '-' + str(1))
@@ -890,7 +890,7 @@ def load_and_add():
 
     # ** 保存新的模型。
     #  注意！注意！注意！ 一定一定一定要重新定义 saver, 这样才能把 v3 添加到 checkpoint 中
-    saver = tf.train.Saver()
+    saver = tf.train.Saver(tf.global_variables(), max_to_keep=5)
     saver.save(sess, ckpt_path, global_step=2)
 
 

@@ -1,4 +1,0 @@
-#LWP-Cookies-2.0
-Set-Cookie3: SESSION_HASH=9306e2f8cbf08e202bced4c0907587238df31171; path="/"; domain=".jiayuan.com"; path_spec; domain_dot; expires="2018-02-28 15:12:39Z"; version=0
-Set-Cookie3: PHPSESSID=f36b3e8461d9e2f715d398c96eb24830; path="/"; domain="search.jiayuan.com"; path_spec; expires="2038-01-19 03:14:07Z"; version=0
-Set-Cookie3: is_searchv2=1; path="/"; domain="search.jiayuan.com"; path_spec; expires="2018-06-08 05:12:41Z"; version=0

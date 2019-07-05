@@ -1,0 +1,23 @@
+{
+  "port": 6000,
+  "model_type": null,
+  "model_name": "tmp",
+  "database_ip": "127.0.0.1",
+  "database_name": "test",
+  "user": "root",
+  "password": "123",
+  "wcsurl": "http://192.168.0.107:8090",
+  "wcsinit": "algInitRequest",
+  "wcsget": "algNormalRequest",
+  "wcsput": "algOutputInfo",
+  "wcsupdate": "",
+  "alg_user": "ALG",
+  "alg_pass": "123456",
+  "class_over": "00:30",
+  "read_interval": 60,
+  "error_retry": 1000000000,
+  "error_sleep": 10,
+  "cosy_sleep": 5,
+  "normal_sleep": 5,
+  "para_path": "conf"
+}

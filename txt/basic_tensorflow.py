@@ -3,6 +3,12 @@ import numpy as np
 import pandas as pd
 import tensorflow as tf
 
+def csv_read():
+    """
+    
+    :return: 
+    """
+    pass
 
 def read_tfrecord(example_proto):
     """
