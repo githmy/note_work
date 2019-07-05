@@ -68,6 +68,10 @@ def opencv_demo():
     # 2.2 基于流体动力学并使用了偏微分方程
     dst2 = cv2.inpaint(img, mask, 3, cv2.INPAINT_NS)
     cv2.imshow('2', dst)
+    color = frame[y][x].tolist()  # 关键点1 tolist
+    # 矩形操作
+    #             图像   左上角    右下角       颜色   线宽-1为填满
+    cv2.rectangle(frame, left_up, right_down, color, -1)
 
     # 3. 梯度运算：表示的是将膨胀以后的图像 - 腐蚀后的图像
     cv2.morphologyEx(src, cv2.GRADIENT, kernel)
@@ -92,6 +96,7 @@ def opencv_demo():
     # 给定的时间内(单位ms)等待用户按键触发，设置waitKey(0),则表示程序会无限制的等待用户的按键事件
     cv2.waitKey(0)
     cv2.destoryAllWindows()
+
 
 if __name__ == "__main__":
     opencv_demo()
