@@ -10,6 +10,10 @@ print("sys.path[0]=%s" % sys.path[0])
 
 print("sys.argv[0]=%s" % sys.argv[0])
 
+# 递归f_dir 下的文件目录 文件 , dirs 和 files 都为[]
+for root, dirs, files in os.walk(f_dir, topdown=True):
+    pass
+
 # 目录
 os.path.exists("modelName")
 

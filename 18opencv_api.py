@@ -2,6 +2,33 @@ import cv2
 import numpy as np
 
 
+def audio_demo():
+    import pyaudio
+    import wave
+    import sys
+
+    CHUNK = 1024
+    if len(sys.argv) < 2:
+        print("Plays a wave file.\n\nUsage: %s filename.wav" % sys.argv[0])
+        sys.exit(-1)
+
+    wf = wave.open(sys.argv[1], 'rb')
+    p = pyaudio.PyAudio()
+    stream = p.open(format=p.get_format_from_width(wf.getsampwidth()),
+                    channels=wf.getnchannels(),
+                    rate=wf.getframerate(),
+                    output=True)
+
+    data = wf.readframes(CHUNK)
+    while data != '':
+        stream.write(data)
+        data = wf.readframes(CHUNK)
+
+    stream.stop_stream()
+    stream.close()
+    p.terminate()
+
+
 def opencv_demo():
     """
     非压缩格式的AVI文件 MPEG1格式
@@ -96,6 +123,370 @@ def opencv_demo():
     # 给定的时间内(单位ms)等待用户按键触发，设置waitKey(0),则表示程序会无限制的等待用户的按键事件
     cv2.waitKey(0)
     cv2.destoryAllWindows()
+
+
+def movie_py():
+    from moviepy.editor import *
+    from moviepy.audio.fx import all
+
+    # 说明： https://github.com/Zulko/moviepy/blob/master/README.rst
+    video = VideoFileClip("myHolidays.mp4").subclip(50, 60)
+
+    # Make the text. Many more options are available.
+    txt_clip = (TextClip("My Holidays 2013", fontsize=70, color='white')
+                .set_position('center')
+                .set_duration(10))
+
+    result = CompositeVideoClip([video, txt_clip])  # Overlay text on video
+    result.write_videofile("myHolidays_edited.webm", fps=25)  # Many options...
+
+
+def vispy_demo():
+    from moviepy.editor import VideoClip
+    import numpy as np
+    from vispy import app, scene
+    from vispy.gloo.util import _screenshot
+
+    canvas = scene.SceneCanvas(keys='interactive')
+    view = canvas.central_widget.add_view()
+    view.set_camera('turntable', mode='perspective', up='z', distance=2,
+                    azimuth=30., elevation=65.)
+
+    xx, yy = np.arange(-1, 1, .02), np.arange(-1, 1, .02)
+    X, Y = np.meshgrid(xx, yy)
+    R = np.sqrt(X ** 2 + Y ** 2)
+    Z = lambda t: 0.1 * np.sin(10 * R - 2 * np.pi * t)
+    surface = scene.visuals.SurfacePlot(x=xx - 0.1, y=yy + 0.2, z=Z(0),
+                                        shading='smooth', color=(0.5, 0.5, 1, 1))
+    view.add(surface)
+    canvas.show()
+
+    # 用MoviePy转换为动画
+
+    def make_frame(t):
+        surface.set_data(z=Z(t))  # 更新曲面
+        canvas.on_draw(None)  # 更新Vispy的画布上的 图形
+        return _screenshot((0, 0, canvas.size[0], canvas.size[1]))[:, :, :3]
+
+    animation = VideoClip(make_frame, duration=1).resize(width=350)
+    animation.write_gif('sinc_vispy.gif', fps=20, opt='OptimizePlus')
+
+
+def mayavi_demo():
+    import numpy as np
+    import mayavi.mlab as mlab
+    import moviepy.editor as mpy
+
+    duration = 2  # duration of the animation in seconds (it will loop)
+
+    # 用Mayavi制作一个图形
+
+    fig_myv = mlab.figure(size=(220, 220), bgcolor=(1, 1, 1))
+    X, Y = np.linspace(-2, 2, 200), np.linspace(-2, 2, 200)
+    XX, YY = np.meshgrid(X, Y)
+    ZZ = lambda d: np.sinc(XX ** 2 + YY ** 2) + np.sin(XX + d)
+
+    # 用MoviePy将图形转换为动画，编写动画GIF
+
+    def make_frame(t):
+        mlab.clf()  # 清掉图形（重设颜色）
+        mlab.mesh(YY, XX, ZZ(2 * np.pi * t / duration), figure=fig_myv)
+        return mlab.screenshot(antialiased=True)
+
+    animation = mpy.VideoClip(make_frame, duration=duration)
+    animation.write_gif("sinc.gif", fps=20)
+
+
+def matplotlib_demo():
+    import matplotlib.pyplot as plt
+    import numpy as np
+    from moviepy.video.io.bindings import mplfig_to_npimage
+    import moviepy.editor as mpy
+
+    # 用matplotlib绘制一个图形
+
+    duration = 2
+
+    fig_mpl, ax = plt.subplots(1, figsize=(5, 3), facecolor='white')
+    xx = np.linspace(-2, 2, 200)  # x向量
+    zz = lambda d: np.sinc(xx ** 2) + np.sin(xx + d)  # （变化的）Z向量
+    ax.set_title("Elevation in y=0")
+    ax.set_ylim(-1.5, 2.5)
+    line, = ax.plot(xx, zz(0), lw=3)
+
+    # 用MoviePy制作动（为每个t更新曲面）。制作一个GIF
+
+    def make_frame_mpl(t):
+        line.set_ydata(zz(2 * np.pi * t / duration))  # 更新曲面
+        return mplfig_to_npimage(fig_mpl)  # 图形的RGB图像
+
+    animation = mpy.VideoClip(make_frame_mpl, duration=duration)
+    animation.write_gif("sinc_mpl.gif", fps=20)
+
+
+def mumpy_demo():
+    import urllib
+    import numpy as np
+    from scipy.ndimage.filters import convolve
+    import moviepy.editor as mpy
+
+    #### 从网络上检索地图
+
+
+    filename = ("http://upload.wikimedia.org/wikipedia/commons/a/aa/"
+                "France_-_2011_population_density_-_200_m_%C3%"
+                "97_200_m_square_grid_-_Dark.png")
+    urllib.urlretrieve(filename, "france_density.png")
+
+    #### 参数和约束条件
+
+
+    infection_rate = 0.3
+    incubation_rate = 0.1
+
+    dispersion_rates = [0, 0.07, 0.03]  # for S, I, R
+
+    # 该内核会模拟人类/僵尸如何用一个位置扩散至邻近位置
+    dispersion_kernel = np.array([[0.5, 1, 0.5],
+                                  [1, -6, 1],
+                                  [0.5, 1, 0.5]])
+
+    france = mpy.ImageClip("france_density.png").resize(width=400)
+    SIR = np.zeros((3, france.h, france.w), dtype=float)
+    SIR[0] = france.get_frame(0).mean(axis=2) / 255
+
+    start = int(0.6 * france.h), int(0.737 * france.w)
+    SIR[1, start[0], start[1]] = 0.8  # infection in Grenoble at t=0
+
+    dt = 1.0  # 一次更新=实时1个小时
+    hours_per_second = 7 * 24  # one second in the video = one week in the model
+    world = {'SIR': SIR, 't': 0}
+
+    ##### 建模
+
+
+    def infection(SIR, infection_rate, incubation_rate):
+        """ Computes the evolution of #Sane, #Infected, #Rampaging"""
+        S, I, R = SIR
+        newly_infected = infection_rate * R * S
+        newly_rampaging = incubation_rate * I
+        dS = - newly_infected
+        dI = newly_infected - newly_rampaging
+        dR = newly_rampaging
+        return np.array([dS, dI, dR])
+
+    def dispersion(SIR, dispersion_kernel, dispersion_rates):
+        """ Computes the dispersion (spread) of people """
+        return np.array([convolve(e, dispersion_kernel, cval=0) * r
+                         for (e, r) in zip(SIR, dispersion_rates)])
+
+    def update(world):
+        """ spread the epidemic for one time step """
+        infect = infection(world['SIR'], infection_rate, incubation_rate)
+        disperse = dispersion(world['SIR'], dispersion_kernel, dispersion_rates)
+        world['SIR'] += dt * (infect + disperse)
+        world['t'] += dt
+
+    # 用MoviePy制作动画
+
+
+    def world_to_npimage(world):
+        """ Converts the world's map into a RGB image for the final video."""
+        coefs = np.array([2, 25, 25]).reshape((3, 1, 1))
+        accentuated_world = 255 * coefs * world['SIR']
+        image = accentuated_world[::-1].swapaxes(0, 2).swapaxes(0, 1)
+        return np.minimum(255, image)
+
+    def make_frame(t):
+        """ Return the frame for time t """
+        while world['t'] < hours_per_second * t:
+            update(world)
+        return world_to_npimage(world)
+
+    animation = mpy.VideoClip(make_frame, duration=25)
+    # 可以将结果写为视频或GIF（速度较慢）
+    # animation.write_gif(make_frame, fps=15)
+    animation.write_videofile('test.mp4', fps=20)
+
+
+def concat_demo():
+    import moviepy.editor as mpy
+    # 我们使用之前生成的GIF图以避免重新计算动画
+    clip_mayavi = mpy.VideoFileClip("sinc.gif")
+    clip_mpl = mpy.VideoFileClip("sinc_mpl.gif").resize(height=clip_mayavi.h)
+    animation = mpy.clips_array([[clip_mpl, clip_mayavi]])
+    animation.write_gif("sinc_plot.gif", fps=20)
+
+    # 或者更有艺术气息一点：
+    # 在in clip_mayavi中将白色变为透明
+    clip_mayavi2 = (clip_mayavi.fx(mpy.vfx.mask_color, [255, 255, 255])
+                    .set_opacity(.4)  # whole clip is semi-transparent
+                    .resize(height=0.85 * clip_mpl.h)
+                    .set_pos('center'))
+
+    animation = mpy.CompositeVideoClip([clip_mpl, clip_mayavi2])
+    animation.write_gif("sinc_plot2.gif", fps=20)
+
+
+def concat_with_grid_illustraion_demo():
+    import moviepy.editor as mpy
+    import skimage.exposure as ske  # 改变尺度，直方图
+    import skimage.filter as skf  # 高斯模糊
+
+    clip = mpy.VideoFileClip("sinc.gif")
+    gray = clip.fx(mpy.vfx.blackwhite).to_mask()
+
+    def apply_effect(effect, title, **kw):
+        """ Returns a clip with the effect applied and a title"""
+        filtr = lambda im: effect(im, **kw)
+        new_clip = gray.fl_image(filtr).to_RGB()
+        txt = (mpy.TextClip(title, font="Purisa-Bold", fontsize=15)
+               .set_position(("center", "top"))
+               .set_duration(clip.duration))
+        return mpy.CompositeVideoClip([new_clip, txt])
+
+    # 为原始动画应用4种不同的效果
+    equalized = apply_effect(ske.equalize_hist, "Equalized")
+    rescaled = apply_effect(ske.rescale_intensity, "Rescaled")
+    adjusted = apply_effect(ske.adjust_log, "Adjusted")
+    blurred = apply_effect(skf.gaussian_filter, "Blurred", sigma=4)
+
+    # 将片段一起放在2 X 2的网格上，写入一个文件
+    final_clip = mpy.clips_array([[equalized, adjusted],
+                                  [blurred, rescaled]])
+    final_clip.write_gif("test2x2.gif", fps=20)
+
+
+def concat_with_sequence_illustraion_demo():
+    import moviepy.editor as mpy
+    import skimage.exposure as ske
+    import skimage.filter as skf
+
+    clip = mpy.VideoFileClip("sinc.gif")
+    gray = clip.fx(mpy.vfx.blackwhite).to_mask()
+
+    def apply_effect(effect, label, **kw):
+        """ Returns a clip with the effect applied and a top label"""
+        filtr = lambda im: effect(im, **kw)
+        new_clip = gray.fl_image(filtr).to_RGB()
+        txt = (mpy.TextClip(label, font="Amiri-Bold", fontsize=25,
+                            bg_color='white', size=new_clip.size)
+               .set_position(("center"))
+               .set_duration(1))
+        return mpy.concatenate_videoclips([txt, new_clip])
+
+    equalized = apply_effect(ske.equalize_hist, "Equalized")
+    rescaled = apply_effect(ske.rescale_intensity, "Rescaled")
+    adjusted = apply_effect(ske.adjust_log, "Adjusted")
+    blurred = apply_effect(skf.gaussian_filter, "Blurred", sigma=4)
+
+    clips = [equalized, adjusted, blurred, rescaled]
+    animation = mpy.concatenate_videoclips(clips)
+    animation.write_gif("sinc_cat.gif", fps=15)
+
+
+def movie_py_demo():
+    from moviepy.editor import *
+    from moviepy.audio.fx import all
+    # 安装 imagemagick
+    # That may also mean that you are using a deprecated version of FFMPEG
+
+    # 字体名字不能含有中文
+    FONT_URL = './font/heimi.TTF'
+
+    input_video = "./模板.mp4", output_video = "new_video.mp4"
+
+    # 剪个10s的720x1280px的视频
+    background_clip = VideoFileClip(input_video, target_resolution=(720, 1280)).subclip(0, 10)
+
+    # 音乐只要前10s 时间剪辑
+    audio_clip = AudioFileClip('yuna.mp3').subclip(0, 10)
+    background_clip = background_clip.set_audio(audio_clip)
+
+    # 左下角加文字, 持续10s
+    text_clip1 = TextClip('我是左下角', fontsize=30, color='white', font=FONT_URL)
+    text_clip1 = text_clip1.set_position(('left', 'bottom'))
+    text_clip1 = text_clip1.set_duration(10)
+
+    # 右下角加文字, 持续3s
+    text_clip2 = TextClip('我是右下角', fontsize=30, color='white', font=FONT_URL)
+    text_clip2 = text_clip2.subclip(0, 3).set_position(('right', 'bottom'))
+
+    image_clip = ImageClip('shuoGG.png')
+
+    # 图片放中间, 从第2s开始播持续6s
+    image_clip = image_clip.set_duration(6).set_position('center').set_start(2)
+    video = CompositeVideoClip([background_clip, text_clip1, text_clip2, image_clip])
+
+    # 文件写入
+    # codec='mpeg4'来使用自己指定的编解码。
+    video.write_videofile(output_video)
+    myclip.write_videofile('movie.mp4', fps=15)
+    myclip.write_videofile('movie.webm')
+    myclip.write_videofile('movie.webm', audio=False)  # 不使用音频
+
+    # 调节音量
+    video = all.volumex(video, 0.8)
+
+    # 1. 创建clip
+    # VIDEO CLIPS
+    clip = VideoClip(make_frame, duration=4)  # 自定义动画
+    clip = VideoFileClip("my_vedio_file.mp4")  # 文件格式还可以是avi、webm、 gif等
+    # 一系列图片创建的clip
+    clip = ImageSequenceClip(['imagefile.jpeg', ...], fps=24)
+    clip = ImageSequenceClip(images_list, fps=25)
+    clip = ImageClip('my_picture.png')  # 文件格式还可以是 png、tiff等
+    clip = TextClip('Hello!', font="Amiri-Bold", fintsize=70, color='black')
+    # 纯色clip
+    clip = ColorClip(size=(460, 380), color=[R, G, B])
+    shade = ColorClip(moviesize, color=(0, 0, 0), ismask=True)
+
+    # AUDIO CLIPS
+    clip = AudioFileClip("my_audio_file.mp3")  # 文件格式还可以是ogg、wav或者也可以是一个vedio
+    clip = AudioArrayClip(numpy_array, fps=44100)  # 一个numpy数组
+    clip = AudioClip(make_frame, duration=3)  # 使用一个方法make_frame(t)
+
+    # 2. mask 定义
+    maskclip = VideoClip(makeframe, duration=4, ismask=True)
+    maskclip = ImageClip('my_mask.jpeg', ismask=True)
+    maskclip = VideoFileClip("myvideo.mp4", ismask=True)
+    # mask 使用到同样尺寸的myclip上
+    myclip.set_mask(mask_clip)
+    # mask 转化
+    # video_clip都可以通过 clip.to_mask() 转换为一个mask
+    # mask也可以通过 my_mask_clip.to_RGB()转换为标准的RGB video clip.
+
+    # 重定义大小
+    logo = ImageClip('logo_3.png').resize(width=logosize[0], height=logosize[1])
+
+    # logo 贴到纯色背景上
+    screen = logo.on_color(moviesize, color=(0, 0, 0), pos=(frame_fromx, frame_fromy))
+
+    # 3. clip导出为一个gif动画
+    my_clip.write_gif('test.gif', fps=12)
+    # 保存画面
+    myclip.save_frame('frame.png')  # 默认保存第一帧画面
+    myclip.save_frame('frame.jpeg', t='01:00:00')  # 保存1h时刻的帧画面
+
+    # 4. 属性
+    print(ori_video.fps)
+    print(ori_video.duration)
+    print(ori_video.h)
+    print(ori_video.w)
+
+    # 5. 自定义编辑图像
+    def image_func(clip_image):
+        print(type(clip_image))
+        print(clip_image)
+        print(clip_image.shape)
+
+    # 获取第1秒的图像
+    aa = ori_video.get_frame(1)
+    # 自定义图像编辑 必须要前面加等号
+    ori_video = ori_video.fl_image(image_func, apply_to=['mask', 'audio'])
+    # 速度加倍
+    ori_video = ori_video.fl_time(t_func, apply_to=[], keep_duration=False)
+    ori_video.write_images_sequence()
 
 
 if __name__ == "__main__":
