@@ -12,6 +12,9 @@ import time
 import math
 import pymysql
 from utils.connect_mysql import MysqlDB
+from moviepy.editor import *
+import moviepy.editor as mpy
+from moviepy.audio.fx import all
 
 
 # 捕获视频
@@ -104,6 +107,7 @@ def do_mask(frame, logo, x, y, w, h):
     return frame
 
 
+# 只处理视频的主函数
 def print_video(infile, outfile):
     # 0. 参数定义
     # print("print_video: ", infile, outfile)
@@ -153,6 +157,56 @@ def print_video(infile, outfile):
     videoWriter.release()
     cap.release()
     cv2.destroyAllWindows()
+
+
+# 处理视频+音频的主函数
+def moviepy_trans(infile, outfile):
+    # 0. 参数定义
+    ratio_heigh, ratio_wide = 9, 5
+    # 1. 打开视频
+    # source_root = os.path.join("E:\\", "project", "data", "spider", "data", "down")
+    # file_path = os.path.join(source_root, "0b363f6a-57f7-11e7-acaa-9b6f4c777394", "负负得正",
+    #                          "pcM_5a090b047347fe08b2108690", "pcM_5a090b047347fe08b21086907.ts")
+    # target_file = os.path.join("E:\\", "tard", "myHolidays_edited.mp4")
+    # ori_video = VideoFileClip(file_path)
+    ori_video = VideoFileClip(infile)
+    moviesize = (ori_video.w, ori_video.h)
+    logosize = (int(ori_video.w / ratio_wide), int(ori_video.h / ratio_heigh))
+    frame_fromy, frame_fromx = moviesize[1] - logosize[1], moviesize[0] - logosize[0]
+
+    # 2. 马赛克
+    class Mosaic:
+        def __init__(self, x, y, w, h, neighbor=9):
+            self.x = x
+            self.y = y
+            self.w = w
+            self.h = h
+            self.neighbor = neighbor
+
+        def __call__(self, image):
+            ypix_n = int(math.ceil(self.h / self.neighbor) * self.neighbor)
+            xpix_n = int(math.ceil(self.w / self.neighbor) * self.neighbor)
+            for i in range(0, ypix_n, self.neighbor):  # 关键点0 减去neightbour 防止溢出
+                for j in range(0, xpix_n, self.neighbor):
+                    rect = [j + self.x, i + self.y, self.neighbor, self.neighbor]
+                    color = image[i + self.y][j + self.x].tolist()  # 关键点1 tolist
+                    left_up = (rect[0], rect[1])
+                    right_down = (rect[0] + self.neighbor - 1, rect[1] + self.neighbor - 1)  # 关键点2 减去一个像素
+                    cv2.rectangle(image, left_up, right_down, color, -1)
+            return image
+
+    ori_video = ori_video.fl_image(Mosaic(frame_fromx, frame_fromy, logosize[0], logosize[1], neighbor=50),
+                                   apply_to=['mask'])
+    # 3. 打logo
+    logo = ImageClip('logo_3.png')
+    screen = (logo.fx(mpy.vfx.mask_color, [255, 255, 255])
+              .set_opacity(.99)  # whole clip is semi-transparent
+              .resize(width=logosize[0], height=logosize[1])
+              .set_pos((frame_fromx, frame_fromy)))
+    # 4. 输出
+    result = CompositeVideoClip([ori_video, screen], size=moviesize)
+    result.set_duration(ori_video.duration).write_videofile(outfile, fps=ori_video.fps)
+    # result.set_duration(ori_video.duration).write_videofile(target_file, fps=ori_video.fps)
 
 
 # 批量我文件合并
@@ -227,15 +281,13 @@ def get_paths(source_root, target_root):
                     in_content = os.path.join(source_root, i1, i2, i3)
                     # 输出绝对路径
                     out_content = os.path.join(target_root, i1, i2)
-                    if not os.path.exists(out_content):
-                        os.makedirs(out_content)
                     out_file_full_notail = os.path.join(out_content, i3)
-                    yield in_content, out_file_full_notail
+                    yield in_content, out_file_full_notail, out_content
                 else:
                     raise Exception(i1, i2, i3)
 
 
-def one_task(inhead, outhead):
+def one_task(inhead, outhead, dircontent):
     # 0. 程序记录库
     config = {
         'host': "127.0.0.1",
@@ -246,20 +298,24 @@ def one_task(inhead, outhead):
         'cursorclass': pymysql.cursors.DictCursor
     }
     mysql = MysqlDB(config)
+
     time_s = time.time()
     print("one_task: ", inhead, outhead)
     # 1. 人工去文件头
     # outfile = 'output.avi'
-    # 2. 碎文件合并
-    concat_video_m3u8(inhead, outhead + ".ts")
-    # 3. SQL
+    # SQL
     req_sql = """SELECT COUNT(*) as cot FROM `trans_status` WHERE dir3="{}";"""
-    add_sql = """insert into `trans_status` (dir3,had_merge) VALUES ("{}", {});"""
     new_outhead = outhead.replace("\\", "\\\\")
     res_count = mysql.exec_sql(req_sql.format(new_outhead))
     print("had item:", res_count)
     if res_count[0]["cot"] == 0:
+        add_sql = """insert into `trans_status` (dir3,had_merge) VALUES ("{}", {});"""
         print(add_sql.format(new_outhead, 1))
+        # 创建该任务的目录
+        if not os.path.exists(dircontent):
+            os.makedirs(dircontent)
+        # 2. 碎文件合并
+        concat_video_m3u8(inhead, outhead + ".ts")
         res_count = mysql.exec_sql(add_sql.format(new_outhead, 1))
         print(res_count)
     # 3. 水印视频处理
@@ -267,7 +323,8 @@ def one_task(inhead, outhead):
     res_count = mysql.exec_sql(req_sql.format(new_outhead))
     print("had trans:", res_count)
     if res_count[0]["cot"] == 0:
-        print_video(outhead + ".ts", outhead + ".mp4")
+        moviepy_trans(outhead + ".ts", outhead + ".mp4")
+        # print_video(outhead + ".ts", outhead + ".mp4")
         # 4. 完成的写入数据库
         upd_sql = """UPDATE `trans_status` SET had_trans={} WHERE dir3="{}";"""
         res_count = mysql.exec_sql(upd_sql.format(1, new_outhead))
@@ -277,19 +334,18 @@ def one_task(inhead, outhead):
 
 def main():
     source_root = os.path.join("E:\\", "project", "data", "spider", "data", "down")
-    target_root = os.path.join("E:\\", "tard")
+    target_root = os.path.join("D:\\", "tard")
     res = get_paths(source_root, target_root)
     cores = multiprocessing.cpu_count()
     print("cores:", cores)
-    p = Pool(int(cores / 2))
+    p = Pool(int(cores - 4))
     for i1 in res:
-        # 每个15%左右
-        p.apply_async(one_task, args=(i1[0], i1[1]))
+        p.apply_async(one_task, args=(i1[0], i1[1], i1[2]))
     print('Waiting for all subprocesses done...')
     p.close()
     p.join()
     print('All subprocesses done.')
-
+    print(time.strftime("%Y-%m-%d %H:%M:%S", time.localtime()))
 
 if __name__ == "__main__":
     main()
