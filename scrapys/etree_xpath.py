@@ -6,6 +6,9 @@ from lxml import etree
 from PIL import Image
 
 
+# xpath 语法参考网址
+# https://msdn.microsoft.com/zh-cn/library/ms256039(v=vs.80).aspx
+
 def test():
     seed_url = "https://www.xicidaili.com/nn"
     test_url = "https://www.whatismyip.com/my-ip-information/?iref=home"
@@ -37,6 +40,14 @@ def test():
         soup = BeautifulSoup(response.read().decode('utf-8'), "html.parser")
         html = etree.HTML(soup.prettify())
         a_list = html.xpath('//div[@class="container-fluid"]//div[@class="row"]/div[1]/table//text()')
+        # 其他语法
+        # /bookstore/book[1]
+        # /bookstore/book[last()]
+        # /bookstore/book[last()-1]
+        # /bookstore/book[position()<3]
+        # //title[@lang="eng"]
+        # /bookstore/book[price>35.00]
+        # /bookstore/book[price>35.00]/title
         print(a_list)
 
 

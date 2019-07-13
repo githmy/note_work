@@ -36,11 +36,12 @@ ts_log_diff = ts_log - ts_log.shift()
 # orderl_pd = pd.DataFrame(np.random.rand(10), index=indexpd)
 # orderl_pd = pd.date_range("2016 Jul 15 10:55", periods=10,freq='M')
 # orderl_pd = pd.date_range("2016-01-02 10:50:00", periods=10,freq='2h12min')
-# orderl_pd = pd.period_range("2016 Jul 15 10:55", periods=10,freq='60T')
+# orderl_pd = pd.period_range("2016 Jul 15 10:55", periods=10,freq='60T1H')
 orderl_pd = pd.date_range(start="20160615", end="20180615", freq='10D')
 orderl_pd = pd.date_range(start="20160615", periods=10, freq='10D')
 
-# orderl_pd = pd.Timestamp("2016-01-02 10:50:00", tzinfo="shanghai")
+# orderl_pd = pd.Timestamp("2016-01-02 10:50:00", tzinfo="shanghai") + pd.Timedelta("15ns")
+orderl_pd = pd.Period("2016-01-02 10:50:00") + pd.Timedelta("15 day")
 
 # 时间过滤采样
 ts = pd.Series(list(range(50)), index=pd.date_range("2016 Jul 15 10:55", periods=10, freq='60T'))
@@ -135,6 +136,9 @@ df.fillna(method='bfill', inplace=True)
 # 无穷处理
 df.replace([np.inf, -np.inf], np.nan)
 
+# 判断nan
+pd.isnull(x)
+
 # one hot 转化
 pd.get_dummies(df, columns=['category_2', 'category_3'])
 
@@ -142,9 +146,22 @@ pd.get_dummies(df, columns=['category_2', 'category_3'])
 # orderl_pd[[i]] = orderl_pd[[i]].fillna(1e6).astype(int)
 # typess={'a': np.float64, 'b': np.int32}
 # df2 = pd.read_csv(self.file_liquids_mount, header=0, encoding="utf8", sep='\t', dtype=typess)
+# 转整数
+pd.to_numeric(train["col"], downcast="interger")
 
 # 判断在之内
 df[df['secid'].isin([38, 24, 33])]
+
+# 透视表
+pivot_df = pdobj.pivot(index='userNum', columns='subjectCode', values='score')
+"""
+print(pivot_df)
+subjectCode  01  02
+userNum
+001          90  87
+002          96  82
+003          93  80
+"""
 
 # 所有列名
 # plotlist_pd.columns
@@ -164,6 +181,8 @@ df[df['secid'].isin([38, 24, 33])]
 
 # 排序
 df.sort(columns=["age", "tradedate"], ascending=[True, False])
+# 按顺序去最大的10个，price 列
+df.nlargest(10, "price")
 
 # 分组 (key1+key2都不同)
 # means = df['data1'].groupby([df['key1'], df['key2']]).mean()

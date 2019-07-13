@@ -71,6 +71,12 @@ class MongoDB:
         print(x.modified_count, "文档已修改")
 
     def exec_check(self):
+        # 显示查询结果
+        myquery = {"name": {"$gt": "H"}}  # 第一个ascii>H
+        mydoc = self.mycol.find(myquery)
+        return mydoc
+
+    def exec_demo(self):
         # 显示库名
         dblist = self.myclient.list_database_names()
         print(dblist)

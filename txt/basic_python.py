@@ -140,6 +140,15 @@ def regex():
     pattern = re.compile(r'\d+')  # 查找数字
     result2 = pattern.findall('run88oob123google456', 0, 6)
     print(result2)
+    # 3.1 返回括号里的
+    label_name = re.findall(r'a(.*?)b', 'strss')
+    # 4. 匹配任意字符
+    a = r"^[\d\D]*?"
+    # 5. 正则多字符分割
+    re.split(r'[; |, |\*|\n]', "asdfdsdfgdff")
+    # 6. 正则常用
+    # \s 包含空白 \t|\r\n
+
 
 
 def itertools():
@@ -165,9 +174,22 @@ def json_manipulate():
     jsonobj = json.loads(jsonstr, encoding="utf-8")
 
 
+def uuid_demo():
+    import uuid
+
+    name = 'test_name'
+    # namespace = 'test_namespace'
+    namespace = uuid.NAMESPACE_URL
+    print(uuid.uuid1())
+    print(uuid.uuid3(namespace, name))
+    print(uuid.uuid4())
+    print(uuid.uuid5(namespace, name))
+    print(uuid.uuid1("2"))
+
 
 if __name__ == '__main__':
     # cut_files()
-    json_sort()
-    n = 3000
-    static_top_n(n)
+    # json_sort()
+    # n = 3000
+    # static_top_n(n)
+    uuid_demo()

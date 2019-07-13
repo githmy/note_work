@@ -1212,3 +1212,4 @@ def cudnn_test():
 if __name__ == '__main__':
     # timeline_test()
     tf_ckpt_info()
+    tf.train.start_queue_runners()

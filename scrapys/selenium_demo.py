@@ -33,8 +33,8 @@ class Yangcong():
         # 点击登陆
         self.driver.find_element_by_class_name("btn-bg-blue").click()
         time.sleep(random.randint(5, 10))
-
-    #         self.driver.save_screenshot("save.jpg")
+        # 保存屏幕图片
+        self.driver.save_screenshot("save.jpg")
     # 输出登陆之后的cookies
 
     def __del__(self):
@@ -159,7 +159,7 @@ for i1 in range(len(llt1)):
 
 
 json_data = []
-
+# 当前url
 urll1 = yangcong.driver.current_url
 
 keylist0 = get3keys()[0]

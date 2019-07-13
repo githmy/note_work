@@ -17,6 +17,9 @@ import matplotlib.pyplot as plt
 from matplotlib.finance import candlestick_ohlc
 from matplotlib.dates import DateFormatter, WeekdayLocator, DayLocator, MONDAY, date2num, datestr2num
 from datetime import datetime
+# ! pip install statsmodels
+import statsmodels as stats
+import xgboost as xgb
 
 cmd_path = os.getcwd()
 data_path = os.path.join(cmd_path, "data")
@@ -123,7 +126,7 @@ def basic_Decision_Tree():
     scores = cross_val_score(clf, X, y)
     scores.mean()
     # 定义一个极端森林分类器
-    clf = ExtraTreesClassifier(n_estimators=10, max_depth=None,min_samples_split = 2, random_state = 0)
+    clf = ExtraTreesClassifier(n_estimators=10, max_depth=None, min_samples_split=2, random_state=0)
     scores = cross_val_score(clf, X, y)
     scores.mean()
 
@@ -292,6 +295,7 @@ def iris_demo():
     iri = load_iris()
     print(iri)
 
+
 def surprise_demo():
     ### 使用SVD
     from surprise import SVD, evaluate
@@ -322,6 +326,55 @@ def tmp_test():
     except Exception as e:
         logger1.info("error with code: %s" % coden)
         logger1.info(e)
+
+
+def basic_plot():
+    def qq_polt():
+        # 数据是否倾斜
+        stats.mstats.skew(train["loss"]).data
+        stats.mstats.skew(np.log(train["loss"])).data
+
+    def box_cox():
+        # 给数据点找到合适的函数，经过变换后，接近正太分布
+        """
+        y(l) = (yi^l-1)/l   如果 l!=0
+        y(l) = ln(yi)       如果 l==0
+        """
+        from scipy.special import boxcox1p
+        skewed_features = skewness.index
+        alldata = []
+        for feat in skewed_features:
+            alldata[feat] = boxcox1p(alldata[feat], 0.15)
+
+    def xgboost_demo():
+        detrain = xgb.DMatrix(train_x, train["label"])
+        detrain = xgb.cv(xgb_params, dtrain, num_boost_round=50, nfold=3, seed=0, feval=xg_eval_mae, maximize=False,
+                         early_stopping_rounds=10)
+
+    def arima_demo():
+        # 时间序列
+        """
+        ARIMA(p,d,q)阶数的确定。
+                       ACF           PACF
+        AR(p)      衰减震荡趋于零，p阶后截断
+        MA(q)      q阶后截断,     衰减震荡趋于零
+        ARMA(p,q)  q阶后截断,     p阶后截断
+        
+        选择标准 AIC BIC
+        AIC 赤池信息准则     AIC=2k-2ln(L)
+        BIC 贝叶斯信息准则   BIC=kln(n)-2ln(L)
+        k 模型数量， n 样本数量， L 似然函数
+        """
+        import statsmodels.api as sm
+
+        mod = sm.tsa.statespace.SARIMAX(y,
+                                        order=(1, 1, 1),
+                                        freq="W-MON",
+                                        seasonal_order=(1, 1, 1, 12),
+                                        enforce_stationarity=False,
+                                        enforce_invertibility=False)
+        results = mod.fit()
+        print(results.summary().tables[1])
 
 
 if __name__ == '__main__':
