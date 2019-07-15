@@ -154,6 +154,7 @@ df[df['secid'].isin([38, 24, 33])]
 
 # 透视表
 pivot_df = pdobj.pivot(index='userNum', columns='subjectCode', values='score')
+pivot_df.index.name = ""
 """
 print(pivot_df)
 subjectCode  01  02
