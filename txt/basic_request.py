@@ -22,6 +22,33 @@ def session_way():
         f.write(r.content.decode())
 
 
+def request_skill():
+    # 1. 超时
+    response = requests.get("https://www.baidu.com", timeout=10)
+    # 2. 免 ssl 认证
+    response = requests.get("https://www.baidu.com", verify=False)
+    # 3. COOKIE转字典
+    requests.utils.dict_from_cookiejar(response.cookies)
+    # 4. 字典转COOKIE
+    requests.utils.cookiejar_from_dict({"aa": "bb"})
+    # 5. url解密
+    requests.utils.unquote("http%3a%2f%2fbaidu.com%2f?kw=....")
+    # 6. url加密
+    requests.utils.quote("http://baidu.com/?kw=张三")
+    # 7. 判断是否成功
+    assert response.status_code == 200
+    # 8. 内容返回
+    # response.text 根据http头推测文本解码
+    response.text
+    # 默认编码改方式
+    response.encoding = "gbk"
+    # response.content 未指定编码方式
+    response.content.decode("utf-8")
+    # 9. url 拼接
+    response.urljoin("/items/book")
+    aa = urllib.parse.urljoin(response.url, "/items/book")
+
+
 def request_way():
     link_demo = "https://hls.media.yangcong345.com/pcM/pcM_58c26cbb36eaf35866aae1161.ts"
     # 1. 请求
@@ -35,6 +62,7 @@ def request_way():
 
 def request_proxy_way():
     # 访问网址
+    url = 'https://www.whatismyip.com/my-ip-information/?iref=home'
     url = 'http://www.whatismyip.com.tw/'
     # 这是代理IP
     proxy = {'http': '106.46.136.112:808'}

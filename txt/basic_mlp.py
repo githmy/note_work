@@ -14,6 +14,8 @@ import seaborn as sns
 from mpl_finance import candlestick_ohlc
 from matplotlib.dates import DateFormatter, WeekdayLocator, DayLocator, MONDAY, date2num, datestr2num
 from datetime import datetime
+# ! pip install statsmodels
+import statsmodels as stats
 
 # %matplotlib
 
@@ -397,6 +399,7 @@ def chara_diffval_std():
     plt.xticks(rotation='vertical')
     plt.show()
 
+
 # 中位数切割，区间画方差
 def middle_split_box():
     bins = np.nanpercentile(train_df["sum_merch_trans"], range(0, 101, 10))
@@ -414,6 +417,7 @@ def middle_split_box():
     plt.title("Sum of New merchants transaction value (Binned) distribution")
     plt.show()
 
+
 # 相关性热图
 def heat_fun():
     heatmap.set_clim(-1, 1)
@@ -422,6 +426,7 @@ def heat_fun():
     plt.figure(1)
     sns.heatmap(rets.corr(), annot=True)
     plt.show()
+
 
 # 散点标注
 def scatter_fun():
@@ -435,6 +440,14 @@ def scatter_fun():
     plt.draw()
     # plt.close(2)
     plt.show()
+
+
+def basic_plot():
+    def qq_polt():
+        # QQ图 观测与预测值之间的差异
+        plt.figure(2)
+        res = stats.probplot(train['sale'], plot=plt)
+        plt.show()
 
 
 if __name__ == '__main__':

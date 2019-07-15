@@ -27,6 +27,7 @@ def main(argv):
     print('输入的文件为：', inputfile)
     print('输出的文件为：', outputfile)
 
+
 def namespace_way():
     from argparse import Namespace
     args = Namespace(

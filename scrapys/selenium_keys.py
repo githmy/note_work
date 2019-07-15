@@ -1,6 +1,9 @@
 #!/usr/bin/env python
 # coding: utf-8
 
+# https://npm.taobao.org/mirrors/chromedriver
+# http://phantomjs.org/download.html
+# phantomjs --version
 # 调用键盘按键操作时需要引入的Keys包
 from selenium.webdriver.common.keys import Keys
 from selenium.webdriver import Chrome

@@ -165,3 +165,12 @@ np.median(c)
 # 类型转化
 a = np.array([1, 2, 3, 4, 5, 6, 7, 8, 9], dtype='float32');
 c = a.astype(np.float32)
+
+# np.corrcoef()方法计算数据皮尔逊积矩相关系数
+x = np.vstack((a, b, c))
+r = np.corrcof(x)
+
+# 等价 np.log(1+x)
+np.log1p(x)
+# 等价 np.exp(x)-1
+np.expm1(x)

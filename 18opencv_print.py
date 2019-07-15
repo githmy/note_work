@@ -7,6 +7,7 @@ from multiprocessing import Process
 from multiprocessing import Pool
 import multiprocessing
 import numpy as np
+import pandas as pd
 import re
 import time
 import math
@@ -195,18 +196,28 @@ def moviepy_trans(infile, outfile):
                     cv2.rectangle(image, left_up, right_down, color, -1)
             return image
 
+    # ori_video = ori_video.fl_image(Mosaic(frame_fromx, frame_fromy, logosize[0], logosize[1], neighbor=4),
     ori_video = ori_video.fl_image(Mosaic(frame_fromx, frame_fromy, logosize[0], logosize[1], neighbor=50),
                                    apply_to=['mask'])
     # 3. 打logo
     logo = ImageClip('logo_3.png')
-    screen = (logo.fx(mpy.vfx.mask_color, [255, 255, 255])
+    screen = (logo.fx(mpy.vfx.mask_color, [254, 254, 254])
               .set_opacity(.99)  # whole clip is semi-transparent
               .resize(width=logosize[0], height=logosize[1])
               .set_pos((frame_fromx, frame_fromy)))
     # 4. 输出
     result = CompositeVideoClip([ori_video, screen], size=moviesize)
     result.set_duration(ori_video.duration).write_videofile(outfile, fps=ori_video.fps)
-    # result.set_duration(ori_video.duration).write_videofile(target_file, fps=ori_video.fps)
+
+
+# 处理视频+音频的主函数
+def moviepy_dehead(infile, outfile, start_t=0.0, end_t=0.0):
+    # 1. 读入
+    ori_video = VideoFileClip(infile)
+    # 3. 输出
+    result = CompositeVideoClip([ori_video]).subclip(start_t, ori_video.duration - end_t)
+    # result.set_duration(ori_video.duration).write_videofile(outfile, fps=ori_video.fps)
+    result.write_videofile(outfile, fps=ori_video.fps)
 
 
 # 批量我文件合并
@@ -222,8 +233,10 @@ def concat_video_m3u8(source_path, target_full_name):
 
     # 对转换的TS文件进行排序
     def get_sorted_ts(user_path):
+        _, headfi = os.path.split(user_path)
         ts_list = glob(os.path.join(user_path, '*.ts'))
-        base_full_file = glob(os.path.join(user_path, '*.m3u8'))[0]
+        # base_full_file = glob(os.path.join(user_path, '*.m3u8'))[0]
+        base_full_file = os.path.join(user_path, headfi + '.ts')
         base_file, _ = os.path.splitext(os.path.basename(base_full_file))
         dic_file = {}
         for ts in ts_list:
@@ -242,8 +255,8 @@ def concat_video_m3u8(source_path, target_full_name):
         # for ts in boxer:
         #     tmp.append(str(ts[0]))
         cmd_str = '+'.join(boxer)
-        exec_str = "copy /b " + cmd_str + ' ' + o_file_name
-        print("copy /b " + cmd_str + ' ' + o_file_name)
+        exec_str = "copy /b " + cmd_str + ' "' + o_file_name + '"'
+        print("copy /b " + cmd_str + ' "' + o_file_name + '"')
         os.system(exec_str)
 
     user_path = get_user_path(source_path)  # print(user_path)
@@ -265,7 +278,7 @@ def concat_video_m3u8(source_path, target_full_name):
         convert_m3u8(boxer, target_full_name)
 
 
-def get_paths(source_root, target_root):
+def get_merge_paths(source_root, target_root):
     # 1. 遍历
     list_1 = os.listdir(source_root)
     for i1 in list_1:
@@ -273,6 +286,8 @@ def get_paths(source_root, target_root):
         list_2 = os.listdir(os.path.join(source_root, i1))
         for i2 in list_2:
             i2 = i2.strip()
+            if i2.endswith("DS_Store"):
+                continue
             list_3 = os.listdir(os.path.join(source_root, i1, i2))
             for i3 in list_3:
                 i3 = i3.strip()
@@ -284,68 +299,199 @@ def get_paths(source_root, target_root):
                     out_file_full_notail = os.path.join(out_content, i3)
                     yield in_content, out_file_full_notail, out_content
                 else:
-                    raise Exception(i1, i2, i3)
+                    pass
 
 
-def one_task(inhead, outhead, dircontent):
-    # 0. 程序记录库
-    config = {
-        'host': "127.0.0.1",
-        'user': "root",
-        'password': "333",
-        'database': "ycdb",
-        'charset': 'utf8mb4',  # 支持1-4个字节字符
-        'cursorclass': pymysql.cursors.DictCursor
-    }
-    mysql = MysqlDB(config)
+def get_merge_paths_l1(source_root, target_root):
+    # 1. 遍历
+    list_1 = os.listdir(source_root)
+    for i1 in list_1:
+        i1 = i1.strip()
+        list_2 = os.listdir(os.path.join(source_root, i1))
+        for i2 in list_2:
+            i2 = i2.strip()
+            if i2.endswith("DS_Store"):
+                continue
+            if i2.startswith("pc"):
+                # 输入路径
+                in_content = os.path.join(source_root, i1)
+                # 输出绝对路径
+                out_content = os.path.join(target_root)
+                out_file_full_notail = os.path.join(out_content, i1)
+                yield in_content, out_file_full_notail, out_content
+            else:
+                pass
 
+
+def get_dir_list1(source_root, target_root):
+    # 1. 遍历
+    list_1 = os.listdir(source_root)
+    for i1 in list_1:
+        yield source_root, ".".join(i1.split(".")[:-1]), target_root
+
+
+def get_trans_paths(source_root, target_root):
+    # 1. 遍历
+    list_1 = os.listdir(source_root)
+    for i1 in list_1:
+        i1 = i1.strip()
+        list_2 = os.listdir(os.path.join(source_root, i1))
+        for i2 in list_2:
+            i2 = i2.strip()
+            if i2.endswith("DS_Store"):
+                continue
+            list_3 = os.listdir(os.path.join(source_root, i1, i2))
+            for i3 in list_3:
+                i3 = i3.strip()
+                if i3.startswith("pcM_"):
+                    # 输入路径
+                    in_content = os.path.join(source_root, i1, i2)
+                    # 输出绝对路径
+                    out_content = os.path.join(target_root, i1, i2)
+                    out_file_notail = ".".join(i3.split(".")[:-1])
+                    yield in_content, out_file_notail, out_content
+
+
+def one_task_merge(inhead, outhead, dircontent):
+    try:
+        # 0. 程序记录库
+        config = {
+            'host': "127.0.0.1",
+            'user': "root",
+            'password': "333",
+            'database': "ycdb",
+            'charset': 'utf8mb4',  # 支持1-4个字节字符
+            'cursorclass': pymysql.cursors.DictCursor
+        }
+        mysql = MysqlDB(config)
+
+        print("one_task: ", inhead, outhead)
+        # 1. SQL
+        req_sql = """SELECT COUNT(*) as cot FROM `merge_status` WHERE dir3="{}";"""
+        new_outhead = outhead.replace("\\", "\\\\")
+        res_count = mysql.exec_sql(req_sql.format(new_outhead))
+        print("had merge:", res_count)
+        # if 1:
+        if res_count[0]["cot"] == 0:
+            add_sql = """insert into `merge_status` (dir3,had_merge) VALUES ("{}", {});"""
+            print(add_sql.format(new_outhead, 1))
+            # 创建该任务的目录
+            if not os.path.exists(dircontent):
+                os.makedirs(dircontent)
+            # 2. 碎文件合并
+            concat_video_m3u8(inhead, outhead + ".ts")
+            res_count = mysql.exec_sql(add_sql.format(new_outhead, 1))
+            print(res_count)
+    except Exception as e:
+        print(e)
+    print("outhead: {}".format(outhead))
+
+
+def one_task_trans(indir, fhead, outdir):
     time_s = time.time()
-    print("one_task: ", inhead, outhead)
-    # 1. 人工去文件头
-    # outfile = 'output.avi'
-    # SQL
-    req_sql = """SELECT COUNT(*) as cot FROM `trans_status` WHERE dir3="{}";"""
-    new_outhead = outhead.replace("\\", "\\\\")
-    res_count = mysql.exec_sql(req_sql.format(new_outhead))
-    print("had item:", res_count)
-    if res_count[0]["cot"] == 0:
-        add_sql = """insert into `trans_status` (dir3,had_merge) VALUES ("{}", {});"""
-        print(add_sql.format(new_outhead, 1))
-        # 创建该任务的目录
-        if not os.path.exists(dircontent):
-            os.makedirs(dircontent)
-        # 2. 碎文件合并
-        concat_video_m3u8(inhead, outhead + ".ts")
-        res_count = mysql.exec_sql(add_sql.format(new_outhead, 1))
-        print(res_count)
-    # 3. 水印视频处理
-    req_sql = """SELECT COUNT(*) as cot FROM `trans_status` WHERE dir3="{}" AND had_trans=1;"""
-    res_count = mysql.exec_sql(req_sql.format(new_outhead))
-    print("had trans:", res_count)
-    if res_count[0]["cot"] == 0:
-        moviepy_trans(outhead + ".ts", outhead + ".mp4")
-        # print_video(outhead + ".ts", outhead + ".mp4")
-        # 4. 完成的写入数据库
-        upd_sql = """UPDATE `trans_status` SET had_trans={} WHERE dir3="{}";"""
-        res_count = mysql.exec_sql(upd_sql.format(1, new_outhead))
-    print(res_count)
+    try:
+        # 0. 程序记录库
+        config = {
+            'host': "127.0.0.1",
+            'user': "root",
+            'password': "333",
+            'database': "ycdb",
+            'charset': 'utf8mb4',  # 支持1-4个字节字符
+            'cursorclass': pymysql.cursors.DictCursor
+        }
+        mysql = MysqlDB(config)
+
+        print("one_task: ", indir, fhead, outdir)
+        # 1. 水印视频处理
+        outhead = os.path.join(outdir, fhead)
+        new_outhead = outhead.replace("\\", "\\\\")
+        req_sql = """SELECT COUNT(*) as cot FROM `trans_status` WHERE dir3="{}" AND had_trans=1;"""
+        res_count = mysql.exec_sql(req_sql.format(new_outhead))
+        print("had trans:", res_count)
+        if res_count[0]["cot"] == 0:
+            # 创建该任务的目录
+            if not os.path.exists(outdir):
+                os.makedirs(outdir)
+            moviepy_trans(os.path.join(indir, fhead) + ".ts", outhead + ".mp4")
+            # print_video(outhead + ".ts", outhead + ".mp4")
+            # 4. 完成的写入数据库
+            add_sql = """insert into `trans_status` (dir3,had_trans) VALUES ("{}", {});"""
+            print(add_sql.format(new_outhead, 1))
+            res_count = mysql.exec_sql(add_sql.format(new_outhead, 1))
+            print(res_count)
+    except Exception as e:
+        print(e)
     print("time: {}s. {}".format(time.time() - time_s, outhead))
 
 
+def find_not_in(source_root, target_root):
+    res = get_merge_paths(source_root, target_root)
+    for i1 in res:
+        if os.path.isfile(i1[1] + ".ts"):
+            pass
+        else:
+            yield i1[0], i1[1], i1[2]
+
+
 def main():
-    source_root = os.path.join("E:\\", "project", "data", "spider", "data", "down")
-    target_root = os.path.join("D:\\", "tard")
-    res = get_paths(source_root, target_root)
+    # # 1. 合并
+    # # source_root = os.path.join("E:\\", "project", "data", "spider", "data", "down")
+    # # target_root = os.path.join("D:\\", "tard")
+    # source_root = os.path.join("D:\\", "video_data", "append_pcl")
+    # target_root = os.path.join("D:\\", "video_data", "append_pcl_merged")
+    # if not os.path.exists(target_root):
+    #     os.makedirs(target_root)
+    # # 是否缺失
+    # # source_root = os.path.join("E:\\", "tard", "headtail")
+    # # target_root = os.path.join("E:\\", "tard", "merged")
+    # # not_in_res = find_not_in(source_root, target_root)
+    # # for id1, i1 in enumerate(not_in_res):
+    # #     print(i1[0])
+    # # exit(0)
+    # res = get_merge_paths_l1(source_root, target_root)
+    # for i1 in res:
+    #     # p.apply_async(one_task_merge, args=(i1[0], i1[1], i1[2]))
+    #     one_task_merge(i1[0], i1[1], i1[2])
+    # exit(0)
+    # 2. 转换
+    # source_root = os.path.join("E:\\", "tard", "merged")
+    # target_root = os.path.join("E:\\", "tard", "transd")
+    source_root = os.path.join("D:\\", "video_data", "append_pcl_merged")
+    target_root = os.path.join("D:\\", "video_data", "append_pcl_merged_transd")
+    if not os.path.exists(target_root):
+        os.makedirs(target_root)
+    # res = get_trans_paths(source_root, target_root)
+    res = get_dir_list1(source_root, target_root)
     cores = multiprocessing.cpu_count()
     print("cores:", cores)
-    p = Pool(int(cores - 4))
+    p = Pool(int(cores - 6))
+    # for i1 in not_in_res:
     for i1 in res:
-        p.apply_async(one_task, args=(i1[0], i1[1], i1[2]))
+        # one_task_trans(i1[0], i1[1], i1[2])
+        p.apply_async(one_task_trans, args=(i1[0], i1[1], i1[2]))
     print('Waiting for all subprocesses done...')
     p.close()
     p.join()
     print('All subprocesses done.')
     print(time.strftime("%Y-%m-%d %H:%M:%S", time.localtime()))
 
+
 if __name__ == "__main__":
-    main()
+    # 视频转化单版测试
+    # source_root = os.path.join("E:\\", "tard", "1e57aa7a-57f7-11e7-b923-078e17e0e0f6", "射影定理",
+    # source_root = os.path.join("E:\\", "tard", "1e57aa7a-57f7-11e7-b923-078e17e0e0f6", "射影定理",
+    #                            "pcM_586df061065b7e9d7142959d.ts")
+    # target_root = os.path.join("E:\\", "tard", "1e57aa7a-57f7-11e7-b923-078e17e0e0f6", "射影定理",
+    #                            "pcM_586df061065b7e9d7142959d.mp4")
+    # moviepy_trans(source_root, target_root)
+    filename = "pcL_5880c577065b7e9d71429892" + ".mp4"
+    start_t = 0
+    end_t = 1.5
+    source_root = os.path.join("D:\\", "video_data", "append_pcl_merged_transd", filename)
+    target_path = os.path.join("D:\\", "video_data", "append_pcl_merged_transd_dehead")
+    if not os.path.exists(target_path):
+        os.makedirs(target_path)
+    target_root = os.path.join(target_path, filename)
+    moviepy_dehead(source_root, target_root, start_t, end_t)
+    # 视频批量转化
+    # main()
