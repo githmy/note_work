@@ -163,17 +163,16 @@ def print_video(infile, outfile):
 # 处理视频+音频的主函数
 def moviepy_trans(infile, outfile):
     # 0. 参数定义
-    ratio_heigh, ratio_wide = 9, 5
+    ratio_heigh, ratio_wide = 7, 6
     # 1. 打开视频
-    # source_root = os.path.join("E:\\", "project", "data", "spider", "data", "down")
-    # file_path = os.path.join(source_root, "0b363f6a-57f7-11e7-acaa-9b6f4c777394", "负负得正",
-    #                          "pcM_5a090b047347fe08b2108690", "pcM_5a090b047347fe08b21086907.ts")
-    # target_file = os.path.join("E:\\", "tard", "myHolidays_edited.mp4")
-    # ori_video = VideoFileClip(file_path)
     ori_video = VideoFileClip(infile)
     moviesize = (ori_video.w, ori_video.h)
     logosize = (int(ori_video.w / ratio_wide), int(ori_video.h / ratio_heigh))
-    frame_fromy, frame_fromx = moviesize[1] - logosize[1], moviesize[0] - logosize[0]
+    frame_fromx, frame_fromy = moviesize[0] - logosize[0], moviesize[1] - logosize[1]
+
+    # print("moviesize", moviesize)
+    # print("logosize", logosize)
+    # print(frame_fromy, frame_fromx)
 
     # 2. 马赛克
     class Mosaic:
@@ -203,8 +202,8 @@ def moviepy_trans(infile, outfile):
     logo = ImageClip('logo_3.png')
     screen = (logo.fx(mpy.vfx.mask_color, [254, 254, 254])
               .set_opacity(.99)  # whole clip is semi-transparent
-              .resize(width=logosize[0], height=logosize[1])
-              .set_pos((frame_fromx, frame_fromy)))
+              .resize(width=logosize[0], height=int(logosize[1] * 0.8))
+              .set_pos((frame_fromx - 30, frame_fromy + 10)))
     # 4. 输出
     result = CompositeVideoClip([ori_video, screen], size=moviesize)
     result.set_duration(ori_video.duration).write_videofile(outfile, fps=ori_video.fps)
@@ -412,7 +411,7 @@ def one_task_trans(indir, fhead, outdir):
             # 创建该任务的目录
             if not os.path.exists(outdir):
                 os.makedirs(outdir)
-            moviepy_trans(os.path.join(indir, fhead) + ".ts", outhead + ".mp4")
+            moviepy_trans(os.path.join(indir, fhead) + ".mp4", outhead + ".mp4")
             # print_video(outhead + ".ts", outhead + ".mp4")
             # 4. 完成的写入数据库
             add_sql = """insert into `trans_status` (dir3,had_trans) VALUES ("{}", {});"""
@@ -435,13 +434,6 @@ def find_not_in(source_root, target_root):
 
 def main():
     # # 1. 合并
-    # # source_root = os.path.join("E:\\", "project", "data", "spider", "data", "down")
-    # # target_root = os.path.join("D:\\", "tard")
-    # source_root = os.path.join("D:\\", "video_data", "append_pcl")
-    # target_root = os.path.join("D:\\", "video_data", "append_pcl_merged")
-    # if not os.path.exists(target_root):
-    #     os.makedirs(target_root)
-    # # 是否缺失
     # # source_root = os.path.join("E:\\", "tard", "headtail")
     # # target_root = os.path.join("E:\\", "tard", "merged")
     # # not_in_res = find_not_in(source_root, target_root)
@@ -456,8 +448,10 @@ def main():
     # 2. 转换
     # source_root = os.path.join("E:\\", "tard", "merged")
     # target_root = os.path.join("E:\\", "tard", "transd")
-    source_root = os.path.join("D:\\", "video_data", "append_pcl_merged")
-    target_root = os.path.join("D:\\", "video_data", "append_pcl_merged_transd")
+    source_root = os.path.join("D:\\", "video_data", "乐乐高中UUID")
+    target_root = os.path.join("D:\\", "video_data", "乐乐高中transd")
+    # source_root = os.path.join("D:\\", "video_data", "append_pcl_merged")
+    # target_root = os.path.join("D:\\", "video_data", "append_pcl_merged_transd")
     if not os.path.exists(target_root):
         os.makedirs(target_root)
     # res = get_trans_paths(source_root, target_root)
@@ -467,6 +461,7 @@ def main():
     p = Pool(int(cores - 6))
     # for i1 in not_in_res:
     for i1 in res:
+        # print(i1)
         # one_task_trans(i1[0], i1[1], i1[2])
         p.apply_async(one_task_trans, args=(i1[0], i1[1], i1[2]))
     print('Waiting for all subprocesses done...')
@@ -477,21 +472,22 @@ def main():
 
 
 if __name__ == "__main__":
-    # 视频转化单版测试
-    # source_root = os.path.join("E:\\", "tard", "1e57aa7a-57f7-11e7-b923-078e17e0e0f6", "射影定理",
-    # source_root = os.path.join("E:\\", "tard", "1e57aa7a-57f7-11e7-b923-078e17e0e0f6", "射影定理",
-    #                            "pcM_586df061065b7e9d7142959d.ts")
-    # target_root = os.path.join("E:\\", "tard", "1e57aa7a-57f7-11e7-b923-078e17e0e0f6", "射影定理",
-    #                            "pcM_586df061065b7e9d7142959d.mp4")
+    # # 视频转化单版测试
+    # # source_root = os.path.join("E:\\", "tard", "1e57aa7a-57f7-11e7-b923-078e17e0e0f6", "射影定理",
+    # # source_root = os.path.join("E:\\", "tard", "1e57aa7a-57f7-11e7-b923-078e17e0e0f6", "射影定理",
+    # #                            "pcM_586df061065b7e9d7142959d.ts")
+    # # target_root = os.path.join("E:\\", "tard", "1e57aa7a-57f7-11e7-b923-078e17e0e0f6", "射影定理",
+    # #                            "pcM_586df061065b7e9d7142959d.mp4")
+    # # moviepy_trans(source_root, target_root)
+    # filename = "0ab2ab51-76e6-3973-9f14-661f3cdbe8b0" + ".mp4"
+    # start_t = 0
+    # end_t = 0
+    # source_root = os.path.join("D:\\", "video_data", "乐乐初中UUID", filename)
+    # target_path = os.path.join("D:\\", "video_data", "乐乐初中transd")
+    # if not os.path.exists(target_path):
+    #     os.makedirs(target_path)
+    # target_root = os.path.join(target_path, filename)
     # moviepy_trans(source_root, target_root)
-    filename = "pcL_5880c577065b7e9d71429892" + ".mp4"
-    start_t = 0
-    end_t = 1.5
-    source_root = os.path.join("D:\\", "video_data", "append_pcl_merged_transd", filename)
-    target_path = os.path.join("D:\\", "video_data", "append_pcl_merged_transd_dehead")
-    if not os.path.exists(target_path):
-        os.makedirs(target_path)
-    target_root = os.path.join(target_path, filename)
-    moviepy_dehead(source_root, target_root, start_t, end_t)
+    # moviepy_dehead(source_root, target_root, start_t, end_t)
     # 视频批量转化
-    # main()
+    main()
