@@ -25,6 +25,15 @@ expwighted_avg = pd.ewma(ts_log, halflife=12)
 # 一阶差分
 ts_log_diff = ts_log - ts_log.shift()
 
+# 除法
+df = pd.DataFrame([[1., 2.], [3., 4.]], columns=['A', 'B'])
+df2 = pd.DataFrame([[5., 10.]], columns=['A', 'B'])
+df.div(df2)
+df.div(df2.iloc[0])
+
+# 相关系数
+df.corr(method="spearman")
+
 # 建立空内容
 # orderl_pd = pd.DataFrame(data={})
 # orderl_pd = pd.DataFrame({"phone":[111,222],"age":[3,5]},index=["first","second"])
@@ -152,7 +161,8 @@ pd.to_numeric(train["col"], downcast="interger")
 # 判断在之内
 df[df['secid'].isin([38, 24, 33])]
 
-# 透视表
+# 数据透视 指定相应的列分别作为行标签和列标签，并指定相应的列作为值，然后重新生成一个新的DataFrame对象
+# 参数对应关系： index 改为索引列， columns 改为各列名， values 为值的原始列
 pivot_df = pdobj.pivot(index='userNum', columns='subjectCode', values='score')
 pivot_df.index.name = ""
 """
@@ -322,6 +332,11 @@ df['close'].kurt()
 # 或
 df['close'].kurtosis()
 
+import scipy
+
+df[["a", "b", "c"]].apply(scipy.stats.skew)  # -左偏，+右偏
+df[["a", "b", "c"]].apply(scipy.stats.kurtosis)
+
 # 替换
 df.str.replace(r"iphone\s+7", "iphone7")
 
@@ -387,6 +402,7 @@ df['dayofweek'] = df['time_slot1'].dt.dayofweek
 df['daynameofweek'] = df['time_slot1'].dt.weekday_name
 df['time'] = df['time'].apply(lambda x: x.weekday() + 1)
 
+
 # # 时间清理
 # def reperror(instr):
 #     subarry = instr.split(".")
@@ -399,26 +415,28 @@ df['time'] = df['time'].apply(lambda x: x.weekday() + 1)
 # df.set_index("SubmitDate", inplace=True)
 # df.sort_index(axis=0, ascending=True, inplace=True)
 
+def pandas_status():
+    # 内存监控
+    start_mem = df.memory_usage().sum() / 1024 ** 2
+    end_mem = df.memory_usage().sum() / 1024 ** 2
 
-# 内存监控
-start_mem = df.memory_usage().sum() / 1024 ** 2
-end_mem = df.memory_usage().sum() / 1024 ** 2
+    # 显示设置
+    pd.options.mode.chained_assignment = None
+    pd.options.display.max_columns = 999
+    pd.set_option('display.max_columns', 500)
+    # 显示所有列
+    pd.set_option('display.max_columns', None)
+    # 显示所有行
+    pd.set_option('display.max_rows', None)
+    # 设置value的显示长度为100，默认为50
+    pd.set_option('max_colwidth', 100)
 
-# 显示设置
-pd.options.mode.chained_assignment = None
-pd.options.display.max_columns = 999
-pd.set_option('display.max_columns', 500)
-# 显示所有列
-pd.set_option('display.max_columns', None)
-# 显示所有行
-pd.set_option('display.max_rows', None)
-# 设置value的显示长度为100，默认为50
-pd.set_option('max_colwidth', 100)
+    pdobj = pd.DataFrame
+    pdobj.describe().astype(int)
 
 
 def nomal_use():
     # 描述属性的各列统计值
-    df.describe()
     df.describe()
     # 统计某列的数量分布
     df["age"].hist()

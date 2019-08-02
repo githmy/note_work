@@ -41,6 +41,49 @@ def get_paths(source_root, target_root):
                     raise Exception("content_error", i1, i2, i3)
 
 
+def get_paths_lele(source_root, target_root):
+    # 1. 遍历
+    list_1 = os.listdir(source_root)
+    for i1 in list_1:
+        i1 = i1.strip()
+        list_2 = os.listdir(os.path.join(source_root, i1))
+        for i2 in list_2:
+            i2 = i2.strip()
+            list_3 = os.listdir(os.path.join(source_root, i1, i2))
+            for i3 in list_3:
+                i3 = i3.strip()
+                # if i3.startswith("pcM_"):
+                if i3.endswith(".mp4"):
+                    de_tail = ".".join(i3.split(".")[:-1])
+                    # 输入路径
+                    in_content = os.path.join(source_root, i1, i2, de_tail)
+                    # 输出绝对路径
+                    out_content = os.path.join(target_root)
+                    out_file_full_notail = os.path.join(out_content, de_tail)
+                    yield in_content, out_file_full_notail, out_content
+                else:
+                    print("content_error", i1, i2, i3)
+                    raise Exception("content_error", i1, i2, i3)
+
+
+def get_special_type_iter(source_root, target_root, file_type):
+    for i in get_all_iter(source_root):
+        if i.endswith(file_type):
+            de_tail = ".".join(i.split(".")[:-1])
+            # 输入路径
+            in_content = os.path.join(source_root, de_tail)
+            # 输出绝对路径
+            out_content = os.path.join(target_root)
+            out_file_full_notail = os.path.join(out_content, de_tail)
+            yield in_content, out_file_full_notail, out_content
+
+
+def get_all_iter(source_root):
+    for root, dirs, files in os.walk(source_root):
+        for i1 in files:
+            yield os.path.join(root, i1)
+
+
 def get_file_l2(source_root, target_root):
     # 1. 遍历
     list_1 = os.listdir(source_root)
@@ -259,35 +302,101 @@ class Replace_js_data(object):
 
 # 目录结构转化为uuid列表
 class Contents2uuid(object):
+    def __init__(self, source_root, target_root, file_type, index_name):
+        self.source_root = source_root
+        self.target_root = target_root
+        self.file_type = file_type
+        self.index_name = index_name
+
+    def trans_info_iter(self):
+        # 1. 定义输入输出
+        if not os.path.exists(self.target_root):
+            os.makedirs(self.target_root)
+        reslist = []
+        # # 2. 信息获取
+        # 原始信息
+        for i1 in get_special_type_iter(self.source_root, self.target_root, self.file_type):
+            strs = i1[0].replace(self.source_root, "").lstrip("\\")
+            uuid1 = self.strs2uuid(strs)
+            tmplist = strs.split("\\")
+            tmpjson = {}
+            dirlenth = len(tmplist)
+            for i2 in range(dirlenth - 1):
+                tmpjson["dir" + str(i2 + 1)] = tmplist[i2]
+            tmpjson["文件代号"] = uuid1
+            tmpjson["知识点代号"] = tmplist[dirlenth - 1]
+            tmpjson["我们的知识点"] = None
+            reslist.append(tmpjson)
+            if os._exists(i1[2] + uuid1 + self.file_type):
+                raise Exception(i1[2] + uuid1 + self.file_type)
+            self.copy_file2content(i1[0] + self.file_type, os.path.join(i1[2], uuid1 + self.file_type))
+        # 3. 输出数据
+        pdobj = pd.DataFrame(reslist)
+        pdobj.to_excel(os.path.join(self.target_root, "..", self.index_name), sheet_name='Sheet1', index=False,
+                       header=True, encoding="utf-8")
+
+    def list_content2excel(self):
+        # 1. 定义输入输出
+        reslist = []
+        # # 2. 信息获取
+        for i1 in get_all_iter(self.source_root):
+            print(self.source_root)
+            print(i1)
+            strs = i1.replace(self.source_root, "").lstrip("\\")
+            print(strs)
+            uuid1 = self.strs2uuid(strs)
+            tmplist = strs.split("\\")
+            tmpjson = {}
+            dirlenth = len(tmplist)
+            for i2 in range(dirlenth - 1):
+                tmpjson["dir" + str(i2 + 1)] = tmplist[i2]
+            tmpjson["文件代号"] = uuid1
+            tmpjson["知识点代号"] = tmplist[dirlenth - 1]
+            tmpjson["我们的知识点"] = None
+            reslist.append(tmpjson)
+            print(tmpjson)
+        # 3. 输出数据
+        pdobj = pd.DataFrame(reslist)
+        # new_pd = pd.merge(pdobjhead, pdobj, on="video_urlid", how="right")
+        pdobj.to_excel(os.path.join(self.source_root, "..", self.index_name), sheet_name='Sheet1', index=False,
+                       header=True, encoding="utf-8")
+
     def trans_info(self):
         # 1. 定义输入输出
         # source_root = os.path.join("D:\\", "video_data", "headtail")
-        source_root = os.path.join("E:\\", "project", "data", "spider", "data", "down")
-        target_root = os.path.join("D:\\", "video_data", "merged")
+        # source_root = os.path.join("E:\\", "project", "data", "spider", "data", "down")
+        source_root = os.path.join("D:\\", "video_data", "乐乐课堂小学奥数1-6年级")
+        target_root = os.path.join("D:\\", "video_data", "乐乐小学奥数UUID")
+        if not os.path.exists(target_root):
+            os.makedirs(target_root)
+        # print(source_root)
         tmpo_path = "video_uuid.csv"
         reslist = []
-        # 2. 信息获取
-        tmpheadfile = os.path.join("E:\\", "project", "data", "spider", "data", "视频知识点罗列.xlsx")
-        pdobjhead = pd.read_excel(tmpheadfile, sheet_name='Sheet1', header=0)
-        pdobjhead.drop_duplicates(subset='video_urlid', keep='first', inplace=True)
+        # # 2. 信息获取
+        # tmpheadfile = os.path.join("E:\\", "project", "data", "spider", "data", "视频知识点罗列.xlsx")
+        # pdobjhead = pd.read_excel(tmpheadfile, sheet_name='Sheet1', header=0)
+        # pdobjhead.drop_duplicates(subset='video_urlid', keep='first', inplace=True)
         # 原始信息
-        for i1 in get_paths(source_root, target_root):
-            strs = i1[0].lstrip(source_root)
+        for i1 in get_paths_lele(source_root, target_root):
+            strs = i1[0].replace(source_root, "").lstrip("\\")
             uuid1 = self.strs2uuid(strs)
             tmplist = strs.split("\\")
             tmpjson = {
-                "video_urlid": tmplist[0],
-                "points": tmplist[1],
-                "urldir": tmplist[2],
-                "video_uuid": uuid1,
+                "一级目录": tmplist[0],
+                "二级目录": tmplist[1],
+                "视频内容": tmplist[2],
+                "文件代号": uuid1,
                 "我们的知识点": None,
             }
             reslist.append(tmpjson)
+            if os._exists(i1[2] + uuid1 + ".mp4"):
+                raise Exception(i1[2] + uuid1 + ".mp4")
+            self.copy_file2content(i1[0] + ".mp4", os.path.join(i1[2], uuid1 + ".mp4"))
         # 3. 输出数据
         pdobj = pd.DataFrame(reslist)
-        new_pd = pd.merge(pdobjhead, pdobj, on="video_urlid", how="right")
-        new_pd.to_excel('video_uuid.xls', sheet_name='Sheet1', index=False, header=True, encoding="utf-8")
-        # new_pd.to_csv(tmpo_path, index=False, header=True, encoding="utf-8")
+        # new_pd = pd.merge(pdobjhead, pdobj, on="video_urlid", how="right")
+        pdobj.to_excel(os.path.join(target_root, "..", '乐乐小学奥数uuid.xls'), sheet_name='Sheet1', index=False, header=True,
+                       encoding="utf-8")
 
     def strs2uuid(self, strs):
         namespace = uuid.NAMESPACE_URL
@@ -297,8 +406,15 @@ class Contents2uuid(object):
         namespace = uuid.NAMESPACE_URL
         return str(uuid.uuid3(namespace, strs))
 
+    def copy_file2content(self, sourcefile, targetfile):
+        exec_str = 'copy "' + sourcefile + '" "' + targetfile + '"'
+        print(exec_str)
+        os.system(exec_str)
+
     def __call__(self, *args, **kwargs):
-        self.trans_info()
+        # self.list_content2excel()
+        self.trans_info_iter()
+        # self.trans_info()
         # self.sql2pd()
         # self.replace_data()
 
@@ -364,7 +480,7 @@ class Relation_points(object):
             ) WHERE had_get=1;"""
         res = mysql.exec_sql(req_sql)
         self.pd_sql = pd.DataFrame(res)
-        # print(self.pd_sql)
+        print(self.pd_sql)
 
     def iter_dir_cope(self):
         self.pd_sql.to_excel('video_uuid.xls', sheet_name='Sheet1', index=False, header=True, encoding="utf-8")
@@ -470,13 +586,19 @@ class Compare_not_have(object):
 
 
 def main():
-    # inst = Replace_js_data()
-    # inst = Replace_data()
-    # inst = Contents2uuid()
-    # inst = Deduplicate_video()
-    # inst = Find_not_down()
-    # inst = Relation_points()
-    inst = Compare_not_have()
+    # # inst = Replace_js_data()
+    # # inst = Replace_data()
+    # filetype = "mp4"
+    # contentname = "初中数学同步视频"
+    # source_root = os.path.join("D:\\", "video_data", contentname)
+    # target_root = os.path.join("D:\\", "video_data", "{}{}".format(contentname, filetype))
+    # index_name = '{}{}.xls'.format(contentname, filetype)
+    # inst = Contents2uuid(source_root, target_root, ".{}".format(filetype), index_name)
+    # # inst = Deduplicate_video()
+    # # inst = Find_not_down()
+    #
+    inst = Relation_points()
+    # inst = Compare_not_have()
     inst()
     print("转换结束！")
 

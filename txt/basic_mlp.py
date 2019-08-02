@@ -11,7 +11,7 @@ import tushare as ts
 import matplotlib as mpl
 import matplotlib.pyplot as plt
 import seaborn as sns
-from mpl_finance import candlestick_ohlc
+# from mpl_finance import candlestick_ohlc
 from matplotlib.dates import DateFormatter, WeekdayLocator, DayLocator, MONDAY, date2num, datestr2num
 from datetime import datetime
 # ! pip install statsmodels
@@ -450,7 +450,151 @@ def basic_plot():
         plt.show()
 
 
+# 分布数据可视化 - 散点图
+# https://blog.csdn.net/qq_42554007/article/details/82625118
+def sns_demo1():
+    import scipy.stats as sci
+    # 散点图 + 分布图
+    rs = np.random.RandomState(2)
+    df = pd.DataFrame(rs.randn(200, 2), columns=['A', 'B'])
+    sns.jointplot(x=df['A'], y=df['B'],  # 设置xy轴，显示columns名称
+                  data=df,  # 设置数据
+                  color='b',  # 设置颜色
+                  s=50, edgecolor='w', linewidth=1,  # 设置散点大小、边缘颜色及宽度(只针对scatter)
+                  stat_func=sci.pearsonr,
+                  kind='scatter',  # 设置类型：'scatter' 散点,'reg' ,'resid','kde' 密集,'hex' 六边
+                  # stat_func=<function pearsonr>,
+                  space=0.1,  # 设置散点图和布局图的间距
+                  size=8,  # 图表大小(自动调整为正方形))
+                  ratio=5,  # 散点图与布局图高度比，整型
+                  marginal_kws=dict(bins=15, rug=True),  # 设置柱状图箱数，是否设置rug
+                  )
+
+
+# 可拆分绘制的散点图
+def sns_demo2():
+    # plot_joint() + ax_marg_x.hist() + ax_marg_y.hist()
+    # 设置风格
+    sns.set_style('white')
+    # 导入数据
+    tips = sns.load_dataset('tips')
+    print(tips.head())
+
+    # 创建一个绘图表格区域，设置好x,y对应数据
+    g = sns.JointGrid(x='total_bill', y='tip', data=tips)
+
+    g.plot_joint(plt.scatter, color='m', edgecolor='white')  # 设置框内图表，scatter
+    # g = g.plot_joint(plt.scatter, color='g', s=40, edgecolor='white')  # 绘制散点图
+    # g = g.plot_joint(sns.kdeplot, cmap = 'Reds_r')     #绘制密度图
+    g.ax_marg_x.hist(tips['total_bill'], color='b', alpha=.6,
+                     bins=np.arange(0, 60, 3))  # 设置x轴为直方图，注意bins是数组
+    g.ax_marg_y.hist(tips['tip'], color='r', alpha=.6,
+                     orientation='horizontal',
+                     bins=np.arange(0, 12, 1))  # 设置x轴直方图，注意需要orientation参数
+    from scipy import stats
+    g.annotate(stats.pearsonr)
+    # 设置标注，可以为pearsonar， spearmanr
+
+
+# 矩阵散点图 - pairplot()
+def sns_demo3():
+    # 设置风格
+    sns.set_style('white')
+    # 读取数据
+    iris = sns.load_dataset('iris')
+    print(iris.head())
+    sns.pairplot(iris,
+                 kind='scatter',  # 散点图/回归分布图{'scatter', 'reg'})
+                 diag_kind='hist',  # 直方图/密度图{'hist'， 'kde'}
+                 hue='species',  # 按照某一字段进行分类
+                 palette='husl',  # 设置调色板
+                 markers=['o', 's', 'D'],  # 设置不同系列的点样式（这里根据参考分类个数）
+                 size=2  # 图标大小
+                 )
+    # 只提取局部变量。
+    g = sns.pairplot(iris, vars=['sepal_width', 'sepal_length'],
+                     kind='reg', diag_kind='kde',
+                     hue='species', palette='husl')
+    # 其它参数设置
+    sns.pairplot(iris, diag_kind='kde', markers='+',
+                 plot_kws=dict(s=50, edgecolor='b', linewidth=1),
+                 # 设置点样式
+                 diag_kws=dict(shade=True)
+                 )  # 设置密度图样式
+
+
+# 4：可拆分绘制的散点图
+def sns_demo4():
+    # map_diag() + map_offdiag()
+    g = sns.PairGrid(iris, hue='species', palette='hls',
+                     vars=['sepal_length', 'sepal_width', 'petal_length', 'petal_width'])
+    # 可筛选创建一个绘图表格区域，设置好x，y对应的数据，按照species分类
+
+    # 对角线图表，plt.hist/sns.kdeplot
+    g.map_diag(plt.hist,
+               histtype='step',  # 可选：'bar','barstacked', 'step', 'stepfilled'
+               linewidth=1, edgecolor='w')
+
+    # 其它图表：plt.scatter/plt.bar...
+    g.map_offdiag(plt.scatter, edgecolor='w', s=40, linewidth=1)
+    # 设置点颜色、大小、描边宽度
+    g.add_legend()  # 添加图例()
+
+
+# 上三角和下三角#map_diag() + map_lower() + map_upper()
+def sns_demo5():
+    g = sns.PairGrid(iris)
+    g.map_diag(sns.kdeplot, lw=3)  # 设置对角线图表
+    g.map_upper(plt.scatter, color='r')  # 设置对角线上端图表
+    g.map_lower(sns.kdeplot, cmap='Blues_d')  # 设置对角线下端图表
+
+
+def miss_value():
+    # pip install missingno
+    import missingno as msno
+    import pandas as pd
+    import numpy as ny
+
+    data = pd.read_csv("model.csv")
+    # 无效矩阵的数据密集显示
+    msno.matrix(data, labels=True, inline=False, sort='descending')
+    # 条形图
+    msno.bar(data)
+    # 热图相关性 一个变量的存在或不存在如何强烈影响的另一个的存在
+    # 关性为1，说明X5只要发生了缺失，那么X1.1也会缺失。 相关性为-1，说明X7缺失的值，那么X8没有缺失；而X7没有缺失时，X8为缺失。
+    msno.heatmap(data)
+    # 树状图 层次聚类算法通过它们的无效性相关性（根据二进制距离测量）将变量彼此相加，
+    # 哪个组合最小化剩余簇的距离来分割变量。变量集越单调，它们的总距离越接近零，并且它们的平均距离（y轴）越接近零。
+    msno.dendrogram(data)
+
+
+def geo_graph():
+    import folium
+    oneUserMap = folium.Map(location=[40.07645623466996, 116.27861671489337], zoom_start=12)
+    # 等值线图
+    oneUserMap.choropleth(geo_path="geo_json_shape2.json",
+                          data_out="data.json",
+                          data=dty,
+                          columns=["constituency", "count"],
+                          key_on="feature.properties.PCON13NM.geometry.type.Polygon",
+                          fill_color='PuRd',
+                          fill_opacity=0.7,
+                          line_opacity=0.2,
+                          reset="True")
+
+
+# pandas 数据状态参数预览
+def pandas_dataviews():
+    import pandas_profiling
+
+    data = pd.read_csv("model.csv")
+    profile = pandas_profiling.ProfileReport(data)
+    profile.to_file(outputfile="output_file.html")
+
+
 if __name__ == '__main__':
+    geo_graph()
+    exit(0)
     df = ts.get_hist_data('600848')
     # 1. 画图测试
     plot_line_scatter_demo(df["open"], df["high"])
@@ -490,4 +634,7 @@ if __name__ == '__main__':
     # train_df['binned_num_hist_transactions'] = pd.cut(train_df['num_hist_transactions'], bins)
     #
     # sns.boxplot(x="binned_num_hist_transactions", y=target_col, data=train_df, showfliers=False)
+    #
+
+    # g = sns.JointGrid(x="binned_num_hist_transactions", y=target_col, data=train_df, ylim=gdpr)
     #

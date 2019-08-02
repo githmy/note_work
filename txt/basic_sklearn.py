@@ -296,11 +296,21 @@ def iris_demo():
     print(iri)
 
 
+# 推荐系统的库
 def surprise_demo():
     ### 使用SVD
     from surprise import SVD, evaluate
+    from surprise import Dataset, print_perf
+    from surprise.model_selection import cross_validate
+
+    # 默认载入movielens数据集
+    music_data = Dataset.load_builtin('ml-100k')
+    # k折交叉验证(k=3),此方法现已弃用
+    music_data.split(n_folds=3)
     algo = SVD()
     perf = evaluate(algo, music_data, measures=['RMSE', 'MAE'])
+    # 输出结果
+    print_perf(perf)
 
 
 def tmp_test():

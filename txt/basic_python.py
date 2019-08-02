@@ -150,7 +150,6 @@ def regex():
     # \s 包含空白 \t|\r\n
 
 
-
 def itertools():
     # 1. 排列组合
     shelf_list = [1, 2, 3]
