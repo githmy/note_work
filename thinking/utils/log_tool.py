@@ -1,6 +1,7 @@
 import os
 import logging.handlers
 import logging
+from utils.path_tool import makesurepath
 
 cmd_path = os.getcwd()
 basic_path = os.path.join(cmd_path, "..", "data")
@@ -9,6 +10,7 @@ model_path = os.path.join(project_path, "models")
 data_path = os.path.join(project_path, "data")
 conf_path = os.path.join(project_path, "config")
 log_path = os.path.join(project_path, 'logs')
+makesurepath(log_path)
 log_file = os.path.join(log_path, 'delphis.log')
 
 # 创建一个logger

@@ -2,7 +2,7 @@
 import sys
 from glob import glob
 import cv2
-import os
+import copy
 from multiprocessing import Process
 from multiprocessing import Pool
 import multiprocessing
@@ -161,14 +161,16 @@ def print_video(infile, outfile):
 
 
 # 处理视频+音频的主函数
+# def moviepy_trans(infile, outfile, start_t=0.0, end_t=0.0):
 def moviepy_trans(infile, outfile):
     # 0. 参数定义
-    ratio_heigh, ratio_wide = 7, 6
+    ratio_wide, ratio_heigh = 0.14, 0.1
     # 1. 打开视频
     ori_video = VideoFileClip(infile)
     moviesize = (ori_video.w, ori_video.h)
-    logosize = (int(ori_video.w / ratio_wide), int(ori_video.h / ratio_heigh))
-    frame_fromx, frame_fromy = moviesize[0] - logosize[0], moviesize[1] - logosize[1]
+    logosize = (int(ori_video.w * ratio_wide), int(ori_video.h * ratio_heigh))
+    # frame_fromx, frame_fromy = moviesize[0] - logosize[0] - 40, moviesize[1] - logosize[1] - 29
+    frame_fromx, frame_fromy = moviesize[0] - logosize[0] - 45, moviesize[1] - logosize[1] - 24
 
     # print("moviesize", moviesize)
     # print("logosize", logosize)
@@ -184,27 +186,50 @@ def moviepy_trans(infile, outfile):
             self.neighbor = neighbor
 
         def __call__(self, image):
-            ypix_n = int(math.ceil(self.h / self.neighbor) * self.neighbor)
-            xpix_n = int(math.ceil(self.w / self.neighbor) * self.neighbor)
-            for i in range(0, ypix_n, self.neighbor):  # 关键点0 减去neightbour 防止溢出
-                for j in range(0, xpix_n, self.neighbor):
-                    rect = [j + self.x, i + self.y, self.neighbor, self.neighbor]
-                    color = image[i + self.y][j + self.x].tolist()  # 关键点1 tolist
+            xpix_n = int(self.w)
+            ypix_n = int(self.h)
+            x_noint = 0
+            y_noint = 0
+            x_n = 0
+            y_n = 0
+            if not isinstance(self.w / self.neighbor, int):
+                x_noint = 1
+                x_n = int(math.ceil(self.w / self.neighbor))
+            else:
+                x_n = self.w / self.neighbor
+            if not isinstance(self.h / self.neighbor, int):
+                y_noint = 1
+                y_n = int(math.ceil(self.h / self.neighbor))
+            else:
+                y_n = self.h / self.neighbor
+            for i in range(0, y_n):  # 关键点0 减去neightbour 防止溢出
+                for j in range(0, x_n):
+                    tmp_recx = self.neighbor
+                    if 1 == x_noint and j + 1 == x_n:
+                        tmp_recx = xpix_n - j * self.neighbor
+                    tmp_recy = self.neighbor
+                    if 1 == y_noint and i + 1 == y_n:
+                        tmp_recy = ypix_n - i * self.neighbor
+                    rect = [j * self.neighbor + self.x, i * self.neighbor + self.y, tmp_recx, tmp_recy]
+                    # print(i, j, x_n, y_n)
+                    color = image[i * self.neighbor + self.y][j * self.neighbor + self.x].tolist()  # 关键点1 tolist
                     left_up = (rect[0], rect[1])
-                    right_down = (rect[0] + self.neighbor - 1, rect[1] + self.neighbor - 1)  # 关键点2 减去一个像素
+                    h_tmp = rect[1] + tmp_recy - 1
+                    w_tmp = rect[0] + tmp_recx - 1
+                    right_down = (w_tmp, h_tmp)  # 关键点2 减去一个像素
                     cv2.rectangle(image, left_up, right_down, color, -1)
             return image
 
-    # ori_video = ori_video.fl_image(Mosaic(frame_fromx, frame_fromy, logosize[0], logosize[1], neighbor=4),
-    ori_video = ori_video.fl_image(Mosaic(frame_fromx, frame_fromy, logosize[0], logosize[1], neighbor=50),
+    ori_video = ori_video.fl_image(Mosaic(frame_fromx, frame_fromy, logosize[0] + 23, logosize[1] + 4, neighbor=90),
                                    apply_to=['mask'])
-    # 3. 打logo
+    # 3. 打logo2
     logo = ImageClip('logo_3.png')
     screen = (logo.fx(mpy.vfx.mask_color, [254, 254, 254])
               .set_opacity(.99)  # whole clip is semi-transparent
-              .resize(width=logosize[0], height=int(logosize[1] * 0.8))
-              .set_pos((frame_fromx - 30, frame_fromy + 10)))
+              .resize(width=logosize[0], height=logosize[1])
+              .set_pos((frame_fromx - 40, frame_fromy)))
     # 4. 输出
+    # result = CompositeVideoClip([ori_video], size=moviesize)
     result = CompositeVideoClip([ori_video, screen], size=moviesize)
     result.set_duration(ori_video.duration).write_videofile(outfile, fps=ori_video.fps)
 
@@ -448,8 +473,8 @@ def main():
     # 2. 转换
     # source_root = os.path.join("E:\\", "tard", "merged")
     # target_root = os.path.join("E:\\", "tard", "transd")
-    source_root = os.path.join("D:\\", "video_data", "乐乐高中UUID")
-    target_root = os.path.join("D:\\", "video_data", "乐乐高中transd")
+    source_root = os.path.join("D:\\", "video_data", "思维王")
+    target_root = os.path.join("D:\\", "video_data", "思维王transd")
     # source_root = os.path.join("D:\\", "video_data", "append_pcl_merged")
     # target_root = os.path.join("D:\\", "video_data", "append_pcl_merged_transd")
     if not os.path.exists(target_root):
@@ -458,7 +483,7 @@ def main():
     res = get_dir_list1(source_root, target_root)
     cores = multiprocessing.cpu_count()
     print("cores:", cores)
-    p = Pool(int(cores - 6))
+    p = Pool(int(cores - 7))
     # for i1 in not_in_res:
     for i1 in res:
         # print(i1)
@@ -472,22 +497,26 @@ def main():
 
 
 if __name__ == "__main__":
-    # # 视频转化单版测试
-    # # source_root = os.path.join("E:\\", "tard", "1e57aa7a-57f7-11e7-b923-078e17e0e0f6", "射影定理",
-    # # source_root = os.path.join("E:\\", "tard", "1e57aa7a-57f7-11e7-b923-078e17e0e0f6", "射影定理",
-    # #                            "pcM_586df061065b7e9d7142959d.ts")
-    # # target_root = os.path.join("E:\\", "tard", "1e57aa7a-57f7-11e7-b923-078e17e0e0f6", "射影定理",
-    # #                            "pcM_586df061065b7e9d7142959d.mp4")
-    # # moviepy_trans(source_root, target_root)
-    # filename = "0ab2ab51-76e6-3973-9f14-661f3cdbe8b0" + ".mp4"
-    # start_t = 0
-    # end_t = 0
-    # source_root = os.path.join("D:\\", "video_data", "乐乐初中UUID", filename)
-    # target_path = os.path.join("D:\\", "video_data", "乐乐初中transd")
-    # if not os.path.exists(target_path):
-    #     os.makedirs(target_path)
-    # target_root = os.path.join(target_path, filename)
-    # moviepy_trans(source_root, target_root)
-    # moviepy_dehead(source_root, target_root, start_t, end_t)
-    # 视频批量转化
-    main()
+    # 视频转化单版测试
+    filehead = "a3cb11ebd6c1363c387ac75be4f88beb"
+    start_t = 3.01
+    end_t = 6.1
+    # start_t = 36
+    # end_t = 80
+    # start_t = 10
+    # end_t = 30
+    source_path = os.path.join("D:\\", "video_data", "思维王")
+    source_root = os.path.join(source_path, filehead)
+    mid_path = os.path.join("D:\\", "video_data", "思维王mid")
+    mid_root = os.path.join(mid_path, filehead)
+    if not os.path.exists(mid_path):
+        os.makedirs(mid_path)
+    target_path = os.path.join("D:\\", "video_data", "思维王transd")
+    target_root = os.path.join(target_path, filehead)
+    if not os.path.exists(target_path):
+        os.makedirs(target_path)
+    moviepy_dehead(source_root + ".mp4", mid_root + ".mp4", start_t, end_t)
+    moviepy_trans(mid_root + ".mp4", target_root + ".mp4")
+
+    # # 视频批量转化
+    # main()
