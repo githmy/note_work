@@ -11,6 +11,45 @@ warnings.filterwarnings(action='ignore', category=FutureWarning)
 from goto import with_goto
 
 
+def propertys():
+    变量名称 = 3
+    print(变量名称)
+    print(0b100)
+    print(0o77)
+    print(0x123)
+    print(True)
+    print(False == 0)
+    print(True == 1)
+    print(True + 3)
+    print(False + 3)
+    print(bool({}))
+    print(bool("False"))
+    print(bool(False))
+    print(bool(2))
+    print(bool(1))
+    print(bool(0))
+    print(bool(None))
+    # 复数
+    ComplexNumber1 = complex(3, 6)
+    print(ComplexNumber1)
+    # print(3 + 6i)
+    print(3 + 6j)
+    print(4 + 7J)
+    a = 32.5
+    b = 32.5
+    print(bool(a))
+    print(a and 34)
+    print(a or 34)
+    print(not a)
+    print(id(a), id(b))
+    print(id(True), id(1))
+    print(divmod(6, 2))  # 整 除 与 取 模
+    print(6 // 2, 6 % 2)
+    print(all([3 > 2, 6 < 9]))
+    print(all([2, 3, 5, 6, 7]))  # 如果所有为空、0、false，则返回true
+    print(any([2, 3, 5, 6, 7]))  # 如果不都为空、0、false，则返回true
+
+
 @with_goto
 def goto_demo():
     i = 1

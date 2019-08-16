@@ -83,10 +83,42 @@ def plot_line_stock(ts, w, title='time_sequence'):
     plt.plot(roll_std, color='black', label='Rolling Std')
     plt.plot(pd_ewma, color='yellow', label='EWMA')
     plt.legend(loc='best')
+    # plt.ylim(-1.5, 1.5)
+    # plt.xlabel('日期')
+    # plt.ylabel('价格')
     plt.title('Rolling Mean & Standard Deviation')
+    # plt.grid(True, axis='both')
     # plt.show()
     # plt.savefig('./PDF/' + title + '.pdf', format='pdf')
 
+    a = [0, 0, 0, 0]
+    for i in Close:
+        if (i > 2) & (i <= 3):
+            a[0] += 1
+        elif (i > 3) & (i <= 4):
+            a[1] += 1
+        elif (i > 4) & (i <= 5):
+            a[2] += 1
+        else:
+            a[3] += 1
+    plt.bar([2, 3, 4, 5], a)
+    plt.bar(left=[2, 3, 4, 5], height=a, width=1.0, bottom=2.0)
+    plt.title('中国银行收盘价分布柱状图')
+
+    plt.bar(left=[2, 3, 4, 5], height=a, width=1.0, bottom=2.0, color='red', edgecolor='k')
+    plt.title('中国银行收盘价分布柱状图')
+
+    plt.barh([2, 3, 4, 5], a, height=1.0, color='red', edgecolor='k')
+    plt.title('中国银行收盘价分布柱状图')
+
+    plt.hist(Close, bins=12)
+    plt.title('中国银行收盘价分布直方图')
+
+    plt.hist(Close, range=(2.3, 5.5), orientation='horizontal', color='red', edgecolor='blue')
+    plt.title('中国银行收盘价分布直方图')
+
+    plt.pie(a, labels=('（2,3]', '(3,4]', '(4,5]', '(5,6]'), colors=('b', 'g', 'r', 'c'), shadow=True)
+    plt.title('中国银行收盘价分布饼图')
 
 # 多只股票时间序列
 def plot_timesq(datas):

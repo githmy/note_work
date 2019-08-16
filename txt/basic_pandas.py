@@ -120,7 +120,7 @@ stock.set_index("date", inplace=True)
 # 行列索引
 # df.iat[2, 3]
 # df.at["gamma", "d"]
-
+# 不同的索引介绍  ix 弃用。 有i按索引的位置来，没i按索引的值来 # at 只能一个值
 
 # # 遍历每一行
 # for indexs in data.iterrows():
@@ -138,10 +138,10 @@ df.drop([0, 1, 3, 5])
 # 空值丢弃
 df.dropna(subset=['closeprice'], inplace=True)
 # 空值丢弃阈值
-df.dropna(thresh=6, inplace=True)
+df.dropna(thresh=6, inplace=True, how='all')
 # 空值填充
 df.fillna(value=20181010, inplace=True)
-df.fillna(value=20181010)
+df.fillna(value=20181010, limit=2)
 # 先向下填充
 df.fillna(method='ffill', inplace=True)
 # 再向上填充
@@ -308,6 +308,7 @@ df_ac = pd.concat(chunks, ignore_index=True)
 # pddata = pddata[(~pddata["评论内容"].notnull())]
 
 # print(df['2013'].head(2)) # 获取2013年的数据
+# print(df['2013'].take([2,4,0])) # 索引行
 # print(df['2013'].tail(2)) # 获取2013年的数据
 # 
 # print(df['2016':'2017'].head(2))  #获取2016至2017年的数据
@@ -325,6 +326,11 @@ df['panduan'] = df.city.apply(lambda x: 1 if 'ing' in x else 0)
 # 去重
 # 按secid去重，保留最后的
 pd.drop_duplicates(subset='secid', keep='last', inplace=True)
+df5.drop_duplicates()
+df5.drop_duplicates(['c2'])
+# 判断重复
+df5.duplicates()
+df5.duplicates(['c2'])
 
 # 特征统计
 # 1. 序列处理，平移

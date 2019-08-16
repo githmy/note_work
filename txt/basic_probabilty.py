@@ -86,6 +86,16 @@ def probability():
     res = stats.t.pdf(x, 5)
     res = stats.t.pdf(x, 30)
     print(res)
+    # (置信度，自由度，均值，标准误)  # 求解置信区间
+    stats.t.interval(0.95, len(Retindex) - 1, mean, stats.sem(Retindex))
+    # t检验 对一次样本 跟 均值(原假设)
+    t值, p值 = stats.ttest_1samp(SHRet, 0)
+    # 独立样本 方差是否近似检验 p值需要远大于0.05 才近似
+    t值, p值 = stats.levene(data1,data2)
+    # 独立样本的T检验 要求方差近似，否则要加equal_var=False
+    t值, p值 = stats.ttest_ind(SHRet, SZRet,equal_var=False)
+    # 配对T检验
+    t值, p值 = stats.ttest_rel(SHRet, SZRet)
 
     # 5. F(m,n)分布 X= (Z/m)/(Y/n)  Z=卡方(m) Y=卡方(n)
     # 随机数为 n的概率密度
