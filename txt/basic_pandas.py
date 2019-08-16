@@ -31,8 +31,13 @@ df2 = pd.DataFrame([[5., 10.]], columns=['A', 'B'])
 df.div(df2)
 df.div(df2.iloc[0])
 
+# 连乘积
+df.cumprod()
+
 # 相关系数
+# 相关性协方差 series (列2) ， DataFrame (空) 返回矩阵
 df.corr(method="spearman")
+df["close"].corr()
 
 # 建立空内容
 # orderl_pd = pd.DataFrame(data={})
@@ -228,6 +233,11 @@ info_new = pd.DataFrame()
 info_new["skus"] = df.groupby(["OrderID"]).apply(sort_df2)
 info_new["length"] = info_new["skus"].map(len)
 
+# groupby分组操作
+for name, group in df1.groupby('key1'):
+    print('*' * 13 + name + '*' * 13 + '\n', group)
+    print()
+
 # 列值排序的序号
 # orderl_pd[i] = liquids_pd[i].rank(ascending=1, method='first')
 
@@ -331,6 +341,12 @@ df['close'].skew()
 df['close'].kurt()
 # 或
 df['close'].kurtosis()
+
+# 分数位
+# pos 位置的线性插值
+# 方法1 pos = (n+1)*p
+# 方法2 pos = 1+(n-1)*p
+df.quantile(.1)
 
 import scipy
 

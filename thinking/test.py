@@ -55,17 +55,57 @@ class OutPutResult():
         # 4. 根据，学校，业余安排(整合到素质里)，以及初始测试跟0点的对比，初始化学生的素质属性（0点有多高，需要知道学生是否提前预习过该学期的课程）。
         pass
 
-    def update_student_quality(self):
-        # 5. 输入：历次测试2个维度的知识点降维结果：更新学生的素质属性。（为了得出发展轨迹）
-        self.pd_quiz_point["learnin_rate"] = self.pd_quiz_point["答点时长"] / self.pd_quiz_point["建议时长"]
-        col = self.pd_quiz_point.columns
+    def _lines2rank(self):
+        # 知识点列变为行
+        self.pd_quiz_point["efficient_rate"] = self.pd_quiz_point["建议时长"] / self.pd_quiz_point["答点时长"]
+        self.pd_quiz_point["S"] = self.pd_quiz_point["skill"] * self.pd_quiz_point["efficient_rate"]
+        self.pd_quiz_point["T"] = self.pd_quiz_point["thinking"] * self.pd_quiz_point["efficient_rate"]
         print(self.pd_quiz_point)
+        # groupby分组操作
+        reslist = []
+        for name, group in self.pd_quiz_point.groupby('测试id'):
+            print('*' * 13 + name + '*' * 13 + '\n', group)
+            print()
+            tmpjson = {"quizid": name}
+            for i2 in self.pd_point_info["知识点"]:
+                if i2 in group["知识点id"]:
+                    ind = group["知识点id"].index(i2)
+                    tmpjson[i2 + "_K"] = group.iloc[ind, "K"]
+                    tmpjson[i2 + "_T"] = group.iloc[ind, "T"]
+                else:
+                    tmpjson[i2 + "_K"] = 0
+                    tmpjson[i2 + "_T"] = 0
+            reslist.append(tmpjson)
+        res_pd = pd.DataFrame(reslist)
+        return res_pd
+
+    def _single_lines2rank(self, pd_in):
+        # 知识点列变为行
+        reslist = []
+        tmpjson = {"quizid": pd_in.iloc[0, "测试id"]}
+        for i2 in self.pd_point_info["知识点"]:
+            if i2 in pd_in["知识点id"]:
+                ind = pd_in["知识点id"].index(i2)
+                tmpjson[i2 + "_K"] = pd_in.iloc[ind, "K"]
+                tmpjson[i2 + "_T"] = pd_in.iloc[ind, "T"]
+            else:
+                tmpjson[i2 + "_K"] = 0
+                tmpjson[i2 + "_T"] = 0
+        reslist.append(tmpjson)
+        res_pd = pd.DataFrame(reslist)
+        return res_pd
+
+    def update_student_quality(self, single_pd_in):
+        # 5. 输入：历次测试2个维度的知识点降维结果：更新学生的素质属性。（为了得出发展轨迹）
+        lines_pd = self._lines2rank()
         # 1. 统计 同一科目 同一学段同一学期 的 各个报名时间 各个学生 的发展轨迹，做学习模式聚类，作为背景参照。
+        cls = KMeans(n_clusters=4, init='k-means++')
+        y_hat = cls.fit_predict(lines_pd)
         # 2. 选   某一科目 某一学段某一学期 的 某个报名时间 某个学生 的评测结果。
+        single_pd = self._single_lines2rank(single_pd_in)
+        single_y_hat = cls.fit(single_pd)
         # 3. 属于 查看该学生属于某个类
         # 4. 画出 该科目 该学段该学期 该聚类 的 均值轨迹和波动值，外加拟合延长线
-        cls = KMeans(n_clusters=4, init='k-means++')
-        y3_hat = cls.fit_predict(self.pd_quiz_main)
 
     def update_point_weigh(self):
         # 6. 输入：题库的统计结果，输出：所有相关的知识点按权重排序（同权重的或全选或全不先，题目出现多就代表重要）。
@@ -95,7 +135,8 @@ class OutPutResult():
 def main():
     ins = OutPutResult()
     ins.update_student_quality()
-    # ins.update_point_skill_level()
+    single_pd_in = pd.DataFrame()
+    ins.update_student_quality(single_pd_in)
     # 由于题目的思维难度根据步骤来，是客观的，不需要人为干预（暂时没考虑不同解决方案的步骤不同，即一道题多个解法的情况）
 
 
@@ -104,7 +145,7 @@ if __name__ == '__main__':
     logger.info("welcome to Delphis".center(30, " ").center(100, "*"))
     logger.info("".center(100, "*"))
     logger.info("")
-    logger.info("")
     main()
+    logger.info("")
     logger.info("bye bye".center(30, " ").center(100, "*"))
     logger.info("".center(100, "*"))

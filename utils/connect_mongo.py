@@ -16,8 +16,8 @@ class MongoDB:
         self.config = {
             'host': conf['host'],
             'port': 27017,
-            'user': conf['user'],
-            'password': conf['password'],
+            # 'user': conf['user'],
+            # 'password': conf['password'],
             'database': conf['database'],
             'col': conf['col'],
             'charset': 'utf8mb4',  # 支持1-4个字节字符
@@ -70,6 +70,11 @@ class MongoDB:
         x = self.mycol.update_many(myquery, newvalues)
         print(x.modified_count, "文档已修改")
 
+    def exec_require(self):
+        # 显示查询结果
+        mydoc = self.mycol.find()
+        return mydoc
+
     def exec_check(self):
         # 显示查询结果
         myquery = {"name": {"$gt": "H"}}  # 第一个ascii>H
@@ -80,6 +85,9 @@ class MongoDB:
         # 显示库名
         dblist = self.myclient.list_database_names()
         print(dblist)
+        # 显示 表 集合 名
+        collist = self.myclient[dblist[0]].list_collection_names()
+        print(collist)
         # 查询
         # x = self.mycol.find_one()
         # print(x)

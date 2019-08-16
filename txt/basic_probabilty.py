@@ -12,6 +12,39 @@ import pandas as pd
 import statsmodels.api as sm
 
 
+def stats_func():
+    """
+    beta beta分布
+    f F分布
+    gamma gam分布
+    poisson 泊松分布
+    hypergeom 超几何分布
+    lognorm 对数正态分布
+    binom 二项分布
+    uniform 均匀分布
+    chi2 卡方分布
+    cauchy 柯西分布
+    laplace 拉普拉斯分布
+    rayleigh 瑞利分布
+    t 学生T分布
+    norm 正态分布
+    expon 指数分布
+    """
+    import scipy.stats as st
+    # 1. loc和scale 对应的是正态分布的期望和标准差。size得到随机数数组的形状参数
+    st.norm.rvs(loc=0, scale=0.1, size=10)
+    st.norm.rvs(loc=3, scale=10, size=(2, 2))
+    # 2. 正态分布概率密度函数
+    st.norm.pdf(0, loc=0, scale=1)
+    st.norm.pdf(np.arange(3), loc=0, scale=1)
+    # 3. 正态分布累计概率密度函数。
+    st.norm.cdf(0, loc=3, scale=1)
+    st.norm.cdf(0, 0, 1)
+    # 4. 累计分布函数的逆函数，即下分位点。
+    z05 = st.norm.ppf(0.05)  # 下积分值为0.05的坐标
+    st.norm.cdf(z05)  # ==0.05
+
+
 def probability():
     # 1. 二项式分布概率
     # 100次投币，正面朝上的次数， 20个样本
@@ -61,32 +94,12 @@ def probability():
     res = stats.f.pdf(x, 4, 40)
     print(res)
 
+
 def corr():
     # 1. 计算两列的相关系数
     pddata = pd.read_csv()
     corr_num = pddata["a"].corr(pddata["b"])
     print(corr_num)
-
-
-
-def liner_demo():
-    pd_data = pd.DataFrame()
-    model = sm.OLS(np.log(pd_data["depend_var"]),
-                   sm.add_constant(pd_data[["constant_column1", "constant_column2"]])).fit()
-    print(model.summary())
-    # pvalue 小于0.05的可以作为系数  y = coef * log(depend_var) + coef * constant_columns
-
-
-def conponent_profit():
-    import ffn
-    close = pd.DataFrame()["close"]
-    returns = ffn.get('aapl,msft,c,gs,ge', start='2010-01-01').to_returns(close).dropna()
-    returns.calc_mean_var_weights().as_format('.2%')
-    # 年化率
-    simpleret = ffn.to_returns(close)
-    # 复利化
-    simpleret = ffn.to_log_returns(close)
-    annue = (1 + simpleret).cumprod()[-1] ** (245 / 311) - 1
 
 
 if __name__ == '__main__':
