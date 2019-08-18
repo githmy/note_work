@@ -39,6 +39,33 @@ df.cumprod()
 df.corr(method="spearman")
 df["close"].corr()
 
+# 均值
+df.mean()
+# 中位数
+df.median()
+# 分位数
+df.quantile()
+# 根据平均值计算平均绝对离差  res = sigma(|xi-mean|)/n
+df.mad()
+# 方差
+df.var()
+# 标准差
+df.std()
+# 最大的索引位置
+df.idxmax()
+# 最小的索引位置
+df.idxmin()
+# 列累加
+df.cumsum()
+# 一阶差分
+df.diff()
+# 百分数变化
+df.pct_change()
+# 协方差  COV = E([X-E(X)]*[Y-E(Y)])
+df.cov()
+# 相关系数  CORR = COV / (VAR(X)^0.5*VAR(Y)^0.5)
+df.corr()
+
 # 建立空内容
 # orderl_pd = pd.DataFrame(data={})
 # orderl_pd = pd.DataFrame({"phone":[111,222],"age":[3,5]},index=["first","second"])

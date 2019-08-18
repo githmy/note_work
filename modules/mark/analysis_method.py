@@ -66,10 +66,6 @@ def conponent_profit():
     simpleret.std()
 
 
-def risk_func():
-    pass
-
-
 # 时间T内，组合损失X的置信度小于1-a%
 def value_at_risk():
     # 半方差公式 只算下降的

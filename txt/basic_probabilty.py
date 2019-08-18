@@ -30,19 +30,18 @@ def stats_func():
     norm 正态分布
     expon 指数分布
     """
-    import scipy.stats as st
-    # 1. loc和scale 对应的是正态分布的期望和标准差。size得到随机数数组的形状参数
-    st.norm.rvs(loc=0, scale=0.1, size=10)
-    st.norm.rvs(loc=3, scale=10, size=(2, 2))
-    # 2. 正态分布概率密度函数
-    st.norm.pdf(0, loc=0, scale=1)
-    st.norm.pdf(np.arange(3), loc=0, scale=1)
-    # 3. 正态分布累计概率密度函数。
-    st.norm.cdf(0, loc=3, scale=1)
-    st.norm.cdf(0, 0, 1)
-    # 4. 累计分布函数的逆函数，即下分位点。
-    z05 = st.norm.ppf(0.05)  # 下积分值为0.05的坐标
-    st.norm.cdf(z05)  # ==0.05
+    # 2.1. loc和scale 对应的是正态分布的期望和标准差。size得到随机数数组的形状参数
+    stats.norm.rvs(loc=0, scale=0.1, size=10)
+    stats.norm.rvs(loc=3, scale=10, size=(2, 2))
+    # 2.2. 正态分布概率密度函数
+    stats.norm.pdf(0, loc=0, scale=1)
+    stats.norm.pdf(np.arange(3), loc=0, scale=1)
+    # 2.3. 正态分布累计概率密度函数。
+    stats.norm.cdf(0, loc=3, scale=1)
+    stats.norm.cdf(0, 0, 1)
+    # 2.4. 累计分布函数的逆函数，即下分位点。
+    z05 = stats.norm.ppf(0.05)  # 下积分值为0.05的坐标
+    stats.norm.cdf(z05)  # ==0.05
 
 
 def probability():
