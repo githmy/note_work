@@ -170,7 +170,7 @@ def moviepy_trans(infile, outfile):
     moviesize = (ori_video.w, ori_video.h)
     logosize = (int(ori_video.w * ratio_wide), int(ori_video.h * ratio_heigh))
     # frame_fromx, frame_fromy = moviesize[0] - logosize[0] - 40, moviesize[1] - logosize[1] - 29
-    frame_fromx, frame_fromy = moviesize[0] - logosize[0] - 45, moviesize[1] - logosize[1] - 24
+    frame_fromx, frame_fromy = moviesize[0] - logosize[0] - 39, moviesize[1] - logosize[1] - 5
 
     # print("moviesize", moviesize)
     # print("logosize", logosize)
@@ -220,14 +220,14 @@ def moviepy_trans(infile, outfile):
                     cv2.rectangle(image, left_up, right_down, color, -1)
             return image
 
-    ori_video = ori_video.fl_image(Mosaic(frame_fromx, frame_fromy, logosize[0] + 23, logosize[1] + 4, neighbor=90),
+    ori_video = ori_video.fl_image(Mosaic(frame_fromx, frame_fromy, logosize[0] + 20, logosize[1] + 10, neighbor=50),
                                    apply_to=['mask'])
     # 3. 打logo2
     logo = ImageClip('logo_3.png')
     screen = (logo.fx(mpy.vfx.mask_color, [254, 254, 254])
               .set_opacity(.99)  # whole clip is semi-transparent
               .resize(width=logosize[0], height=logosize[1])
-              .set_pos((frame_fromx - 40, frame_fromy)))
+              .set_pos((frame_fromx - 20, frame_fromy + 5)))
     # 4. 输出
     # result = CompositeVideoClip([ori_video], size=moviesize)
     result = CompositeVideoClip([ori_video, screen], size=moviesize)
@@ -436,7 +436,7 @@ def one_task_trans(indir, fhead, outdir):
             # 创建该任务的目录
             if not os.path.exists(outdir):
                 os.makedirs(outdir)
-            moviepy_trans(os.path.join(indir, fhead) + ".mp4", outhead + ".mp4")
+            moviepy_trans(os.path.join(indir, fhead) + ".ts", outhead + ".mp4")
             # print_video(outhead + ".ts", outhead + ".mp4")
             # 4. 完成的写入数据库
             add_sql = """insert into `trans_status` (dir3,had_trans) VALUES ("{}", {});"""
@@ -459,8 +459,8 @@ def find_not_in(source_root, target_root):
 
 def main():
     # # 1. 合并
-    # # source_root = os.path.join("E:\\", "tard", "headtail")
-    # # target_root = os.path.join("E:\\", "tard", "merged")
+    # source_root = os.path.join("D:\\", "video_data", "洋葱小学数学")
+    # target_root = os.path.join("D:\\", "video_data", "洋葱小学数学merged")
     # # not_in_res = find_not_in(source_root, target_root)
     # # for id1, i1 in enumerate(not_in_res):
     # #     print(i1[0])
@@ -471,19 +471,17 @@ def main():
     #     one_task_merge(i1[0], i1[1], i1[2])
     # exit(0)
     # 2. 转换
-    # source_root = os.path.join("E:\\", "tard", "merged")
-    # target_root = os.path.join("E:\\", "tard", "transd")
-    source_root = os.path.join("D:\\", "video_data", "思维王")
-    target_root = os.path.join("D:\\", "video_data", "思维王transd")
-    # source_root = os.path.join("D:\\", "video_data", "append_pcl_merged")
-    # target_root = os.path.join("D:\\", "video_data", "append_pcl_merged_transd")
+    # source_root = os.path.join("D:\\", "video_data", "洋葱小学数学merged")
+    # target_root = os.path.join("D:\\", "video_data", "洋葱小学数学mergedtransd")
+    source_root = os.path.join("D:\\", "video_data", "洋葱小学数学merged")
+    target_root = os.path.join("D:\\", "video_data", "洋葱小学数学mergedtrand")
     if not os.path.exists(target_root):
         os.makedirs(target_root)
     # res = get_trans_paths(source_root, target_root)
     res = get_dir_list1(source_root, target_root)
     cores = multiprocessing.cpu_count()
     print("cores:", cores)
-    p = Pool(int(cores - 7))
+    p = Pool(int(cores - 6))
     # for i1 in not_in_res:
     for i1 in res:
         # print(i1)
@@ -497,26 +495,26 @@ def main():
 
 
 if __name__ == "__main__":
-    # 视频转化单版测试
-    filehead = "a3cb11ebd6c1363c387ac75be4f88beb"
-    start_t = 3.01
-    end_t = 6.1
-    # start_t = 36
-    # end_t = 80
-    # start_t = 10
-    # end_t = 30
-    source_path = os.path.join("D:\\", "video_data", "思维王")
-    source_root = os.path.join(source_path, filehead)
-    mid_path = os.path.join("D:\\", "video_data", "思维王mid")
-    mid_root = os.path.join(mid_path, filehead)
-    if not os.path.exists(mid_path):
-        os.makedirs(mid_path)
-    target_path = os.path.join("D:\\", "video_data", "思维王transd")
-    target_root = os.path.join(target_path, filehead)
-    if not os.path.exists(target_path):
-        os.makedirs(target_path)
-    moviepy_dehead(source_root + ".mp4", mid_root + ".mp4", start_t, end_t)
-    moviepy_trans(mid_root + ".mp4", target_root + ".mp4")
+    # # 视频转化单版测试
+    # filehead = "00"
+    # # # start_t = 3.01
+    # # # end_t = 6.1
+    # # # start_t = 36
+    # # # end_t = 80
+    # # start_t = 30
+    # # end_t = 165
+    # # source_path = os.path.join("D:\\", "video_data", "乐乐小学数学mp4")
+    # # source_root = os.path.join(source_path, filehead)
+    # mid_path = os.path.join("D:\\", "video_data", "洋葱")
+    # mid_root = os.path.join(mid_path, filehead)
+    # if not os.path.exists(mid_path):
+    #     os.makedirs(mid_path)
+    # target_path = os.path.join("D:\\", "video_data", "洋葱小学数学mergedtrand")
+    # target_root = os.path.join(target_path, filehead)
+    # if not os.path.exists(target_path):
+    #     os.makedirs(target_path)
+    # # moviepy_dehead(source_root + ".mp4", mid_root + ".mp4", start_t, end_t)
+    # moviepy_trans(mid_root + ".ts", target_root + ".mp4")
 
-    # # 视频批量转化
-    # main()
+    # 视频批量转化
+    main()

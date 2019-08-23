@@ -1,6 +1,5 @@
 import pymysql
 import threading
-from utils.log_tool_claw import logger
 import json
 import time
 

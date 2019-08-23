@@ -731,25 +731,45 @@ class Yangcong_append():
         logger.info(have_num)
 
     def export_content(self):
-        file_name = os.path.join(data_path, "down", "instruction.csv")
+        # file_name = os.path.join(data_path, "down", "instruction.xls")
+        subject_name = "数学"
+        section_name = "高中"
+        file_name = os.path.join("instruction{}{}.xls".format(section_name, subject_name))
+        # download_sql = """
+        # SELECT subjects,publisher,stage,semester,chapter_1,chapter_2,chapter_3,lesson_type,video_url,video_urlid,seed_urls,urldir,points,had_get from (
+        #     (
+        #         SELECT subjects,publisher,stage,semester,chapter_1,chapter_2,chapter_3,lesson_type,video_url,video_urlid FROM (
+        #         (SELECT subjects,publisher,stage,semester,urlconnect FROM `main_class` WHERE subjects='{}' and stage='{}') l1
+        #         LEFT JOIN
+        #         (SELECT father_url,chapter_1,chapter_2,chapter_3,lesson_type,video_url,video_urlid FROM `big_video_class`) r1
+        #         ON l1.urlconnect=r1.father_url
+        #         )
+        #     ) l2
+        #     LEFT JOIN
+        #     (SELECT chapter_url,seed_urls,urldir,points,had_get FROM `seed_point_all` WHERE seed_urls LIKE '%.m3u8' and urldir LIKE 'pcM_%') r2
+        #     ON l2.video_url=r2.chapter_url
+        # ) WHERE had_get is NOT NULL ;
+        # """
         download_sql = """
         SELECT subjects,publisher,stage,semester,chapter_1,chapter_2,chapter_3,lesson_type,video_url,video_urlid,seed_urls,urldir,points,had_get from (
             (
                 SELECT subjects,publisher,stage,semester,chapter_1,chapter_2,chapter_3,lesson_type,video_url,video_urlid FROM (
-                (SELECT subjects,publisher,stage,semester,urlconnect FROM `main_class` WHERE subjects='数学' and stage='初中') l1 
+                (SELECT subjects,publisher,stage,semester,urlconnect FROM `main_class` WHERE subjects='{}' and stage='{}') l1 
                 LEFT JOIN 
                 (SELECT father_url,chapter_1,chapter_2,chapter_3,lesson_type,video_url,video_urlid FROM `big_video_class`) r1 
                 ON l1.urlconnect=r1.father_url
                 )
             ) l2
-            LEFT JOIN 
-            (SELECT chapter_url,seed_urls,urldir,points,had_get FROM `seed_point_all` WHERE seed_urls LIKE '%.m3u8' and urldir LIKE 'pcM_%') r2 
+            RIGHT JOIN 
+            (SELECT chapter_url,seed_urls,urldir,points,had_get FROM `seed_point_all` WHERE seed_urls LIKE '%.m3u8' and urldir LIKE 'pcM_%' GROUP BY seed_urls ) r2 
             ON l2.video_url=r2.chapter_url
-        ) WHERE had_get IS NOT NULL;
-        """
+        ) WHERE had_get is NOT NULL and chapter_1 is NOT NULL ;
+        """.format(subject_name, section_name)
+        print(download_sql)
         have_res = self.db_conn.exec_sql(download_sql)
         pdobj = pd.DataFrame(have_res)
-        pdobj.to_csv(file_name, encoding='utf-8', index=False)
+        # pdobj.to_csv(file_name, encoding='utf-8', index=False)
+        pdobj.to_excel(file_name, sheet_name='Sheet1', index=False)
 
 
 def main():
@@ -765,10 +785,10 @@ def main():
     yangcong_ins = Yangcong_append(mysql_ins)
     # 获取视频基本信息
     # yangcong_ins.get_basic_info2db()
-    # 下载视频基本信息
-    yangcong_ins.download_normal_usedb()
+    # # 下载视频基本信息
+    # yangcong_ins.download_normal_usedb()
     # 导出视频目录
-    # yangcong_ins.export_content()
+    yangcong_ins.export_content()
 
 
 def test_proxy():

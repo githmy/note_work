@@ -586,18 +586,18 @@ class Compare_not_have(object):
 
 
 def main():
-    # # inst = Replace_js_data()
-    # # inst = Replace_data()
-    # filetype = "mp4"
-    # contentname = "初中数学同步视频"
-    # source_root = os.path.join("D:\\", "video_data", contentname)
-    # target_root = os.path.join("D:\\", "video_data", "{}{}".format(contentname, filetype))
-    # index_name = '{}{}.xls'.format(contentname, filetype)
-    # inst = Contents2uuid(source_root, target_root, ".{}".format(filetype), index_name)
-    # # inst = Deduplicate_video()
-    # # inst = Find_not_down()
-    #
-    inst = Relation_points()
+    # inst = Replace_js_data()
+    # inst = Replace_data()
+    filetype = "mp4"
+    contentname = "乐乐小学数学"
+    source_root = os.path.join("D:\\", "video_data", contentname)
+    target_root = os.path.join("D:\\", "video_data", "{}{}".format(contentname, filetype))
+    index_name = '{}{}.xls'.format(contentname, filetype)
+    inst = Contents2uuid(source_root, target_root, ".{}".format(filetype), index_name)
+    # inst = Deduplicate_video()
+    # inst = Find_not_down()
+
+    # inst = Relation_points()
     # inst = Compare_not_have()
     inst()
     print("转换结束！")
