@@ -7,9 +7,11 @@ import pandas as pd
 import copy
 from abc import ABCMeta, abstractmethod
 from modules.portfolio import Portfolio
+from modules.event import *
 from pyalgotrade import strategy
 from utils.log_tool import *
 import numpy as np
+import pprint
 
 '''
 DataHandler是一个抽象数据处理类，所以实际数据处理类都继承于此（包含历史回测、实盘）
@@ -79,12 +81,12 @@ class CSVDataHandler(DataHandler):
                 os.path.join(self.csv_dir, '%s.csv' % s), header=0, index_col=0, parse_dates=False,
                 names=['date', 'open', 'high', 'low', 'close', 'volume']).sort_index()
 
-            # Combine the index to pad forward values
-            if comb_index is None:
-                comb_index = self.symbol_data[s].index
-            else:
-                # 这里要赋值，否则comb_index还是原来的index
-                comb_index = comb_index.union(self.symbol_data[s].index)
+        # Combine the index to pad forward values
+        if comb_index is None:
+            comb_index = self.symbol_data[s].index
+        else:
+            # 这里要赋值，否则comb_index还是原来的index
+            comb_index = comb_index.union(self.symbol_data[s].index)
         # 设置latest symbol_data 为 None
         self.latest_symbol_data[s] = []
         # Reindex the dataframes
@@ -97,11 +99,18 @@ class CSVDataHandler(DataHandler):
         """
         row = (index,series),row[0]=index,row[1]=[OHLCV]
         """
-        row = next(self.symbol_data[symbol])
-        # return tuple(symbol,row[0],row[1][0],row[1][1],row[1][2],row[1][3],row[1][4]])
-        row_dict = {'symbol': symbol, 'date': row[0], 'open': row[1][0], 'high': row[1][1], 'low': row[1][2],
-                    'close': row[1][3]}
-        return row_dict
+        for row in self.symbol_data[symbol]:
+            # yield b
+            row_dict = {'symbol': symbol, 'date': row[1][0], 'open': row[1][1], 'high': row[1][2], 'low': row[1][3],
+                        'close': row[1][4], 'volume': row[1][5]}
+            # row_dict = {'symbol': symbol, 'date': row[0], 'open': row[1][0], 'high': row[1][1], 'low': row[1][2],
+            #             'close': row[1][3]}
+            yield row_dict
+            # row = next(self.symbol_data[symbol])
+            # # return tuple(symbol,row[0],row[1][0],row[1][1],row[1][2],row[1][3],row[1][4]])
+            # row_dict = {'symbol': symbol, 'date': row[0], 'open': row[1][0], 'high': row[1][1], 'low': row[1][2],
+            #             'close': row[1][3]}
+            # return row_dict
 
     def update_bars(self):
         """
@@ -109,13 +118,13 @@ class CSVDataHandler(DataHandler):
         """
         for s in self.symbol_list_with_benchmark:
             try:
-                bar = self._get_new_bar(s)
+                bar = next(self._get_new_bar(s))
             except StopIteration:
                 self.b_continue_backtest = False
             else:
                 if bar is not None:
                     self.latest_symbol_data[s].append(bar)
-                    self.events.put(BarEvent())
+        self.events.put(BarEvent())
 
     def get_latest_bar(self, symbol):
         """
@@ -125,8 +134,9 @@ class CSVDataHandler(DataHandler):
             bars_list = self.latest_symbol_data[symbol]
         except KeyError:
             print("That symbol is not available in the historical data set.")
+            raise
         else:
-            return bars_list[-N:]
+            return bars_list[-1]
 
     def get_latest_bars(self, symbol, N=1):
         """
@@ -136,11 +146,35 @@ class CSVDataHandler(DataHandler):
             bars_list = self.latest_symbol_data[symbol]
         except KeyError:
             print("That symbol is not available in the historical data set.")
+            raise
         else:
             return bars_list[-N:]
 
     def get_latest_bar_datetime(self, symbol):
-        print("not implyment")
+        try:
+            bars_list = self.latest_symbol_data[symbol]
+        except KeyError:
+            print("That symbol is not available in the historical data set.")
+            raise
+        return bars_list[-1]["date"]
+
+    def get_latest_bar_value(self, symbol, val_type):
+        try:
+            bars_list = self.latest_symbol_data[symbol]
+        except KeyError:
+            print("That symbol is not available in the historical data set.")
+            raise
+        # return getattr(bars_list[-1][1], val_type)
+        return bars_list[-1][val_type]
+
+    def get_latest_bars_values(self, symbol, val_type, N=1):
+        try:
+            bars_list = self.get_latest_bars(symbol, N)
+        except KeyError:
+            print("That symbol is not available in the historical data set.")
+            raise
+        return np.array([b[val_type] for b in bars_list])
+        # return np.array([getattr(b, val_type) for b in bars_list])
 
 
 # order与fill之间的交互基类，可用于实际或模拟成交。
@@ -231,14 +265,11 @@ class MovingAverageCrossStrategy(strategy.BacktestingStrategy):
     # 基于MAC,SMA生成一组新的信号，进入market就是短期移动平均超过长期移动平均
     def calculate_signals(self, event):
         """
-        Generates a new set of signals based on the MAC
-        SMA with the short window crossing the long window
-        meaning a long entry and vice versa for a short entry.    
-
+        基于MAC,SMA生成一组新的信号，进入market就是短期移动平均超过长期移动平均
         Parameters
-        event - A MarketEvent object. 
+        event - A Bar object. 
         """
-        if event.type == 'MARKET':
+        if event.type == 'BAR':
             for symbol in self.symbol_list:
                 bars = self.bars.get_latest_bars_values(symbol, "close", N=self.long_window)
 
@@ -256,186 +287,11 @@ class MovingAverageCrossStrategy(strategy.BacktestingStrategy):
                         signal = SignalEvent(strategy_id, symbol, dt, sig_dir, strength)
                         self.events.put(signal)
                         self.bought[symbol] = 'LONG'
-
                     elif short_sma < long_sma and self.bought[symbol] == "LONG":
                         sig_dir = 'EXIT'
                         signal = SignalEvent(strategy_id, symbol, dt, sig_dir, strength)
                         self.events.put(signal)
                         self.bought[symbol] = 'OUT'
-
-
-"""
-BarEvent - 新的tick，也就是新的Bar（可以认为就是一个K线，这里简单起见就用日线，换成5分钟线，小时线类似）到达。
-   当DataHandler.update_ars更新时触发，
-   用于Strategy计算交易信号，P
-   ortfolio更新仓位信息。
-   BarEvent只需要一个type，没有其他的成员变量。
-SignalEvent -信号事件。
-   Strategy在处理每天的Bar时，如果按模型计算，需要产生信号时，触发Signal事件，包含对特定symbol做多，做空或平仓。
-   SignalEvent被Porfolio对象用于计算如何交易。
-OrderEvent - 订单事件。
-   当Porfolio对象接受一件SignalEvent事件时，会根据当前的风险和仓位，
-   发现OrderEvent给ExecutionHandler执行器。
-FillEvent - 交易订单。
-   当执行器ExecutionHandler接收到OrderEvent后就会执行交易订单，
-   订单交易完成时会产生FillEvent，
-   给Porfolio对象去更新成本，仓位情况等操作。
-"""
-
-
-# 事件基类，提供子类的一个接口
-class Event(object):
-    pass
-
-
-class BarEvent(Event):
-    def __init__(self):
-        self.type = 'BAR'
-
-
-# 处理市场数据更新，触发Strategy生成交易信号。
-class MarketEvent(Event):
-    """
-    Handles the event of receiving a new market update with 
-    corresponding bars.
-    """
-
-    def __init__(self):
-        """
-        Initialises the MarketEvent.
-        """
-        self.type = 'MARKET'
-
-
-# 处理Strategy发来的信号，信号会被Portfolilo 接收和执行
-class SignalEvent(Event):
-    """
-    Handles the event of sending a Signal from a Strategy object.
-    This is received by a Portfolio object and acted upon.
-    """
-
-    def __init__(self, strategy_id, symbol, datetime, signal_type, strength):
-        """
-        Initialises the SignalEvent.
-
-        Parameters:
-        strategy_id - The unique ID of the strategy sending the signal.
-        symbol - The ticker symbol, e.g. 'GOOG'.
-        datetime - The timestamp at which the signal was generated.
-        signal_type - 'LONG' or 'SHORT'.
-        strength - An adjustment factor "suggestion" used to scale 
-            quantity at the portfolio level. Useful for pairs strategies.
-        """
-        self.strategy_id = strategy_id
-        self.type = 'SIGNAL'
-        self.symbol = symbol
-        self.datetime = datetime
-        self.signal_type = signal_type
-        self.strength = strength
-
-
-# 处理向执行系统提交的订单信息
-class OrderEvent(Event):
-    """
-    Handles the event of sending an Order to an execution system.
-    The order contains a symbol (e.g. GOOG), a type (market or limit),
-    quantity and a direction.
-    """
-
-    def __init__(self, symbol, order_type, quantity, direction):
-        """
-        Initialises the order type, setting whether it is
-        a Market order ('MKT') or Limit order ('LMT'), has
-        a quantity (integral) and its direction ('BUY' or
-        'SELL').
-
-        TODO: Must handle error checking here to obtain 
-        rational orders (i.e. no negative quantities etc).
-
-        Parameters:
-        symbol - The instrument to trade.
-        order_type - 'MKT' or 'LMT' for Market or Limit.
-        quantity - Non-negative integer for quantity.
-        direction - 'BUY' or 'SELL' for long or short.
-        """
-        self.type = 'ORDER'
-        self.symbol = symbol
-        self.order_type = order_type
-        self.direction = direction
-        self.quantity = quantity
-
-    def print_order(self):
-        """
-        Outputs the values within the Order.
-        """
-        print("Order: Symbol=%s, Type=%s, Quantity=%s, Direction=%s" % (
-            self.symbol, self.order_type, self.quantity, self.direction))
-
-
-# 封装订单执行。存储交易数量、价格、佣金和手续费。
-class FillEvent(Event):
-    """
-    Encapsulates the notion of a Filled Order, as returned
-    from a brokerage. Stores the quantity of an instrument
-    actually filled and at what price. In addition, stores
-    the commission of the trade from the brokerage.
-
-    TODO: Currently does not support filling positions at
-    different prices. This will be simulated by averaging
-    the cost.
-    """
-
-    def __init__(self, timeindex, symbol, exchange, quantity,
-                 direction, fill_cost, commission=None):
-        """
-        Initialises the FillEvent object. Sets the symbol, exchange,
-        quantity, direction, cost of fill and an optional 
-        commission.
-
-        If commission is not provided, the Fill object will
-        calculate it based on the trade size and Interactive
-        Brokers fees.
-
-        Parameters:
-        timeindex - The bar-resolution when the order was filled.
-        symbol - The instrument which was filled.
-        exchange - The exchange where the order was filled.
-        quantity - The filled quantity.
-        direction - The direction of fill ('BUY' or 'SELL')
-        fill_cost - The holdings value in dollars.
-        commission - An optional commission sent from IB.
-        """
-        self.type = 'FILL'
-        self.timeindex = timeindex
-        self.symbol = symbol
-        self.exchange = exchange
-        self.quantity = quantity
-        self.direction = direction
-        self.fill_cost = fill_cost
-
-        # Calculate commission
-        if commission is None:
-            self.commission = self.calculate_ib_commission()
-        else:
-            self.commission = commission
-
-    # 计算Interactive Brokers 交易费用
-    def calculate_ib_commission(self):
-        """
-        Calculates the fees of trading based on an Interactive
-        Brokers fee structure for API, in USD.
-
-        This does not include exchange or ECN fees.
-
-        Based on "US API Directed Orders":
-        https://www.interactivebrokers.com/en/index.php?f=commission&p=stocks2
-        """
-        full_cost = 1.3
-        if self.quantity <= 500:
-            full_cost = max(1.3, 0.013 * self.quantity)
-        else:  # Greater than 500
-            full_cost = max(1.3, 0.008 * self.quantity)
-        return full_cost
 
 
 # 这个类进行驱动回测设置与组成
@@ -466,7 +322,7 @@ class Backtest(object):
         按策略执行后的结果
         Generates the trading instance objects from their class types.
         """
-        print("Creating DataHandler, Strategy, Portfolio and ExecutionHandler")
+        logger.info("Creating DataHandler, Strategy, Portfolio and ExecutionHandler")
         self._data_handler = self.data_handler_cls(self.events, self.csv_dir, self.csv_list)
         self._portfolio = self.portfolio_cls(self._data_handler, self.events, self.start_date, self.initial_capital)
         self._execution = self.execution_handler_cls(self.events)
@@ -501,20 +357,20 @@ class Backtest(object):
                     break
                 else:
                     self._handle_event(event)
-            time.sleep(self.heartbeat)
+                time.sleep(self.heartbeat)
 
     # 从回测中得到策略的表现
     def _output_performance(self):
         """
         输出 回测的 性能结果
         """
-        self.portfolio.create_equity_curve_dataframe()
+        self._portfolio.create_equity_curve_dataframe()
 
         print("输出摘要统计信息")
-        stats = self.portfolio.output_summary_stats()
+        stats = self._portfolio.output_summary_stats()
 
         print("输出股本曲线")
-        print(self.portfolio.equity_curve.tail(10))
+        print(self._portfolio.equity_curve.tail(10))
         pprint.pprint(stats)
 
         print("Signals: %s" % self.signals)
@@ -542,9 +398,9 @@ class Backtest(object):
 
     # 更新 bar
     def _handle_event_bar(self, event):
-        print('OnBar Event', event.type)
-        self._strategy.onBars()
-        self._portfolio.update_timeindex()
+        # self._strategy.onBars()
+        self._strategy.calculate_signals(event)
+        self._portfolio.update_timeindex(event)
 
     # 更新 mark
     def _handle_event_mark(self, event):
@@ -554,25 +410,29 @@ class Backtest(object):
     # 处理策略产生的交易信号
     def _handle_event_signal(self, event):
         print('OnSignal Event', event.type)
-        self._portfolio.on_signal(event)
+        # self._portfolio.on_signal(event)
+        self.signals += 1
+        self._portfolio.update_signals(event)
 
     # 处理ORDER
     def _handle_event_order(self, event):
         print('OnOrder Event', event.type)
+        self.orders += 1
         self._execution.execute_order(event)
 
     # 处理FILL
     def _handle_event_fill(self, event):
         print('OnFill Event', event.type)
-        self._portfolio.on_fill(event)
+        self.fills += 1
+        # self._portfolio.on_fill(event)
+        self._portfolio.update_fill(event)
 
 
 def main(paralist):
     logger.info(paralist)
+    # 1. 起止 学习 回测 的三个时间
     start_date = datetime.datetime(1990, 1, 1, 0, 0, 0)
     heartbeat = 0.0
-
-    # 1. 起止 学习 回测 的三个时间
     csv_dir = data_path
     # csv_list = ["ChinaBank", "DalianRP", "SAPower"]
     csv_list = ["SAPower"]
@@ -581,12 +441,8 @@ def main(paralist):
                         CSVDataHandler, SimulatedExecutionHandler, Portfolio, MovingAverageCrossStrategy)
     backtest.simulate_trading()
 
-    # 2. 起止 学习 预测 的三个时间
-
 
 if __name__ == "__main__":
-    # csv_dir = REPLACE_WITH_YOUR_CSV_DIR_HERE
-
     logger.info("".center(100, "*"))
     logger.info("welcome to surfing".center(30, " ").center(100, "*"))
     logger.info("".center(100, "*"))

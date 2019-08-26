@@ -1,10 +1,25 @@
 #!/usr/bin/python
 # -*- coding: utf-8 -*-
 
-# event.py
-
 from __future__ import print_function
 
+"""
+BarEvent - 新的tick，也就是新的Bar（可以认为就是一个K线，这里简单起见就用日线，换成5分钟线，小时线类似）到达。
+   当DataHandler.update_ars更新时触发，
+   用于Strategy计算交易信号，P
+   ortfolio更新仓位信息。
+   BarEvent只需要一个type，没有其他的成员变量。
+SignalEvent -信号事件。
+   Strategy在处理每天的Bar时，如果按模型计算，需要产生信号时，触发Signal事件，包含对特定symbol做多，做空或平仓。
+   SignalEvent被Porfolio对象用于计算如何交易。
+OrderEvent - 订单事件。
+   当Porfolio对象接受一件SignalEvent事件时，会根据当前的风险和仓位，
+   发现OrderEvent给ExecutionHandler执行器。
+FillEvent - 交易订单。
+   当执行器ExecutionHandler接收到OrderEvent后就会执行交易订单，
+   订单交易完成时会产生FillEvent，
+   给Porfolio对象去更新成本，仓位情况等操作。
+"""
 
 class Event(object):
     """
@@ -14,25 +29,31 @@ class Event(object):
     """
     pass
 
-
-class MarketEvent(Event):
-    """
-    Handles the event of receiving a new market update with 
-    corresponding bars.
-    """
-
+# 处理市场数据更新，触发Strategy生成交易信号。
+class BarEvent(Event):
     def __init__(self):
-        """
-        Initialises the MarketEvent.
-        """
-        self.type = 'MARKET'
+        self.type = 'BAR'
 
+#
+# # 处理市场数据更新，触发Strategy生成交易信号。
+# class MarketEvent(Event):
+#     """
+#     处理市场数据更新，触发Strategy生成交易信号。
+#     """
+#     def __init__(self):
+#         """
+#         Initialises the MarketEvent.
+#         """
+#         self.type = 'MARKET'
+#
 
+# 处理Strategy发来的信号，信号会被Portfolilo 接收和执行
 class SignalEvent(Event):
     """
     Handles the event of sending a Signal from a Strategy object.
     This is received by a Portfolio object and acted upon.
     """
+
     def __init__(self, strategy_id, symbol, datetime, signal_type, strength):
         """
         Initialises the SignalEvent.
@@ -52,7 +73,7 @@ class SignalEvent(Event):
         self.signal_type = signal_type
         self.strength = strength
 
-
+# 处理向执行系统提交的订单信息
 class OrderEvent(Event):
     """
     Handles the event of sending an Order to an execution system.
@@ -92,13 +113,10 @@ class OrderEvent(Event):
         )
 
 
+# 封装订单执行。存储交易数量、价格、佣金和手续费。
 class FillEvent(Event):
     """
-    Encapsulates the notion of a Filled Order, as returned
-    from a brokerage. Stores the quantity of an instrument
-    actually filled and at what price. In addition, stores
-    the commission of the trade from the brokerage.
-    
+    封装订单执行。存储交易数量、价格、佣金和手续费。
     TODO: Currently does not support filling positions at
     different prices. This will be simulated by averaging
     the cost.
