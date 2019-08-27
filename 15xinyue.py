@@ -308,6 +308,7 @@ class Contents2uuid(object):
         self.file_type = file_type
         self.index_name = index_name
 
+    # 递归提取 某类型文件 到目录
     def trans_info_iter(self):
         # 1. 定义输入输出
         if not os.path.exists(self.target_root):
@@ -334,6 +335,13 @@ class Contents2uuid(object):
         pdobj = pd.DataFrame(reslist)
         pdobj.to_excel(os.path.join(self.target_root, "..", self.index_name), sheet_name='Sheet1', index=False,
                        header=True, encoding="utf-8")
+
+    # 递归删除某类型文件
+    def del_info_iter(self):
+        for i1 in get_special_type_iter(self.source_root, self.target_root, self.file_type):
+            if os.path.isfile(i1[0] + self.file_type):
+                print(i1[0] + self.file_type)
+            #     os.remove(i1[0] + self.file_type)
 
     def list_content2excel(self):
         # 1. 定义输入输出
@@ -414,6 +422,7 @@ class Contents2uuid(object):
     def __call__(self, *args, **kwargs):
         # self.list_content2excel()
         self.trans_info_iter()
+        # self.del_info_iter()
         # self.trans_info()
         # self.sql2pd()
         # self.replace_data()
@@ -589,6 +598,7 @@ def main():
     # inst = Replace_js_data()
     # inst = Replace_data()
     filetype = "mp4"
+    filetype = "downloading"
     contentname = "乐乐小学数学"
     source_root = os.path.join("D:\\", "video_data", contentname)
     target_root = os.path.join("D:\\", "video_data", "{}{}".format(contentname, filetype))
