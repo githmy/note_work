@@ -5,19 +5,18 @@
 
 from __future__ import print_function
 
-import datetime
+import os
 from math import floor
+import numpy as np
+import pandas as pd
+from utils.log_tool import *
+from modules.event import FillEvent, OrderEvent
+from modules.performance import create_sharpe_ratio, create_drawdowns
 
 try:
     import Queue as queue
 except ImportError:
     import queue
-
-import numpy as np
-import pandas as pd
-
-from modules.event import FillEvent, OrderEvent
-from modules.performance import create_sharpe_ratio, create_drawdowns
 
 
 class Portfolio(object):
@@ -88,14 +87,9 @@ class Portfolio(object):
         在持仓矩阵中添加一条新的记录，反映了当前持仓的价值, 使用队列事件中的市场事件
         """
         latest_datetime = self.bars.get_latest_bar_datetime(self.symbol_list[0])
-        # print(33333)
-        # print(self.symbol_list)
-        # print(self.bars)
-        # print(latest_datetime)
-        # Update positions
-        # ================
         dp = dict((k, v) for k, v in [(s, 0) for s in self.symbol_list])
         dp['datetime'] = latest_datetime
+        print(latest_datetime)
         for s in self.symbol_list:
             dp[s] = self.current_positions[s]
         # Append the current positions
@@ -109,7 +103,8 @@ class Portfolio(object):
         dh['total'] = self.current_holdings['cash']
         for s in self.symbol_list:
             # Approximation to the real value
-            market_value = self.current_positions[s] * self.bars.get_latest_bar_value(s, "adj_close")
+            # market_value = self.current_positions[s] * self.bars.get_latest_bar_value(s, "adj_close")
+            market_value = self.current_positions[s] * self.bars.get_latest_bar_value(s, "close")
             dh[s] = market_value
             dh['total'] += market_value
         # Append the current holdings
@@ -140,23 +135,18 @@ class Portfolio(object):
     # 获取Fill object 更新持仓矩阵并反映持仓市值
     def update_holdings_from_fill(self, fill):
         """
-        Takes a Fill object and updates the holdings matrix to
-        reflect the holdings value.
-
+        获取Fill object 更新持仓矩阵并反映持仓市值
         Parameters:
         fill - The Fill object to update the holdings with.
         """
-        # Check whether the fill is a buy or sell
         fill_dir = 0
         if fill.direction == 'BUY':
             fill_dir = 1
         if fill.direction == 'SELL':
             fill_dir = -1
 
-        # Update holdings list with new quantities
-        fill_cost = self.bars.get_latest_bar_value(
-            fill.symbol, "adj_close"
-        )
+        # fill_cost = self.bars.get_latest_bar_value(fill.symbol, "adj_close")
+        fill_cost = self.bars.get_latest_bar_value(fill.symbol, "close")
         cost = fill_dir * fill_cost * fill.quantity
         self.current_holdings[fill.symbol] += cost
         self.current_holdings['commission'] += fill.commission
@@ -201,7 +191,7 @@ class Portfolio(object):
         return order
 
     # 根据SignalEvent生成新的订单，
-    def update_signal(self, event):
+    def update_signals(self, event):
         """
         Acts on a SignalEvent to generate new orders 
         based on the portfolio logic.
@@ -236,6 +226,5 @@ class Portfolio(object):
                  ("Sharpe Ratio", "%0.2f" % sharpe_ratio),
                  ("Max Drawdown", "%0.2f%%" % (max_dd * 100.0)),
                  ("Drawdown Duration", "%d" % dd_duration)]
-
-        self.equity_curve.to_csv('equity.csv')
+        self.equity_curve.to_csv(os.path.join(out_path, 'equity.csv'))
         return stats
