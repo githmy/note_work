@@ -1,6 +1,3 @@
-#!/usr/bin/python
-# -*- coding: utf-8 -*-
-
 from __future__ import print_function
 
 """
@@ -21,6 +18,7 @@ FillEvent - 交易订单。
    给Porfolio对象去更新成本，仓位情况等操作。
 """
 
+
 class Event(object):
     """
     Event is base class providing an interface for all subsequent 
@@ -29,29 +27,17 @@ class Event(object):
     """
     pass
 
+
 # 处理市场数据更新，触发Strategy生成交易信号。
 class BarEvent(Event):
     def __init__(self):
         self.type = 'BAR'
 
-#
-# # 处理市场数据更新，触发Strategy生成交易信号。
-# class MarketEvent(Event):
-#     """
-#     处理市场数据更新，触发Strategy生成交易信号。
-#     """
-#     def __init__(self):
-#         """
-#         Initialises the MarketEvent.
-#         """
-#         self.type = 'MARKET'
-#
 
 # 处理Strategy发来的信号，信号会被Portfolilo 接收和执行
 class SignalEvent(Event):
     """
-    Handles the event of sending a Signal from a Strategy object.
-    This is received by a Portfolio object and acted upon.
+    处理Strategy发来的信号，信号会被Portfolilo 接收和执行
     """
 
     def __init__(self, strategy_id, symbol, datetime, signal_type, strength):
@@ -73,28 +59,19 @@ class SignalEvent(Event):
         self.signal_type = signal_type
         self.strength = strength
 
+
 # 处理向执行系统提交的订单信息
 class OrderEvent(Event):
     """
-    Handles the event of sending an Order to an execution system.
-    The order contains a symbol (e.g. GOOG), a type (market or limit),
-    quantity and a direction.
+    处理向执行系统提交的订单信息
     """
 
     def __init__(self, symbol, order_type, quantity, direction):
         """
-        Initialises the order type, setting whether it is
-        a Market order ('MKT') or Limit order ('LMT'), has
-        a quantity (integral) and its direction ('BUY' or
-        'SELL').
-
-        TODO: Must handle error checking here to obtain 
-        rational orders (i.e. no negative quantities etc).
-
         Parameters:
         symbol - The instrument to trade.
-        order_type - 'MKT' or 'LMT' for Market or Limit.
-        quantity - Non-negative integer for quantity.
+        order_type - 'MKT' or 'LMT' for Market or Limit. 市价单，限价单。
+        quantity - Non-negative integer for quantity. 非负整数
         direction - 'BUY' or 'SELL' for long or short.
         """
         self.type = 'ORDER'
@@ -105,12 +82,10 @@ class OrderEvent(Event):
 
     def print_order(self):
         """
-        Outputs the values within the Order.
+        打印订单信息
         """
-        print(
-            "Order: Symbol=%s, Type=%s, Quantity=%s, Direction=%s" % 
-            (self.symbol, self.order_type, self.quantity, self.direction)
-        )
+        print("Order: Symbol=%s, Type=%s, Quantity=%s, Direction=%s" % (
+        self.symbol, self.order_type, self.quantity, self.direction))
 
 
 # 封装订单执行。存储交易数量、价格、佣金和手续费。
@@ -122,13 +97,9 @@ class FillEvent(Event):
     the cost.
     """
 
-    def __init__(self, timeindex, symbol, exchange, quantity, 
+    def __init__(self, timeindex, symbol, exchange, quantity,
                  direction, fill_cost, commission=None):
         """
-        Initialises the FillEvent object. Sets the symbol, exchange,
-        quantity, direction, cost of fill and an optional 
-        commission.
-
         If commission is not provided, the Fill object will
         calculate it based on the trade size and Interactive
         Brokers fees.
@@ -136,11 +107,11 @@ class FillEvent(Event):
         Parameters:
         timeindex - The bar-resolution when the order was filled.
         symbol - The instrument which was filled.
-        exchange - The exchange where the order was filled.
-        quantity - The filled quantity.
+        exchange - The exchange where the order was filled. 交易所名称
+        quantity - The filled quantity.  成交数量
         direction - The direction of fill ('BUY' or 'SELL')
-        fill_cost - The holdings value in dollars.
-        commission - An optional commission sent from IB.
+        fill_cost - The holdings value in dollars. 
+        commission - An optional commission sent from IB. 佣金
         """
         self.type = 'FILL'
         self.timeindex = timeindex
@@ -169,6 +140,6 @@ class FillEvent(Event):
         full_cost = 1.3
         if self.quantity <= 500:
             full_cost = max(1.3, 0.013 * self.quantity)
-        else: # Greater than 500
+        else:  # Greater than 500
             full_cost = max(1.3, 0.008 * self.quantity)
         return full_cost

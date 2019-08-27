@@ -12,13 +12,7 @@ def create_sharpe_ratio(returns, periods=252):
 # 计算PNL的最大回撤和回撤时间
 def create_drawdowns(pnl):
     """
-    Calculates the fees of trading based on an Interactive
-    Brokers fee structure for API, in USD.
-
-    This does not include exchange or ECN fees.
-
-    Based on "US API Directed Orders":
-    https://www.interactivebrokers.com/en/index.php?f=commission&p=stocks2
+    计算PNL的最大回撤和回撤时间
     """
     hwm = [0]
     idx = pnl.index

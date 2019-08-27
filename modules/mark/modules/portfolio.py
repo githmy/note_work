@@ -1,22 +1,10 @@
-#!/usr/bin/python
-# -*- coding: utf-8 -*-
-
-# portfolio.py
-
 from __future__ import print_function
 
 import os
-from math import floor
-import numpy as np
 import pandas as pd
 from utils.log_tool import *
 from modules.event import FillEvent, OrderEvent
 from modules.performance import create_sharpe_ratio, create_drawdowns
-
-try:
-    import Queue as queue
-except ImportError:
-    import queue
 
 
 class Portfolio(object):
@@ -39,10 +27,10 @@ class Portfolio(object):
         self.symbol_list = self.bars.symbol_list
         self.start_date = start_date
         self.initial_capital = initial_capital
-
+        # 初始化所有 标的 量
         self.all_positions = self.construct_all_positions()
         self.current_positions = dict((k, v) for k, v in [(s, 0) for s in self.symbol_list])
-
+        # 初始化所有 标的 价 和现金 持有状态
         self.all_holdings = self.construct_all_holdings()
         self.current_holdings = self.construct_current_holdings()
 
@@ -72,8 +60,7 @@ class Portfolio(object):
     # 保存所有资产组合的当前价值
     def construct_current_holdings(self):
         """
-        This constructs the dictionary which will hold the instantaneous
-        value of the portfolio across all symbols.
+        保存所有资产组合的当前价值
         """
         d = dict((k, v) for k, v in [(s, 0.0) for s in self.symbol_list])
         d['cash'] = self.initial_capital
@@ -94,15 +81,13 @@ class Portfolio(object):
             dp[s] = self.current_positions[s]
         # Append the current positions
         self.all_positions.append(dp)
-        # Update holdings
-        # ===============
+
         dh = dict((k, v) for k, v in [(s, 0) for s in self.symbol_list])
         dh['datetime'] = latest_datetime
         dh['cash'] = self.current_holdings['cash']
         dh['commission'] = self.current_holdings['commission']
         dh['total'] = self.current_holdings['cash']
         for s in self.symbol_list:
-            # Approximation to the real value
             # market_value = self.current_positions[s] * self.bars.get_latest_bar_value(s, "adj_close")
             market_value = self.current_positions[s] * self.bars.get_latest_bar_value(s, "close")
             dh[s] = market_value
@@ -110,26 +95,17 @@ class Portfolio(object):
         # Append the current holdings
         self.all_holdings.append(dh)
 
-    # ======================
-    # FILL/POSITION HANDLING
-    # ======================
     # 获取Fill object 更新持仓矩阵
     def update_positions_from_fill(self, fill):
         """
-        Takes a Fill object and updates the position matrix to
-        reflect the new position.
-
         Parameters:
-        fill - The Fill object to update the positions with.
+        fill - The Fill event object to update the positions with.
         """
-        # Check whether the fill is a buy or sell
         fill_dir = 0
         if fill.direction == 'BUY':
             fill_dir = 1
         if fill.direction == 'SELL':
             fill_dir = -1
-
-        # Update positions list with new quantities
         self.current_positions[fill.symbol] += fill_dir * fill.quantity
 
     # 获取Fill object 更新持仓矩阵并反映持仓市值
@@ -144,7 +120,6 @@ class Portfolio(object):
             fill_dir = 1
         if fill.direction == 'SELL':
             fill_dir = -1
-
         # fill_cost = self.bars.get_latest_bar_value(fill.symbol, "adj_close")
         fill_cost = self.bars.get_latest_bar_value(fill.symbol, "close")
         cost = fill_dir * fill_cost * fill.quantity
@@ -156,11 +131,12 @@ class Portfolio(object):
     # 收到FillEvent,更新投资组合当前持仓和市值
     def update_fill(self, event):
         """
-        Updates the portfolio current positions and holdings 
-        from a FillEvent.
+        收到FillEvent,更新投资组合当前持仓和市值
         """
         if event.type == 'FILL':
+            # 更新数量
             self.update_positions_from_fill(event)
+            # 更新市值
             self.update_holdings_from_fill(event)
 
     # 生成一个订单对象，没有风险管理和头寸考虑
@@ -190,11 +166,10 @@ class Portfolio(object):
             order = OrderEvent(symbol, order_type, abs(cur_quantity), 'BUY')
         return order
 
-    # 根据SignalEvent生成新的订单，
+    # 根据 组合逻辑 SignalEvent生成新的订单，
     def update_signals(self, event):
         """
-        Acts on a SignalEvent to generate new orders 
-        based on the portfolio logic.
+        根据 组合逻辑 SignalEvent  生成 order_event。
         """
         if event.type == 'SIGNAL':
             order_event = self.generate_naive_order(event)
