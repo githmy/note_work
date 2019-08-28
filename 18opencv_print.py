@@ -459,8 +459,8 @@ def find_not_in(source_root, target_root):
 
 def main():
     # # 1. 合并
-    # source_root = os.path.join("D:\\", "video_data", "洋葱小学数学")
-    # target_root = os.path.join("D:\\", "video_data", "洋葱小学数学merged")
+    # source_root = os.path.join("D:\\", "video_data", "洋葱小学数学2")
+    # target_root = os.path.join("D:\\", "video_data", "洋葱小学数学2merged")
     # # not_in_res = find_not_in(source_root, target_root)
     # # for id1, i1 in enumerate(not_in_res):
     # #     print(i1[0])
@@ -473,15 +473,15 @@ def main():
     # 2. 转换
     # source_root = os.path.join("D:\\", "video_data", "洋葱小学数学merged")
     # target_root = os.path.join("D:\\", "video_data", "洋葱小学数学mergedtransd")
-    source_root = os.path.join("D:\\", "video_data", "洋葱小学数学merged")
-    target_root = os.path.join("D:\\", "video_data", "洋葱小学数学mergedtrand")
+    source_root = os.path.join("D:\\", "video_data", "洋葱小学数学2merged")
+    target_root = os.path.join("D:\\", "video_data", "洋葱小学数学2mergedtrand")
     if not os.path.exists(target_root):
         os.makedirs(target_root)
     # res = get_trans_paths(source_root, target_root)
     res = get_dir_list1(source_root, target_root)
     cores = multiprocessing.cpu_count()
     print("cores:", cores)
-    p = Pool(int(cores - 6))
+    p = Pool(int(cores - 7))
     # for i1 in not_in_res:
     for i1 in res:
         # print(i1)
@@ -495,26 +495,28 @@ def main():
 
 
 if __name__ == "__main__":
-    # # 视频转化单版测试
-    # filehead = "00"
-    # # # start_t = 3.01
-    # # # end_t = 6.1
-    # # # start_t = 36
-    # # # end_t = 80
-    # # start_t = 30
-    # # end_t = 165
-    # # source_path = os.path.join("D:\\", "video_data", "乐乐小学数学mp4")
-    # # source_root = os.path.join(source_path, filehead)
-    # mid_path = os.path.join("D:\\", "video_data", "洋葱")
-    # mid_root = os.path.join(mid_path, filehead)
-    # if not os.path.exists(mid_path):
-    #     os.makedirs(mid_path)
-    # target_path = os.path.join("D:\\", "video_data", "洋葱小学数学mergedtrand")
-    # target_root = os.path.join(target_path, filehead)
-    # if not os.path.exists(target_path):
-    #     os.makedirs(target_path)
-    # # moviepy_dehead(source_root + ".mp4", mid_root + ".mp4", start_t, end_t)
+    # 视频转化单版测试
+    filehead = "pcM_5c91fc4de4253d546f83b268"
+    # # start_t = 3.01
+    # # end_t = 6.1
+    # # start_t = 36
+    # # end_t = 80
+    start_t = 3
+    end_t = 0
+    source_path = os.path.join("D:\\", "video_data", "洋葱小学数学2mergedtrand")
+    source_root = os.path.join(source_path, filehead)
+    mid_path = os.path.join("D:\\", "video_data", "洋葱小学数学2mergedtranddehead")
+    mid_root = os.path.join(mid_path, filehead)
+    if not os.path.exists(mid_path):
+        os.makedirs(mid_path)
+    target_path = os.path.join("D:\\", "video_data", "洋葱小学数学2mergedtrand")
+    if not os.path.exists(target_path):
+        os.makedirs(target_path)
+    target_root = os.path.join(target_path, filehead)
+    if not os.path.exists(target_path):
+        os.makedirs(target_path)
+    moviepy_dehead(source_root + ".mp4", mid_root + ".mp4", start_t, end_t)
     # moviepy_trans(mid_root + ".ts", target_root + ".mp4")
 
-    # 视频批量转化
-    main()
+    # # 视频批量转化
+    # main()

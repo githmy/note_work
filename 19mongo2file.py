@@ -57,38 +57,51 @@ def main():
             RJ090B.append(i1)
         else:
             print("ERROR:", i1)
+
+    def dequota(restrs):
+        reslist = restrs.split("\n")
+        newlist = []
+        for i1 in reslist:
+            tmparry = i1.split(":")
+            llenth = len(tmparry)
+            if len(tmparry) > 1:
+                tailstr = ":".join(tmparry[1:])
+                i1 = ":".join([tmparry[0].replace('"', ''), tailstr])
+            newlist.append(i1)
+        return "\n".join(newlist)
+
     dumpstrs = json.dumps(SHZK, indent=4, ensure_ascii=False)
     restrs = "module.exports = " + dumpstrs
     with open(os.path.join(baspath, 'example_zhongkao.js'), 'w', encoding="utf-8") as fp:
-        fp.write(restrs)
+        fp.write(dequota(restrs))
     dumpstrs = json.dumps(EZKB, indent=4, ensure_ascii=False)
     restrs = "module.exports = " + dumpstrs
     with open(os.path.join(baspath, 'example_zkb.js'), 'w', encoding="utf-8") as fp:
-        fp.write(restrs)
+        fp.write(dequota(restrs))
     dumpstrs = json.dumps(RJ070A, indent=4, ensure_ascii=False)
     restrs = "module.exports = " + dumpstrs
     with open(os.path.join(baspath, 'example_class7A.js'), 'w', encoding="utf-8") as fp:
-        fp.write(restrs)
+        fp.write(dequota(restrs))
     dumpstrs = json.dumps(RJ070B, indent=4, ensure_ascii=False)
     restrs = "module.exports = " + dumpstrs
     with open(os.path.join(baspath, 'example_class7B.js'), 'w', encoding="utf-8") as fp:
-        fp.write(restrs)
+        fp.write(dequota(restrs))
     dumpstrs = json.dumps(RJ080A, indent=4, ensure_ascii=False)
     restrs = "module.exports = " + dumpstrs
     with open(os.path.join(baspath, 'example_class8A.js'), 'w', encoding="utf-8") as fp:
-        fp.write(restrs)
+        fp.write(dequota(restrs))
     dumpstrs = json.dumps(RJ080B, indent=4, ensure_ascii=False)
     restrs = "module.exports = " + dumpstrs
     with open(os.path.join(baspath, 'example_class8B.js'), 'w', encoding="utf-8") as fp:
-        fp.write(restrs)
+        fp.write(dequota(restrs))
     dumpstrs = json.dumps(RJ090A, indent=4, ensure_ascii=False)
     restrs = "module.exports = " + dumpstrs
     with open(os.path.join(baspath, 'example_class9A.js'), 'w', encoding="utf-8") as fp:
-        fp.write(restrs)
+        fp.write(dequota(restrs))
     dumpstrs = json.dumps(RJ090B, indent=4, ensure_ascii=False)
     restrs = "module.exports = " + dumpstrs
     with open(os.path.join(baspath, 'example_class9B.js'), 'w', encoding="utf-8") as fp:
-        fp.write(restrs)
+        fp.write(dequota(restrs))
     print("end")
 
 
