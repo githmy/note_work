@@ -128,6 +128,7 @@ def opencv_demo():
 def movie_py():
     from moviepy.editor import *
     from moviepy.audio.fx import all
+    from moviepy.video.compositing.concatenate import concatenate_videoclips
 
     # 说明： https://github.com/Zulko/moviepy/blob/master/README.rst
     video = VideoFileClip("myHolidays.mp4").subclip(50, 60)
@@ -139,7 +140,8 @@ def movie_py():
 
     result = CompositeVideoClip([video, txt_clip])  # Overlay text on video
     result.write_videofile("myHolidays_edited.webm", fps=25)  # Many options...
-
+    # 合并
+    video = concatenate_videoclips(unit_videos)
 
 def vispy_demo():
     from moviepy.editor import VideoClip
