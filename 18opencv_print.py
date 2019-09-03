@@ -16,6 +16,7 @@ from utils.connect_mysql import MysqlDB
 from moviepy.editor import *
 import moviepy.editor as mpy
 from moviepy.audio.fx import all
+from moviepy.video.compositing.concatenate import concatenate_videoclips
 
 
 # 捕获视频
@@ -175,7 +176,26 @@ def moviepy_trans(infile, outfile):
     # print("moviesize", moviesize)
     # print("logosize", logosize)
     # print(frame_fromy, frame_fromx)
-
+    # start_t = 243.5
+    # end_t = 355
+    # ori_video_h = ori_video.subclip(0, start_t)
+    #
+    # ori_video_m = ori_video.subclip(start_t, end_t)
+    # # ori_video_m = ori_video_m.fl_image(
+    # #     Mosaic(50, 0, 200, 100, neighbor=10),
+    # #     apply_to=['mask'])
+    # logomid = ImageClip('../洋葱.png')
+    # screen = (logomid.fx(mpy.vfx.mask_color, [254, 254, 254])
+    #           .set_opacity(.99)  # whole clip is semi-transparent
+    #           .resize(width=40, height=18)
+    #           .set_pos((194, 25)))
+    # midresult = CompositeVideoClip([ori_video_m, screen], size=moviesize)
+    # # midresult.set_duration(ori_video_m.duration).write_videofile(outfile, fps=ori_video.fps)
+    # ori_video_t = ori_video.subclip(end_t, None)
+    # # 3. 输出
+    # result = concatenate_videoclips([ori_video_h, midresult.set_duration(ori_video_m.duration), ori_video_t])
+    # result.write_videofile(outfile, fps=ori_video.fps)
+    # return
     # 2. 马赛克
     class Mosaic:
         def __init__(self, x, y, w, h, neighbor=9):
@@ -240,6 +260,24 @@ def moviepy_dehead(infile, outfile, start_t=0.0, end_t=0.0):
     ori_video = VideoFileClip(infile)
     # 3. 输出
     result = CompositeVideoClip([ori_video]).subclip(start_t, ori_video.duration - end_t)
+    # result.set_duration(ori_video.duration).write_videofile(outfile, fps=ori_video.fps)
+    result.write_videofile(outfile, fps=ori_video.fps)
+
+
+# 处理视频+音频的主函数
+def moviepy_demid(infile, outfile, start_t=0.0, end_t=0.0):
+    # 1. 读入
+    ori_video = VideoFileClip(infile)
+    # 2. 剪切
+    ori_video_h = ori_video.subclip(0, start_t)
+    ori_video_m = ori_video.subclip(start_t, end_t)
+    # ori_video_m = ori_video_m.fl_image(
+    #     Mosaic(50, 0, 200, 100, neighbor=10),
+    #     apply_to=['mask'])
+    ori_video_t = ori_video.subclip(end_t, None)
+    # 3. 输出
+    result = concatenate_videoclips([ori_video_h, ori_video_t])
+    # result = CompositeVideoClip([ori_video]).subclip(start_t, ori_video.duration - end_t)
     # result.set_duration(ori_video.duration).write_videofile(outfile, fps=ori_video.fps)
     result.write_videofile(outfile, fps=ori_video.fps)
 
@@ -496,27 +534,26 @@ def main():
 
 if __name__ == "__main__":
     # 视频转化单版测试
-    filehead = "pcM_5c91fc4de4253d546f83b268"
+    filehead = "pcL_586ac9d1452a0a6a19061133"
     # # start_t = 3.01
     # # end_t = 6.1
     # # start_t = 36
     # # end_t = 80
-    start_t = 3
+    start_t = 22
     end_t = 0
-    source_path = os.path.join("D:\\", "video_data", "洋葱小学数学2mergedtrand")
-    source_root = os.path.join(source_path, filehead)
-    mid_path = os.path.join("D:\\", "video_data", "洋葱小学数学2mergedtranddehead")
+    # source_path = os.path.join("D:\\", "video_data", "乐乐小学数学mp4")
+    # source_root = os.path.join(source_path, filehead)
+    mid_path = os.path.join("D:\\", "video_data", "qsvtrans")
     mid_root = os.path.join(mid_path, filehead)
     if not os.path.exists(mid_path):
         os.makedirs(mid_path)
-    target_path = os.path.join("D:\\", "video_data", "洋葱小学数学2mergedtrand")
-    if not os.path.exists(target_path):
-        os.makedirs(target_path)
+    target_path = os.path.join("D:\\", "video_data", "qsvtranslogo")
     target_root = os.path.join(target_path, filehead)
     if not os.path.exists(target_path):
         os.makedirs(target_path)
-    moviepy_dehead(source_root + ".mp4", mid_root + ".mp4", start_t, end_t)
-    # moviepy_trans(mid_root + ".ts", target_root + ".mp4")
+    # moviepy_dehead(mid_root + ".mp4", target_root + ".mp4", start_t, end_t)
+    # moviepy_demid(mid_root + ".mp4", target_root + ".mp4", start_t, end_t)
+    moviepy_trans(mid_root + ".mp4", target_root + ".mp4")
 
     # # 视频批量转化
     # main()

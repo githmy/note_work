@@ -10,7 +10,6 @@ from __future__ import unicode_literals
 import pandas as pd
 from server import Delphis
 from models.model_cnn import TextCNN
-from utils.data_trans import data2js
 from utils.log_tool import logger
 from sklearn.cluster import KMeans
 import os
@@ -18,6 +17,7 @@ import os
 
 class OutPutResult():
     def __init__(self):
+        # 1. 采集数据源
         self.student_quality = [
             {"学生id": 1, "skill": 1, "thinking": 1, "hobby": 1, "school_type": 1, "student_point": 1}]
         self.point_info = [{"知识点": 1, "技能水平": 1, }]
