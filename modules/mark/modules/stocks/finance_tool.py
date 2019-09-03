@@ -28,7 +28,8 @@ class ElementTool(object):
     OBV: On Balance Volume, 多空比率净额= [（收盘价－最低价）－（最高价-收盘价）] ÷（ 最高价－最低价）×V
     """
 
-    def __init__(self, returns):
+    def __init__(self):
+        returns = None
         self.returns = returns
 
     # 以下的为均方差
@@ -97,6 +98,74 @@ class ElementTool(object):
         momen = momen.dropna()
         return momen
 
+    # 涨幅
+    def rise_n(self, price, periond=1):
+        prePrice = price.shift(-periond)
+        return (price - prePrice) / prePrice
+
+    # 预涨跌std 周期区段内 相对于区段的第1日 (类似布林带)
+    def pre_up_down_std(self, tsPrice, period=20):
+        # 半方差公式 只算下降的
+        def cal_up_half_dev(relative_value):
+            tmp = relative_value[relative_value > 1.0]
+            if len(tmp) > 0:
+                half_pre_up_std = (sum((tmp - 1.0) ** 2) / len(tmp)) ** 0.5
+            else:
+                half_pre_up_std = None
+            return half_pre_up_std
+
+        def cal_down_half_dev(relative_value):
+            tmp = relative_value[relative_value <= 1.0]
+            if len(tmp) > 0:
+                half_pre_down_std = (sum((1.0 - tmp) ** 2) / len(tmp)) ** 0.5
+            else:
+                half_pre_down_std = None
+            return half_pre_down_std
+
+        # 初始值不可能为空
+        pre_up_BBand_std = pd.Series(None, index=tsPrice.index)
+        pre_down_BBand_std = pd.Series(None, index=tsPrice.index)
+        for i in range(period, len(tsPrice) + 1):
+            tmp_peri = tsPrice[i - period:i] / tsPrice[i - period + 1]
+            # 半方差的大小
+            pre_up_BBand_std[i] = cal_up_half_dev(tmp_peri)
+            pre_down_BBand_std[i] = cal_down_half_dev(tmp_peri)
+        return pre_up_BBand_std, pre_down_BBand_std
+
+    # 最高低幅值
+    def max_highlow_ret_aft_n(self, price, period=1):
+        highret = pd.Series(index=price.index)
+        lowret = pd.Series(index=price.index)
+        for i in range(1, len(price) - period):
+            highret[i] = max(price[i - 1:i + period - 1]) / price[i]
+            lowret[i] = min(price[i - 1:i + period - 1]) / price[i]
+        return highret, lowret
+
+    # 最大涨跌
+    def max_fallret_raiseret_aft_n(self, price, period=20):
+        maxfallret = pd.Series(index=price.index)
+        maxraiseret = pd.Series(index=price.index)
+        for i in range(1, len(price) - period):
+            tmpsec = price[i - 1:i + period - 1]
+            tmpmax = price[i]
+            tmpmin = price[i]
+            tmpdrawdown = [1.0]
+            tmpdrawup = [1.0]
+            for t in range(i, i + period):
+                if tmpsec[t] > tmpmax:
+                    tmpmax = tmpsec[t]
+                    tmpdrawdown.append(tmpdrawdown[-1])
+                    tmpdrawup.append((tmpmax - tmpmin) / tmpmin)
+                elif tmpsec[t] <= tmpmin:
+                    tmpmin = tmpsec[t]
+                    tmpdrawup.append(tmpdrawup[-1])
+                    tmpdrawdown.append((tmpmax - tmpmin) / tmpmax)
+                else:
+                    pass
+            maxfallret[i] = min(tmpdrawdown)
+            maxraiseret[i] = max(tmpdrawup)
+        return maxraiseret, maxfallret
+
     # 11. 相对强弱指数RSI RSI:= SMA(MAX(Close-LastClose,0),N,1)/SMA(ABS(Close-LastClose),N,1)*100
     def rsi(self, price, period=6):
         clprcChange = price - price.shift(1)
@@ -108,7 +177,7 @@ class ElementTool(object):
         downPrc[clprcChange < 0] = -clprcChange[clprcChange < 0]
         rsidata = pd.concat([price, clprcChange, upPrc, downPrc], axis=1)
         rsidata.columns = ['price', 'PrcChange', 'upPrc', 'downPrc']
-        rsidata = rsidata.dropna();
+        rsidata = rsidata.dropna()
         SMUP = []
         SMDOWN = []
         for i in range(period, len(upPrc) + 1):

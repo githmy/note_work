@@ -1,6 +1,6 @@
 import itertools
-from pyalgotrade.optimizer import local
 from pyalgotrade.barfeed import yahoofeed
+from pyalgotrade.optimizer import local
 import rsi2
 
 

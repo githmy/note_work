@@ -60,6 +60,30 @@ class SignalEvent(Event):
         self.strength = strength
 
 
+# 处理Strategy发来的信号，信号会被Portfolilo 接收和执行
+class SignalTrainEvent(Event):
+    """
+    处理Strategy发来的信号，信号会被Portfolilo 接收和执行
+    """
+
+    def __init__(self, strategy_id, symbol, datetime, signal_type, strength):
+        """
+        Parameters:
+        strategy_id - The unique ID of the strategy sending the signal.
+        symbol - The ticker symbol, e.g. 'GOOG'.
+        datetime - The timestamp at which the signal was generated.
+        signal_type - [3,5,1]
+        strength - An adjustment factor "suggestion" used to scale 
+            quantity at the portfolio level. Useful for pairs strategies.
+        """
+        self.strategy_id = strategy_id
+        self.type = 'SignalTrain'
+        self.symbol = symbol
+        self.datetime = datetime
+        self.signal_type = signal_type
+        self.strength = strength
+
+
 # 处理向执行系统提交的订单信息
 class OrderEvent(Event):
     """
@@ -85,7 +109,7 @@ class OrderEvent(Event):
         打印订单信息
         """
         print("Order: Symbol=%s, Type=%s, Quantity=%s, Direction=%s" % (
-        self.symbol, self.order_type, self.quantity, self.direction))
+            self.symbol, self.order_type, self.quantity, self.direction))
 
 
 # 封装订单执行。存储交易数量、价格、佣金和手续费。

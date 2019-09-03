@@ -9,7 +9,7 @@ def create_sharpe_ratio(returns, periods=252):
     return np.sqrt(periods) * (np.mean(returns)) / np.std(returns)
 
 
-# 计算PNL的最大回撤和回撤时间
+# 计算PNL的最大回撤和回撤时间，一个点衍生一条线
 def create_drawdowns(pnl):
     """
     计算PNL的最大回撤和回撤时间

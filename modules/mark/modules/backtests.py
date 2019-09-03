@@ -6,15 +6,19 @@ from modules.event import *
 from utils.log_tool import *
 
 
-# 这个类进行驱动回测设置与组成
-class Backtest(object):
-    def __init__(self, csv_dir, csv_list, initial_capital, heartbeat, start_date,
+class LoadBacktest(object):
+    def __init__(self, initial_capital, heartbeat, start_date,
+                 csv_dir, symbol_list, ave_list, bband_list, ret_list,
                  data_handler_cls, execution_handler_cls, portfolio_cls, strategy_cls):
-        self.csv_dir = csv_dir
-        self.csv_list = csv_list
         self.initial_capital = initial_capital
         self.heartbeat = heartbeat
         self.start_date = start_date
+
+        self.csv_dir = csv_dir
+        self.symbol_list = symbol_list
+        self.ave_list = ave_list
+        self.bband_list = bband_list
+        self.ret_list = ret_list
 
         self.data_handler_cls = data_handler_cls
         self.execution_handler_cls = execution_handler_cls
@@ -34,10 +38,95 @@ class Backtest(object):
         各种实例生成，事件处理的字典。
         """
         logger.info("Creating DataHandler, Strategy, Portfolio and ExecutionHandler")
-        self._data_handler = self.data_handler_cls(self.events, self.csv_dir, self.csv_list)
+        self._data_handler = self.data_handler_cls(self.events, self.csv_dir, self.symbol_list, self.ave_list,
+                                                   self.bband_list, self.ret_list)
+        self._execution = self.execution_handler_cls(self.events)
+        self._strategy = self.strategy_cls(self._data_handler, self.events, self.ave_list, self.bband_list)
+        self._portfolio = self.portfolio_cls(self._data_handler, self.events, self.start_date,
+                                             self.ave_list, self.bband_list, self.initial_capital)
+
+    # 回测，根据不同事件执行不同的方法
+    def _run_backtest(self):
+        # 加载衍生前值
+        self._data_handler.generate_b_derivative()
+        # 加载衍生后值
+        self._data_handler.generate_a_derivative()
+        # 倾向概率
+        self._strategy.calculate_probability_signals("event")
+        # 投资比例
+        # self._portfolio.components_res_base_aft()
+        all_holdings = self._portfolio.components_res_base_aft()
+        print(all_holdings)
+        print(all_holdings[-1])
+
+        # 按规则投资的变化结果
+
+    # 从回测中得到策略的表现
+    def _output_performance(self):
+        """
+        输出 回测的 性能结果
+        """
+        self._portfolio.create_equity_curve_dataframe()
+
+        print("输出股本曲线")
+        print(self._portfolio.equity_curve.tail(10))
+
+        print("输出摘要统计信息")
+        stats = self._portfolio.output_summary_stats()
+        pprint.pprint(stats)
+
+        print("Signals: %s" % self.signals)
+        print("Orders: %s" % self.orders)
+        print("Fills: %s" % self.fills)
+
+    # 模拟回测并输出投资组合表现
+    def simulate_trading(self):
+        """
+        回测 输出组合的 性能
+        """
+        self._run_backtest()
+        # self._output_performance()
+
+
+# 这个类进行驱动回测设置与组成
+class Backtest(object):
+    def __init__(self, initial_capital, heartbeat, start_date,
+                 csv_dir, symbol_list, ave_list, mount_list, ret_list,
+                 data_handler_cls, execution_handler_cls, portfolio_cls, strategy_cls):
+        self.initial_capital = initial_capital
+        self.heartbeat = heartbeat
+        self.start_date = start_date
+
+        self.csv_dir = csv_dir
+        self.symbol_list = symbol_list
+        self.ave_list = ave_list
+        self.mount_list = mount_list
+        self.ret_list = ret_list
+
+        self.data_handler_cls = data_handler_cls
+        self.execution_handler_cls = execution_handler_cls
+        self.portfolio_cls = portfolio_cls
+        self.strategy_cls = strategy_cls
+
+        self.events = queue.Queue()
+        self.signals = 0
+        self.orders = 0
+        self.fills = 0
+        self.num_strats = 1
+        self._generate_trading_instances()
+
+    # 各种实例生成
+    def _generate_trading_instances(self):
+        """
+        各种实例生成，事件处理的字典。
+        """
+        logger.info("Creating DataHandler, Strategy, Portfolio and ExecutionHandler")
+        # self._data_handler = self.data_handler_cls(self.events, self.csv_dir, self.symbol_list, self.ave_list,
+        #                                            self.bband_list,self.ret_list)
+        self._data_handler = self.data_handler_cls(self.events, self.csv_dir, self.symbol_list, self.ave_list)
         self._portfolio = self.portfolio_cls(self._data_handler, self.events, self.start_date, self.initial_capital)
         self._execution = self.execution_handler_cls(self.events)
-        self._strategy = self.strategy_cls(self._data_handler, self.events)
+        self._strategy = self.strategy_cls(self._data_handler, self.events, self.ave_list)
         # 事件处理的字典
         self._init_event_handlers()
 
@@ -52,7 +141,7 @@ class Backtest(object):
     def _handle_event(self, event):
         handler = self._event_handler.get(event.type, None)
         if handler is None:
-            print('type:%s,handler is None' % event.type)
+            print('type: %s, handler is None' % event.type)
         else:
             handler(event)
 

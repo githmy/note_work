@@ -113,6 +113,12 @@ stock['date'] = pd.to_datetime(stock['date'])
 stock.set_index("date", inplace=True)
 # stock.index = pd.DatetimeIndex(stock.index)
 
+# 索引合并 不同dataframe
+# 这里要赋值，否则comb_index还是原来的index
+s = 0
+comb_index = symbol_data[s].index
+comb_index = comb_index.union(symbol_data[s + 1].index)
+
 # 列设为索引
 # orderl_pd.set_index(i, inplace=True)
 
