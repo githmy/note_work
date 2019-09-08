@@ -4,9 +4,26 @@ import numpy as np
 import pandas as pd
 import copy
 from abc import ABCMeta, abstractmethod
+from pyalgotrade import strategy
 import itertools
 from modules.event import *
-from pyalgotrade import strategy
+from modules.stocks.stock_network2 import CRNN
+from modules.stocks.finance_tool import TradeTool
+import simplejson
+import argparse
+
+
+def parseArgs(args):
+    parser = argparse.ArgumentParser()
+    globalArgs = parser.add_argument_group('Global options')
+    globalArgs.add_argument('--modelname', default=None, nargs='?',
+                            choices=["full", "one", "one_y", "one_space", "one_attent", "one_attent60"])
+    globalArgs.add_argument('--learnrate', type=float, nargs='?', default=None)
+    globalArgs.add_argument('--globalstep', type=int, nargs='?', default=None)
+    globalArgs.add_argument('--dropout', type=float, nargs='?', default=None)
+    globalArgs.add_argument('--normal', type=float, nargs='?', default=None)
+    globalArgs.add_argument('--sub_fix', type=str, nargs='?', default=None)
+    return parser.parse_args(args)
 
 
 # 封装对数据的计算，并且生成相应的信号:  策略处理基类，可用于处理历史和实际交易数据，只需把数据存到队列中。
@@ -192,7 +209,7 @@ class MlaStrategy(strategy.BacktestingStrategy):
     各种交叉线和信号策略
     """
 
-    def __init__(self, bars, events, ave_list, bband_list, short_window=100, long_window=400):
+    def __init__(self, bars, events, ave_list, bband_list):
         """
         Parameters:
         bars - The DataHandler object that provides bar information
@@ -205,13 +222,11 @@ class MlaStrategy(strategy.BacktestingStrategy):
         self.events = events
         self.ave_list = ave_list
         self.bband_list = bband_list
-        self.short_window = short_window
-        self.long_window = long_window
 
-        # self.bars.upprb = {}
-        # self.bars.downprb = {}
+        self.toolins = TradeTool()
         # Set to True if a symbol is in the market
         self.bought = self._calculate_initial_bought()
+        self.trainconfig = {}
 
     def onBars(self, bars):
         # 交易规则
@@ -240,8 +255,11 @@ class MlaStrategy(strategy.BacktestingStrategy):
         """
         kelly_formula
         """
-        self.bars.upprb = {}
-        self.bars.downprb = {}
+        self.system_risk = 0.0001  # 系统归零概率
+        self.system_move = 1  # 上下概率平移系数
+        self.system_ram_vari = 1  # 振幅系数
+        self.bars.upprb = {}  # 扣除系统归零概率后的向上概率
+        self.bars.downprb = {}  # 扣除系统归零概率后的向上概率
         self.bars.f_ratio = {}
         self.bars.gain = {}
         for s in self.bars.symbol_list:
@@ -250,20 +268,224 @@ class MlaStrategy(strategy.BacktestingStrategy):
             self.bars.f_ratio[s] = []
             self.bars.gain[s] = []
             for id1, aven in enumerate(self.bband_list):
-                tmp_rw = self.bars.symbol_aft_retp_high[s][id1] - 1.0
-                tmp_rl = 1.0 - self.bars.symbol_aft_retp_low[s][id1]
-                upconst = np.exp(-(tmp_rw) ** 2 / self.bars.symbol_aft_half_std_up[s][id1] ** 2)
-                downconst = np.exp(-(tmp_rl) ** 2 / self.bars.symbol_aft_half_std_down[s][id1] ** 2)
-                self.bars.upprb[s].append(upconst / (upconst + downconst))
-                self.bars.downprb[s].append(downconst / (upconst + downconst))
-                self.bars.f_ratio[s].append(
-                    self.bars.upprb[s][-1] * aven / tmp_rl - self.bars.downprb[s][-1] * aven / tmp_rw)
-                self.bars.gain[s].append(
-                    self.bars.upprb[s][-1] * np.log(1 + self.bars.f_ratio[s][-1] * tmp_rw / aven) +
-                    self.bars.downprb[s][-1] * np.log(1 - self.bars.f_ratio[s][-1] * tmp_rl / aven))
-                # print(self.bars.upprb[s][-1])
-                # print(self.bars.downprb[s][-1])
-                # print(self.bars.f_ratio[s][-1] * tmp_rw / aven)
-                # print(self.bars.f_ratio[s][-1] * tmp_rl / aven)
-                # print(self.bars.gain[s][-1])
-                # exit(0)
+                fixratio = self.system_ram_vari / aven
+                fw = self.bars.symbol_aft_retp_high[s][id1] - 1.0
+                fw = fw * fixratio
+                fl = 1.0 - self.bars.symbol_aft_retp_low[s][id1]
+                fl = fl * fixratio
+                upconst = np.exp(-(fw * self.system_move) ** 2 / self.bars.symbol_aft_half_std_up[s][id1] ** 2)
+                downconst = np.exp(-(fl / self.system_move) ** 2 / self.bars.symbol_aft_half_std_down[s][id1] ** 2)
+                # 加入系统风险后的极值一阶导数方程： y = a*f_ratio^2+b*f_ratio+c
+                p = (1 - self.system_risk) * upconst / (upconst + downconst)
+                q = (1 - self.system_risk) * downconst / (upconst + downconst)
+                wm = self.toolins.kari_fix_normal_w(p, q, fw, fl, self.system_risk)
+                wm[:][wm[:] < 0] = 0
+                self.bars.upprb[s].append(p)
+                self.bars.downprb[s].append(q)
+                self.bars.f_ratio[s].append(wm)
+                self.bars.gain[s].append(self.toolins.kari_fix_normal_g(p, q, fw, fl, self.system_risk, wm))
+
+    def _prepare_train_para(self, args=None):
+        # 2. 模型参数赋值
+        config = {}
+        parafile = os.path.join("config", "para.json")
+        argspar = parseArgs(args)
+        if argspar.modelname is None:
+            hpara = simplejson.load(open(parafile))
+            config["modelname"] = hpara["model"]["modelname"]
+            config["sub_fix"] = hpara["model"]["sub_fix"]
+            config["tailname"] = "%s-%s" % (config["modelname"], config["sub_fix"])
+        else:
+            config["modelname"] = argspar.modelname
+            if argspar.sub_fix is None:
+                config["tailname"] = "%s-" % (argspar.modelname)
+            else:
+                config["sub_fix"] = argspar.sub_fix
+                config["tailname"] = "%s-%s" % (argspar.modelname, argspar.sub_fix)
+            parafile = "para_%s.json" % (config["tailname"])
+            hpara = simplejson.load(open(parafile))
+            # if argspar.sub_fix is None:
+            #     config["sub_fix"] = hpara["model"]["sub_fix"]
+
+        if argspar.learnrate is None:
+            config["learn_rate"] = hpara["env"]["learn_rate"]
+        else:
+            config["learn_rate"] = argspar.learnrate
+
+        if argspar.globalstep is None:
+            globalstep = hpara["model"]["globalstep"]
+        else:
+            globalstep = argspar.globalstep
+        if argspar.dropout is None:
+            config["dropout"] = hpara["model"]["dropout"]
+        else:
+            config["dropout"] = argspar.dropout
+        if argspar.normal is None:
+            config["normal"] = hpara["model"]["normal"]
+        else:
+            config["normal"] = argspar.normal
+
+        config["scope"] = hpara["env"]["scope"]
+        config["inputdim"] = hpara["env"]["inputdim"]
+        config["outspace"] = hpara["env"]["outspace"]
+        config["single_num"] = hpara["env"]["single_num"]
+        config["modelfile"] = hpara["model"]["file"]
+        print()
+        print("**********************************************************")
+        print("parafile:", parafile)
+        print("modelname:", config["modelname"])
+        print("tailname:", config["tailname"])
+        print("learn_rate:", config["learn_rate"])
+        print("dropout:", config["dropout"])
+        print("**********************************************************")
+        self.trainconfig = config
+        # return config
+
+    def _prepare_train_data(self, train_bars, ave_list, bband_list, data_range, split=0.8):
+        mult_charactx = []
+        mult_characty_ret = []
+        mult_characty_std = []
+        symbol_list = list(train_bars.symbol_pre_half_std_up.keys())
+        for s in symbol_list:
+            # 1. 加载标签数据
+            xchara_list = []
+            xlen_slist = len(ave_list)
+            for single_chara in range(xlen_slist):
+                xchara_list.append(train_bars.symbol_pre_half_std_up[s][single_chara][data_range[0] - 1:data_range[1]])
+                xchara_list.append(
+                    train_bars.symbol_pre_half_std_down[s][single_chara][data_range[0] - 1:data_range[1]])
+                for single2_chara in range(xlen_slist):
+                    xchara_list.append(
+                        train_bars.symbol_pre_retp[s][single_chara][single2_chara][data_range[0] - 1:data_range[1]])
+                    xchara_list.append(
+                        train_bars.symbol_pre_retm[s][single_chara][single2_chara][data_range[0] - 1:data_range[1]])
+            tmp_xnp = np.vstack(xchara_list)
+            ychara_list = []
+            ychara_ret_list = []
+            ychara_std_list = []
+            ylen_slist = len(bband_list)
+            for single_chara in range(ylen_slist):
+                ychara_std_list.append(
+                    train_bars.symbol_aft_half_std_up[s][single_chara][data_range[0] - 1:data_range[1]])
+                ychara_std_list.append(
+                    train_bars.symbol_aft_half_std_down[s][single_chara][data_range[0] - 1:data_range[1]])
+                ychara_std_list.append(train_bars.symbol_aft_drawup[s][single_chara][data_range[0] - 1:data_range[1]])
+                ychara_std_list.append(train_bars.symbol_aft_drawdown[s][single_chara][data_range[0] - 1:data_range[1]])
+                ychara_std_list.append(
+                    train_bars.symbol_aft_retp_high[s][single_chara][data_range[0] - 1:data_range[1]])
+                ychara_std_list.append(train_bars.symbol_aft_retp_low[s][single_chara][data_range[0] - 1:data_range[1]])
+                for single2_chara in range(ylen_slist):
+                    ychara_ret_list.append(
+                        train_bars.symbol_aft_retp[s][single_chara][single2_chara][data_range[0] - 1:data_range[1]])
+            tmp_ynp_ret = np.vstack(ychara_ret_list)
+            tmp_ynp_std = np.vstack(ychara_std_list)
+            # 2. 删除无效行
+            delpresig = np.isnan(xchara_list[-1])
+            # print(delpresig[~delpresig])
+            delaftsig = np.isnan(ychara_ret_list[-1])
+            # print(delaftsig[~delaftsig])
+            delpreaftsig = np.logical_or(delpresig, delaftsig)
+            tmp_xnp = np.transpose(tmp_xnp)
+            tmp_xnp = tmp_xnp[~delpreaftsig]
+            tmp_ynp_std = np.transpose(tmp_ynp_std)
+            tmp_ynp_std = tmp_ynp_std[~delpreaftsig]
+            tmp_ynp_ret = np.transpose(tmp_ynp_ret)
+            tmp_ynp_ret = tmp_ynp_ret[~delpreaftsig]
+            mult_charactx.append(tmp_xnp)
+            mult_characty_ret.append(tmp_ynp_ret)
+            mult_characty_std.append(tmp_ynp_std)
+        all_ynp_ret = np.vstack(mult_characty_ret)
+        all_ynp_std = np.vstack(mult_characty_std)
+        all_xnp = np.vstack(mult_charactx)
+        # 3. split
+        lenth = all_xnp.shape[0]
+        mult_trainx = all_xnp[0:int(lenth * split)]
+        mult_trainy_ret = all_ynp_ret[0:int(lenth * split)]
+        mult_trainy_std = all_ynp_std[0:int(lenth * split)]
+        mult_validx = all_xnp[int(lenth * split):]
+        mult_validy_ret = all_ynp_ret[int(lenth * split):]
+        mult_validy_std = all_ynp_std[int(lenth * split):]
+        # 4. 处理nan inf
+        mult_trainx[:, :][np.isnan(mult_trainx[:, :])] = 0
+        mult_trainx[:, :][np.isinf(mult_trainx[:, :])] = 0
+        mult_trainy_std[:, :][np.isnan(mult_trainy_std[:, :])] = 0
+        mult_trainy_std[:, :][np.isinf(mult_trainy_std[:, :])] = 0
+        mult_trainy_ret[:, :][np.isnan(mult_trainy_ret[:, :])] = 0
+        mult_trainy_ret[:, :][np.isinf(mult_trainy_ret[:, :])] = 0
+        mult_validx[:, :][np.isnan(mult_validx[:, :])] = 0
+        mult_validx[:, :][np.isinf(mult_validx[:, :])] = 0
+        mult_validy_std[:, :][np.isnan(mult_validy_std[:, :])] = 0
+        mult_validy_std[:, :][np.isinf(mult_validy_std[:, :])] = 0
+        mult_validy_ret[:, :][np.isnan(mult_validy_ret[:, :])] = 0
+        mult_validy_ret[:, :][np.isinf(mult_validy_ret[:, :])] = 0
+        return mult_trainx, mult_trainy_ret, mult_trainy_std, mult_validx, mult_validy_ret, mult_validy_std
+
+    def _prepare_predict_data(self, predict_bars, ave_list, data_range):
+        mult_charactx = []
+        symbol_list = list(predict_bars.symbol_pre_half_std_up.keys())
+        for s in symbol_list:
+            # 1. 加载标签数据
+            xchara_list = []
+            xlen_slist = len(ave_list)
+            for single_chara in range(xlen_slist):
+                xchara_list.append(
+                    predict_bars.symbol_pre_half_std_up[s][single_chara][data_range[0] - 1:data_range[1]])
+                xchara_list.append(
+                    predict_bars.symbol_pre_half_std_down[s][single_chara][data_range[0] - 1:data_range[1]])
+                for single2_chara in range(xlen_slist):
+                    xchara_list.append(
+                        predict_bars.symbol_pre_retp[s][single_chara][single2_chara][data_range[0] - 1:data_range[1]])
+                    xchara_list.append(
+                        predict_bars.symbol_pre_retm[s][single_chara][single2_chara][data_range[0] - 1:data_range[1]])
+            # 2. 删除无效行
+            tmp_xnp = np.vstack(xchara_list)
+            tmp_xnp = np.transpose(tmp_xnp)
+            mult_charactx.append(tmp_xnp)
+        all_xnp = np.vstack(mult_charactx)
+        # 3. 处理nan inf
+        all_xnp[:, :][np.isnan(all_xnp[:, :])] = 0
+        all_xnp[:, :][np.isinf(all_xnp[:, :])] = 0
+        return all_xnp
+
+    def train_probability_signals(self, train_bars, ave_list, bband_list, date_range, split=0.8, args=None):
+        """
+        训练
+        """
+        # 1. 输入参数
+        self._prepare_train_para(args)
+        # self.symbol_pre_half_std_up
+        # self.symbol_pre_half_std_down
+        # self.symbol_pre_retp
+        # self.symbol_pre_retm
+
+        # self.symbol_aft_half_std_up
+        # self.symbol_aft_half_std_down
+        # self.symbol_aft_drawup
+        # self.symbol_aft_drawdown
+        # self.symbol_aft_retp_high
+        # self.symbol_aft_retp_low
+        # self.symbol_aft_retp
+        # 2. 生产数据 随机打乱，分成batch
+        inputs_t, targets_ret_t, targets_std_t, inputs_v, targets_ret_v, targets_std_v = self._prepare_train_data(
+            train_bars, ave_list, bband_list, date_range, split)
+        # 3. 训练
+        self.trainconfig["inputdim"] = inputs_t.shape[1]
+        self.trainconfig["outretdim"], self.trainconfig["outstddim"] = targets_ret_t.shape[1], targets_std_t.shape[1]
+        modelcrnn = CRNN(ave_list, bband_list, config=self.trainconfig)
+        modelcrnn.getModel()
+        batch_size, num_epochs = 8, 1000
+        globalstep = modelcrnn.batch_train(inputs_t, targets_ret_t, targets_std_t, inputs_v, targets_ret_v,
+                                           targets_std_v, batch_size, num_epochs)
+
+    def predict_probability_signals(self, predict_bars, ave_list, bband_list, date_range, args=None):
+        """
+        预测
+        """
+        # 1. 输入参数
+        self._prepare_train_para(args)
+        # 2. 生产数据
+        inputs_t = self._prepare_predict_data(predict_bars, ave_list, date_range)
+        modelcrnn = CRNN(ave_list, bband_list, config=self.trainconfig)
+        modelcrnn.getModel()
+        pred_list = modelcrnn.predict(inputs_t)
+        return pred_list

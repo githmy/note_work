@@ -62,17 +62,19 @@ class ElementTool(object):
 
     # 以下的为移动平均
     def smaCal(self, tsPrice, k):
-        Sma = pd.Series(0.0, index=tsPrice.index)
+        # Sma = pd.Series(0.0, index=tsPrice.index)
+        Sma = pd.Series(index=tsPrice.index)
         for i in range(k - 1, len(tsPrice)):
-            Sma[i] = sum(tsPrice[(i - k + 1):(i + 1)]) / k
+            Sma[i + 1] = sum(tsPrice[(i - k + 1):(i + 1)]) / k
         return Sma
 
     def wmaCal(self, tsPrice, weight):
         k = len(weight)
         arrWeight = np.array(weight)
-        Wma = pd.Series(0.0, index=tsPrice.index)
+        # Wma = pd.Series(0.0, index=tsPrice.index)
+        Wma = pd.Series(index=tsPrice.index)
         for i in range(k - 1, len(tsPrice.index)):
-            Wma[i] = sum(arrWeight * tsPrice[(i - k + 1):(i + 1)])
+            Wma[i + 1] = sum(arrWeight * tsPrice[(i - k + 1):(i + 1)])
         return Wma
 
     def emaCal(self, tsprice, period=5, exponential=0.2):
@@ -486,6 +488,31 @@ class TradeTool(object):
             elif hold[index - 1] == 1 and signal[index] == 0:
                 hold[index] = 1
         return pd.Series(hold, index=signal.index)
+
+    # 19. 凯里公式
+    def kari_normal_w(self, p, q, fw, fl):
+        c = p * fw - q * fl
+        a = fw * fl
+        wm = c / a
+        return wm
+
+    # 19. 凯里公式
+    def kari_normal_g(self, p, q, fw, fl, w):
+        g = np.power((1 + w * fw), p) * np.power((1 - w * fl), q)
+        return g
+
+    # 20. 凯里公式修正
+    def kari_fix_normal_w(self, p, q, fw, fl, system_risk):
+        a = fw * fl
+        b = -(1 + fl) * fw * p + (1 - fw) * fl * q + (fl - fw) * system_risk
+        c = p * fw - q * fl - system_risk
+        wm = (-b - np.sqrt(np.square(b) - 4 * a * c)) / (2 * a)
+        return wm
+
+    # 20. 凯里公式修正
+    def kari_fix_normal_g(self, p, q, fw, fl, system_risk, w):
+        g = np.power((1 + w * fw), p) * np.power((1 - w * fl), q) * np.power((1 - w), system_risk)
+        return g
 
 
 # 回测生成

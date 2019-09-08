@@ -212,7 +212,6 @@ class Portfolio(object):
         # 1. 目标操作列表, 代号：均线考察日
         hand_unit = 100
         target_list = []
-        # print(self.bars.f_ratio)
         datalenth = self.bars.symbol_ori_data[self.symbol_list[0]].shape[0]
         for i1 in range(1, datalenth + 1):
             max_bbandid = []
@@ -231,12 +230,10 @@ class Portfolio(object):
                 symblname: max_bbandid[max_list.index(day_max_val)],
             })
         # 2. 统计值
-        # self.bars.symbol_ori_data = {}  # symbol_data，{symbol:DataFrame}
-        # self.bars.f_ratio = {}
         self.all_holdings = []
         self.all_positions = []
         for i1 in range(1, datalenth + 1):
-            d = dict((k, v) for k, v in [(s, 0.0) for s in self.symbol_list])
+            d = {}
             d['datetime'] = i1
             d['cash'] = self.initial_capital
             d['commission'] = 0.0
@@ -245,15 +242,10 @@ class Portfolio(object):
             v = dict((k, v) for k, v in [(s, 0) for s in self.symbol_list])
             self.all_positions.append(v)
         for id1, i1 in enumerate(target_list):
-            print("id1:", id1, i1)
-            if id1 == 0:
-                idex = 1
-            else:
-                idex = id1
             key_list = list(i1.keys())
+            print("id1:", id1, i1, key_list)
             if key_list[0] not in self.symbol_list:
-                print(331111)
-                # 清仓
+                print("清仓")
                 if id1 == 0:
                     pass
                 else:
@@ -261,66 +253,51 @@ class Portfolio(object):
                     for i2 in self.symbol_list:
                         if id1 == 0:
                             pass
-                        elif self.all_positions[id1 - 1][i2] != 0:
+                        elif self.all_positions[id1 - 1][i2] > 0:
                             self.all_positions[id1][i2] = 0
                             self.all_holdings[id1]["cash"] += self.all_positions[id1 - 1][i2] * hand_unit * \
                                                               self.bars.symbol_ori_data[i2]["close"][
                                                                   self.all_holdings[id1]["datetime"]]
                     self.all_holdings[id1]["total"] = self.all_holdings[id1]["cash"]
-            elif i1[key_list[0]] > 0:
-                # 目标仓位相同
-                self.all_holdings[id1]["total"] = self.all_holdings[id1]["cash"]
-                print(441111)
-                if id1 == 0:
-                    pass
+            else:
+                print(self.bars.f_ratio[key_list[0]][i1[key_list[0]]][self.all_holdings[id1]["datetime"]])
+                if self.bars.f_ratio[key_list[0]][i1[key_list[0]]][self.all_holdings[id1]["datetime"]] > 0:
+                    print("目标仓位相同")
+                    # self.all_holdings[id1]["total"] = self.all_holdings[id1]["cash"]
+                    if id1 == 0:
+                        pass
+                    else:
+                        self.all_holdings[id1]["cash"] = self.all_holdings[id1 - 1]["cash"]
+                        for i2 in self.symbol_list:
+                            if self.all_positions[id1 - 1][i2] > 0:
+                                self.all_holdings[id1]["cash"] += self.all_positions[id1 - 1][i2] * hand_unit * \
+                                                                  self.bars.symbol_ori_data[i2]["close"][
+                                                                      self.all_holdings[id1]["datetime"]]
+                                self.all_positions[id1][i2] = 0
+                    self.all_holdings[id1]["total"] = self.all_holdings[id1]["cash"]
+                    targ_captail = self.bars.f_ratio[key_list[0]][i1[key_list[0]]][self.all_holdings[id1]["datetime"]] * \
+                                   self.all_holdings[id1]["total"]
+                    targ_mount = targ_captail / hand_unit // self.bars.symbol_ori_data[key_list[0]]["close"][
+                        self.all_holdings[id1]["datetime"]]
+                    self.all_positions[id1][key_list[0]] = targ_mount
+                    self.all_holdings[id1]["cash"] = self.all_holdings[id1]["total"] - targ_mount * hand_unit * \
+                                                                                       self.bars.symbol_ori_data[
+                                                                                           key_list[0]]["close"][
+                                                                                           self.all_holdings[id1][
+                                                                                               "datetime"]]
                 else:
-                    self.all_holdings[id1]["cash"] = self.all_holdings[id1 - 1]["cash"]
-                    for i2 in self.symbol_list:
-                        if id1 == 0:
-                            pass
-                        elif self.all_positions[id1 - 1][i2] != 0:
+                    print("目标仓位不同")
+                    if id1 == 0:
+                        pass
+                        # elif self.all_positions[id1 - 1][i2] != 0:
+                    else:
+                        self.all_holdings[id1]["cash"] = self.all_holdings[id1 - 1]["cash"]
+                        for i2 in self.symbol_list:
+                            self.all_positions[id1][i2] = 0
                             self.all_holdings[id1]["cash"] += self.all_positions[id1 - 1][i2] * hand_unit * \
                                                               self.bars.symbol_ori_data[i2]["close"][
                                                                   self.all_holdings[id1]["datetime"]]
-                self.all_holdings[id1]["total"] = self.all_holdings[id1]["cash"]
-                print(key_list[0], i1[key_list[0]], self.all_holdings[id1]["datetime"])
-                print(self.bars.f_ratio[key_list[0]][i1[key_list[0]]][self.all_holdings[id1]["datetime"]])
-                print(self.all_holdings[id1]["cash"])
-                targ_captail = self.bars.f_ratio[key_list[0]][i1[key_list[0]]][self.all_holdings[id1]["datetime"]] * \
-                               self.all_holdings[id1]["cash"]
-                print(targ_captail)
-                print(self.bars.symbol_ori_data[key_list[0]]["close"][self.all_holdings[id1]["datetime"]])
-                targ_mount = targ_captail / hand_unit // self.bars.symbol_ori_data[key_list[0]]["close"][
-                    self.all_holdings[id1]["datetime"]]
-                print(targ_mount)
-                self.all_positions[id1][key_list[0]] = targ_mount
-                self.all_holdings[id1]["cash"] = self.all_holdings[id1]["total"] - targ_mount * hand_unit * \
-                                                                                   self.bars.symbol_ori_data[
-                                                                                       key_list[0]]["close"][
-                                                                                       self.all_holdings[id1][
-                                                                                           "datetime"]]
-            else:
-                print(551111)
-                continue
-                # 目标仓位不同
-                self.all_holdings[id1]["total"] = self.all_holdings[id1]["cash"]
-                for i2 in self.symbol_list:
-                    if id1 == 0:
-                        pass
-                    elif self.all_positions[id1 - 1][i2] != 0:
-                        self.all_positions[id1][i2] = 0
-                        self.all_holdings[id1]["total"] += self.all_positions[id1 - 1][i2] * hand_unit * \
-                                                           self.bars.symbol_ori_data[i2]["close"][
-                                                               self.all_holdings[id1]["datetime"]]
-                targ_captail = self.bars.f_ratio[key_list[0]][i1[key_list[0]]][self.all_holdings[id1]["datetime"]] * \
-                               self.all_holdings[id1]["total"]
-                targ_mount = targ_captail / hand_unit // self.bars.symbol_ori_data[key_list[0]]["close"][
-                    self.all_holdings[id1]["datetime"]]
-                # print(targ_mount)
-                self.all_positions[id1][key_list[0]] += targ_mount
-                self.all_holdings[id1]["cash"] = self.all_holdings[id1]["total"] - targ_mount * hand_unit * \
-                                                                                   self.bars.symbol_ori_data[
-                                                                                       key_list[0]]["close"][
-                                                                                       self.all_holdings[id1][
-                                                                                           "datetime"]]
-        return self.all_holdings
+                    self.all_holdings[id1]["total"] = self.all_holdings[id1]["cash"]
+            print(self.all_holdings[id1], self.all_positions[id1], self.bars.symbol_ori_data["SAPower"]["close"][
+                self.all_holdings[id1]["datetime"]])
+        # return self.all_holdings

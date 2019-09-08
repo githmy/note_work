@@ -53,7 +53,7 @@ class DataHandler(object):
 
 
 class CSVDataHandler(DataHandler):
-    def __init__(self, events, csv_dir, symbol_list, ave_list, mount_list, ret_list):
+    def __init__(self, events, csv_dir, symbol_list, ave_list, mount_list):
         self.events = events
         # symbol_list:传入要处理的symbol列表集合，list类型
         self.symbol_list = symbol_list
@@ -62,7 +62,6 @@ class CSVDataHandler(DataHandler):
         self.csv_dir = csv_dir
         self.ave_list = ave_list
         self.mount_list = mount_list
-        self.ret_list = ret_list
 
         self.symbol_ori_data = {}  # symbol_data，{symbol:DataFrame}
         self.latest_symbol_data = {}  # 最新的bar + 累计的旧值:{symbol:[bar1,bar2,barNew]}
@@ -86,7 +85,6 @@ class CSVDataHandler(DataHandler):
             self.latest_symbol_data[s] = []
         # Reindex the dataframes
         for s in self.symbol_list_with_benchmark:
-            # 这是一个发生器iterrows[index,series],用next(self.symbol_ori_data[s])
             # pad方式，就是用前一天的数据再填充这一天的丢失，对于资本市场这是合理的，比如这段时间停牌。那就是按停牌前一天的价格数据来计算。
             self.symbol_ori_data[s] = self.symbol_ori_data[s].reindex(index=comb_index, method='pad').iterrows()
 
@@ -268,7 +266,7 @@ class CSVAppendDataHandler(CSVDataHandler):
 
 # 直接加载满
 class LoadCSVHandler(object):
-    def __init__(self, events, csv_dir, symbol_list, ave_list, bband_list, ret_list):
+    def __init__(self, events, csv_dir, symbol_list, ave_list, bband_list):
         self.events = events
         # symbol_list:传入要处理的symbol列表集合，list类型
         self.symbol_list = symbol_list
@@ -277,7 +275,6 @@ class LoadCSVHandler(object):
         self.csv_dir = csv_dir
         self.ave_list = ave_list
         self.bband_list = bband_list
-        self.ret_list = ret_list
 
         self.symbol_ori_data = {}  # symbol_data，{symbol:DataFrame}
         self.symbol_pre_avep = {}  # symbol_data，{symbol:DataFrame}
@@ -315,15 +312,14 @@ class LoadCSVHandler(object):
                 # 设置latest symbol_data 为 None
         # Reindex the dataframes
         for s in self.symbol_list_with_benchmark:
-            # 这是一个发生器iterrows[index,series],用next(self.symbol_ori_data[s])
             # pad方式，就是用前一天的数据再填充这一天的丢失，对于资本市场这是合理的，比如这段时间停牌。那就是按停牌前一天的价格数据来计算。
             self.symbol_ori_data[s] = self.symbol_ori_data[s].reindex(index=comb_index, method='pad')
 
     # 加载衍生前值
     def generate_b_derivative(self):
         for s in self.symbol_list_with_benchmark:
-            self.symbol_pre_avep[s] = pd.DataFrame()
-            self.symbol_pre_avem[s] = pd.DataFrame()
+            self.symbol_pre_avep[s] = []
+            self.symbol_pre_avem[s] = []
             self.symbol_pre_half_std_up[s] = []
             self.symbol_pre_half_std_down[s] = []
 
@@ -334,42 +330,45 @@ class LoadCSVHandler(object):
                 self.symbol_pre_retp[s].append([])
                 self.symbol_pre_retm[s].append([])
                 # 临时均线数据
-                self.symbol_pre_avep[s][str(aven)] = self.tool_ins.smaCal(self.symbol_ori_data[s]["close"], aven)
-                self.symbol_pre_avem[s][str(aven)] = self.tool_ins.smaCal(self.symbol_ori_data[s]["volume"], aven)
-                # 待求涨幅值
-                for avem in self.ave_list:
-                    self.symbol_pre_retp[s][-1].append(self.tool_ins.rise_n(self.symbol_pre_avep[s][str(aven)], avem))
-                    self.symbol_pre_retm[s][-1].append(self.tool_ins.rise_n(self.symbol_pre_avem[s][str(aven)], avem))
-            # 时间变为 切片的多均线；均线的变化速度，均线间的比值？
-            for periodn in self.bband_list:
-                tmpup, tmpdown = self.tool_ins.pre_up_down_std(self.symbol_ori_data[s]["close"], periodn)
+                self.symbol_pre_avep[s].append(self.tool_ins.smaCal(self.symbol_ori_data[s]["close"], aven))
+                self.symbol_pre_avem[s].append(self.tool_ins.smaCal(self.symbol_ori_data[s]["volume"], aven))
+                # 方差
+                tmpup, tmpdown = self.tool_ins.pre_up_down_std(self.symbol_ori_data[s]["close"], aven)
                 self.symbol_pre_half_std_up[s].append(tmpup)
                 self.symbol_pre_half_std_down[s].append(tmpdown)
+                # 待求涨幅值
+                for avem in self.ave_list:
+                    self.symbol_pre_retp[s][-1].append(self.tool_ins.rise_n(self.symbol_pre_avep[s][-1], avem))
+                    self.symbol_pre_retm[s][-1].append(self.tool_ins.rise_n(self.symbol_pre_avem[s][-1], avem))
 
     # 加载衍生后值
     def generate_a_derivative(self):
         for s in self.symbol_list_with_benchmark:
             self.symbol_aft_retp[s] = []
-            for id1, aven in enumerate(self.ave_list):
-                self.symbol_aft_retp[s].append([])
-                for id2, avem in enumerate(self.ave_list):
-                    # print(self.symbol_pre_retp)
-                    self.symbol_aft_retp[s][-1].append(self.symbol_pre_retp[s][id1][id2].shift(-avem))
-            self.symbol_aft_drawdown[s] = []
-            self.symbol_aft_drawup[s] = []
             self.symbol_aft_retp_high[s] = []
             self.symbol_aft_retp_low[s] = []
             self.symbol_aft_half_std_up[s] = []
             self.symbol_aft_half_std_down[s] = []
-            for id1, periodn in enumerate(self.bband_list):
-                # 未来n天的 上下std
-                self.symbol_aft_half_std_up[s].append(self.symbol_pre_half_std_up[s][id1].shift(-periodn + 1))
-                self.symbol_aft_half_std_down[s].append(self.symbol_pre_half_std_down[s][id1].shift(-periodn + 1))
+            self.symbol_aft_drawdown[s] = []
+            self.symbol_aft_drawup[s] = []
+            for aven in self.bband_list:
                 # 未来n天的 最大涨跌幅
                 self.symbol_aft_retp_high[s].append(
-                    self.tool_ins.max_highlow_ret_aft_n(self.symbol_ori_data[s]["high"], periodn)[0])
+                    self.tool_ins.max_highlow_ret_aft_n(self.symbol_ori_data[s]["high"], aven)[0])
                 self.symbol_aft_retp_low[s].append(
-                    self.tool_ins.max_highlow_ret_aft_n(self.symbol_ori_data[s]["low"], periodn)[1])
-                tmpup, tmpdown = self.tool_ins.max_fallret_raiseret_aft_n(self.symbol_ori_data[s]["close"], periodn)
+                    self.tool_ins.max_highlow_ret_aft_n(self.symbol_ori_data[s]["low"], aven)[1])
+                tmpup, tmpdown = self.tool_ins.max_fallret_raiseret_aft_n(self.symbol_ori_data[s]["close"], aven)
                 self.symbol_aft_drawup[s].append(tmpup)
                 self.symbol_aft_drawdown[s].append(tmpdown)
+                # 涨幅
+                self.symbol_aft_retp[s].append([])
+                # 临时均线数据
+                # 方差 未来n天的 上下半std
+                tmpup, tmpdown = self.tool_ins.pre_up_down_std(self.symbol_ori_data[s]["close"], aven)
+                self.symbol_aft_half_std_up[s].append(tmpup.shift(-aven + 1))
+                self.symbol_aft_half_std_down[s].append(tmpdown.shift(-aven + 1))
+                # 待求涨幅值
+                for avem in self.bband_list:
+                    self.symbol_aft_retp[s][-1].append(
+                        self.tool_ins.rise_n(self.tool_ins.smaCal(self.symbol_ori_data[s]["close"], aven), avem).shift(
+                            -avem + 1))
