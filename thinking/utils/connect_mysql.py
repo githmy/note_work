@@ -9,6 +9,7 @@ class MysqlDB:
         self.config = {
             'host': conf['host'],
             'user': conf['user'],
+            'port': conf['port'],
             'password': conf['password'],
             'database': conf['database'],
             'charset': 'utf8mb4',  # 支持1-4个字节字符

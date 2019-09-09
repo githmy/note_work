@@ -2,6 +2,86 @@ import networkx as nx
 import matplotlib.pyplot as plt
 
 
+def 构建方式():
+    # 从字典生成图
+    dod = {0: {1: {'weight': 1}}}
+    G = nx.from_dict_of_dicts(dod)  # 或G=nx.Graph(dpl)
+    plt.subplots(1, 1, figsize=(6, 3))
+    nx.draw(G, with_labels=True, font_weight='bold')
+    plt.axis('on')
+    plt.xticks([])
+    plt.yticks([])
+    plt.show()
+    # 图转换为字典
+    print(nx.to_dict_of_dicts(G))
+
+    # 从列表中创建graph
+    dol = {0: [1, 2, 3]}
+    edgelist = [(0, 1), (0, 3), (2, 3)]
+    G1 = nx.from_dict_of_lists(dol)  # 或G=nx.Graph(dol)
+    G2 = nx.from_edgelist(edgelist)
+    # 显示graph
+    plt.subplots(1, 2, figsize=(15, 3))
+    plt.subplot(121)
+    nx.draw(G1, with_labels=True, font_weight='bold')
+    plt.axis('on')
+    plt.xticks([])
+    plt.yticks([])
+    plt.subplot(122)
+    nx.draw(G2, with_labels=True, font_weight='bold')
+    plt.axis('on')
+    plt.xticks([])
+    plt.yticks([])
+    plt.show()
+    # graph转list
+    print(nx.to_dict_of_lists(G1))
+    print(nx.to_edgelist(G1))
+
+    # 从numpy创建graph
+    import numpy as np
+    a = np.reshape(np.random.random_integers(0, 1, size=100), (10, 10))
+    D = nx.DiGraph(a)
+    nx.draw(D, with_labels=True, font_weight='bold')
+    plt.axis('on')
+    plt.xticks([])
+    plt.yticks([])
+    plt.show()
+    # graph返回numpy
+    G = nx.Graph()
+    G.add_edge(1, 2, weight=7.0, cost=5)
+    A1 = nx.to_numpy_matrix(G)
+    A2 = nx.to_numpy_recarray(G, dtype=[('weight', float), ('cost', int)])
+    print(A1, A2)
+
+    # 从scipy创建graph
+    G.clear()
+    import scipy as sp
+    A = sp.sparse.eye(2, 2, 1)
+    G = nx.from_scipy_sparse_matrix(A)
+    nx.draw(D, with_labels=True, font_weight='bold')
+    plt.axis('on')
+    plt.xticks([])
+    plt.yticks([])
+    plt.show()
+    # graph返回scipy
+    A = nx.to_scipy_sparse_matrix(G)
+    print(A.todense())
+
+    # 从pandas创建graph
+    G.clear()
+    import pandas as pd
+    df = pd.DataFrame([[1, 1], [2, 1]])
+    G = nx.from_pandas_adjacency(df)
+    nx.draw(D, with_labels=True, font_weight='bold')
+    plt.axis('on')
+    plt.xticks([])
+    plt.yticks([])
+    plt.show()
+    # graph返回scipy
+    df = nx.to_pandas_adjacency(G)
+    print(df)
+
+
 def rdf_build():
     G = nx.Graph()  # 创建无向图
     G = nx.DiGraph()  # 创建有向图

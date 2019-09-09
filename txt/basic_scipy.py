@@ -12,6 +12,9 @@ def matrix_format():
     features = sp.vstack((allx, tx)).dotok()
     features = sp.vstack((allx, tx))
     features = sp.vstack((allx, tx)).tocsc()
+    # 分解矩阵的行列
+    mx = mx.tocoo()
+    coords = np.vstack((mx.row, mx.col)).transpose()
     print(features)
 
 

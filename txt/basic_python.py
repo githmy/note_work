@@ -197,6 +197,7 @@ def itertools():
         print(i2)
     # 2. lists 合并
     batchids = list(itertools.chain(*[[i1, i1, i1, i1] for i1 in range(9)]))
+    batchids = list(itertools.chain(*[i1["exercises"] for i1 in list(tts)]))
     # 3. json 合并
     batchbetch_all = {"19": 2, "31": 6}
     batchbetch1 = {"1": 2, "9": 2, "3": 4, "5": 6}

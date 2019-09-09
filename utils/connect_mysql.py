@@ -48,6 +48,7 @@ class MysqlDB:
         self.config = {
             'host': conf['host'],
             'user': conf['user'],
+            'port': conf['port'],
             'password': conf['password'],
             'database': conf['database'],
             'charset': 'utf8mb4',  # 支持1-4个字节字符
@@ -197,6 +198,7 @@ if __name__ == '__main__':
             config = {
                 'host': "127.0.0.1",
                 'user': "root",
+                'port': 3306,
                 'password': "root",
                 'database': "dcos_cmdb",
                 'charset': 'utf8mb4',  # 支持1-4个字节字符

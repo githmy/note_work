@@ -10,7 +10,6 @@ from __future__ import unicode_literals
 import pandas as pd
 from server import Delphis
 from models.model_cnn import TextCNN
-from utils.data_trans import data2js
 from utils.log_tool import logger
 from sklearn.cluster import KMeans
 import os
