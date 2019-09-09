@@ -84,6 +84,12 @@ np.ptp(grade)
 # 等价
 np.max(grade) - np.min(grade)
 
+# 为空的 bool 列
+np.isnan(test1)
+delpreaftsig = np.logical_or(delpresig, delaftsig)
+x = x( ~ isnan(x)); 更快的做法
+print(ychara_list[-1][~delpreaftsig])
+
 # numpy 转pandas
 # dtype = [('Col1','int32'), ('Col2','float32'), ('Col3','float32')]
 # values = numpy.zeros(20, dtype=dtype)
@@ -174,3 +180,6 @@ r = np.corrcof(x)
 np.log1p(x)
 # 等价 np.exp(x)-1
 np.expm1(x)
+
+# 过滤修改
+data[:, 1][data[:, 1] < 5] = 5  # 对第2列小于 5 的替换为5

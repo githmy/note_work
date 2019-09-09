@@ -4,11 +4,12 @@ import pprint
 import time
 from modules.event import *
 from utils.log_tool import *
+from modules.datahandle import LoadCSVHandler
 
 
 class LoadBacktest(object):
     def __init__(self, initial_capital, heartbeat, start_date,
-                 csv_dir, symbol_list, ave_list, bband_list, ret_list,
+                 csv_dir, symbol_list, ave_list, bband_list,
                  data_handler_cls, execution_handler_cls, portfolio_cls, strategy_cls):
         self.initial_capital = initial_capital
         self.heartbeat = heartbeat
@@ -18,7 +19,6 @@ class LoadBacktest(object):
         self.symbol_list = symbol_list
         self.ave_list = ave_list
         self.bband_list = bband_list
-        self.ret_list = ret_list
 
         self.data_handler_cls = data_handler_cls
         self.execution_handler_cls = execution_handler_cls
@@ -39,7 +39,7 @@ class LoadBacktest(object):
         """
         logger.info("Creating DataHandler, Strategy, Portfolio and ExecutionHandler")
         self._data_handler = self.data_handler_cls(self.events, self.csv_dir, self.symbol_list, self.ave_list,
-                                                   self.bband_list, self.ret_list)
+                                                   self.bband_list)
         self._execution = self.execution_handler_cls(self.events)
         self._strategy = self.strategy_cls(self._data_handler, self.events, self.ave_list, self.bband_list)
         self._portfolio = self.portfolio_cls(self._data_handler, self.events, self.start_date,
@@ -47,18 +47,35 @@ class LoadBacktest(object):
 
     # 回测，根据不同事件执行不同的方法
     def _run_backtest(self):
-        # 加载衍生前值
+        print(self.symbol_list)
+        print(self.ave_list)
+        print(self.bband_list)
+        ave_list, bband_list = self.ave_list, self.bband_list
+        # 1. 加载衍生前值
         self._data_handler.generate_b_derivative()
         # 加载衍生后值
         self._data_handler.generate_a_derivative()
-        # 倾向概率
+        # 统计倾向概率
         self._strategy.calculate_probability_signals("event")
-        # 投资比例
-        # self._portfolio.components_res_base_aft()
-        all_holdings = self._portfolio.components_res_base_aft()
-        print(all_holdings)
-        print(all_holdings[-1])
-
+        # 2. 训练数据, 输入原始规范训练数据，待时间截断
+        train_bars = LoadCSVHandler(queue.Queue(), data_path, ["DalianRP", "ChinaBank"], ave_list, bband_list)
+        train_bars.generate_b_derivative()
+        train_bars.generate_a_derivative()
+        date_range = [1, 200]
+        split = 0.8  # 先截range 再split
+        self._strategy.train_probability_signals(train_bars, ave_list, bband_list, date_range, split=split, args=None)
+        # # 3. 预测概率
+        # predict_bars = LoadCSVHandler(queue.Queue(), data_path, ["SAPower"], ave_list, bband_list)
+        # predict_bars.generate_b_derivative()
+        # date_range = [1, 260]
+        # pred_list = self._strategy.predict_probability_signals(predict_bars, ave_list, bband_list, date_range,
+        #                                                        args=None)
+        print(pred_list)
+        # 4. 投资比例
+        # todo: 概率和幅度需要y 对应的序号，改用参数传递。
+        self._portfolio.components_res_base_aft()
+        # print(self._portfolio.all_holdings)
+        # print(self._portfolio.all_positions)
         # 按规则投资的变化结果
 
     # 从回测中得到策略的表现
