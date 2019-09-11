@@ -14,21 +14,6 @@ class AbstractModeltensor(object):
     def __init__(self, config=None):
         self.config = config
 
-    def getModel(self):
-        model = self.buildModel()
-        model_dir = os.path.join(model_path, "model_%s" % self.config["tailname"])
-        if model_dir and os.path.isdir(model_dir):
-            try:
-                config = tf.ConfigProto()
-                config.gpu_options.allow_growth = True
-                sess = tf.Session(config=config)
-                saver = tf.train.Saver()
-                latest_ckpt = tf.train.latest_checkpoint(model_dir)
-                saver.restore(sess, latest_ckpt)
-            except Exception as e:
-                print(e)
-        return model
-
     # You need to override this method.
     def buildModel(self):
         raise NotImplementedError("You need to implement your own model.")
@@ -70,6 +55,7 @@ class CRNN(AbstractModeltensor):
             self.train_op.append(tf.train.AdamOptimizer(self.learn_rate_p).minimize(i2))
         # 同一保存加载
         self.saver = tf.train.Saver(tf.global_variables())
+        # return self.saver
 
     def _cnn_full_model(self):
         # 部分1，预测值
@@ -508,11 +494,6 @@ class CRNN(AbstractModeltensor):
     def batch_train(self, inputs_t, targets_base_t, targets_much_t, inputs_v, targets_base_v, targets_much_v,
                     batch_size=8, num_epochs=1):
         # 设置
-        # print(inputs_t.shape,targets_base_t.shape, targets_much_t.shape)
-        # self.input_dim=inputs_t.shape[1]
-        # self.base_dim=targets_base_t.shape[1]
-        # self.much_dim=targets_much_t.shape[1]
-        # exit()
         dataiter = batch_iter_list([inputs_t, targets_base_t, targets_much_t], batch_size, num_epochs)
         config = tf.ConfigProto()
         config.gpu_options.allow_growth = True
@@ -593,8 +574,10 @@ class CRNN(AbstractModeltensor):
         # self.base_dim, self.much_dim = base_dim, much_dim
         config = tf.ConfigProto()
         config.gpu_options.allow_growth = True
+        model_dir = os.path.join(model_path, "model_%s" % self.config["tailname"])
+        latest_ckpt = tf.train.latest_checkpoint(model_dir)
         with tf.Session(config=config) as sess:
-            sess.run(tf.global_variables_initializer())
+            self.saver.restore(sess, latest_ckpt)
             feed_dict = {
                 self.input_p: inputs,
             }

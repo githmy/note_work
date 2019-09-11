@@ -306,10 +306,10 @@ class Portfolio(object):
     def components_res_base_predict(self, predict_bars, pred_list):
         # 1. 目标操作列表, 代号：均线考察日
         upprb, downprb, f_ratio, gain = self.calculate_probability_signals(predict_bars, pred_list)
-        print(upprb, downprb)
-        print(f_ratio)
-        print(gain)
-        exit()
+        # print(upprb, downprb)
+        # print(f_ratio)
+        # print(gain)
+        # exit()
         f_ratio = {predict_bars.symbol_list[0]: f_ratio}
         gain = {predict_bars.symbol_list[0]: gain}
         hand_unit = 100
@@ -391,7 +391,6 @@ class Portfolio(object):
                     print("目标仓位不同")
                     if id1 == 0:
                         pass
-                        # elif self.all_positions[id1 - 1][i2] != 0:
                     else:
                         all_holdings[id1]["cash"] = all_holdings[id1 - 1]["cash"]
                         for i2 in predict_bars.symbol_list:
@@ -402,7 +401,7 @@ class Portfolio(object):
                     all_holdings[id1]["total"] = all_holdings[id1]["cash"]
             print(all_holdings[id1], all_positions[id1], predict_bars.symbol_ori_data["SAPower"]["close"][
                 all_holdings[id1]["datetime"]])
-            # return self.all_holdings
+        return all_holdings
 
     # 基于预测结果 盈利测试
     def calculate_probability_signals(self, predict_bars, pred_list):
