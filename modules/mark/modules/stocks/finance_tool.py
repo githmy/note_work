@@ -103,7 +103,8 @@ class ElementTool(object):
     # 涨幅
     def rise_n(self, price, periond=1):
         prePrice = price.shift(-periond)
-        return (price - prePrice) / prePrice
+        return price / prePrice
+        # return (price - prePrice) / prePrice
 
     # 预涨跌std 周期区段内 相对于区段的第1日 (类似布林带)
     def pre_up_down_std(self, tsPrice, period=20):
@@ -135,12 +136,12 @@ class ElementTool(object):
         return pre_up_BBand_std, pre_down_BBand_std
 
     # 最高低幅值
-    def max_highlow_ret_aft_n(self, price, period=1):
-        highret = pd.Series(index=price.index)
-        lowret = pd.Series(index=price.index)
-        for i in range(1, len(price) - period):
-            highret[i] = max(price[i - 1:i + period - 1]) / price[i]
-            lowret[i] = min(price[i - 1:i + period - 1]) / price[i]
+    def max_highlow_ret_aft_n(self, priceall, period=1):
+        highret = pd.Series(index=priceall["close"].index)
+        lowret = pd.Series(index=priceall["close"].index)
+        for i in range(1, len(lowret) - period):
+            highret[i] = max(priceall["high"][i - 1:i + period - 1]) / priceall["close"][i]
+            lowret[i] = min(priceall["low"][i - 1:i + period - 1]) / priceall["close"][i]
         return highret, lowret
 
     # 最大涨跌

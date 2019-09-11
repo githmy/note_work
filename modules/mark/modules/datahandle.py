@@ -284,9 +284,10 @@ class LoadCSVHandler(object):
         self.symbol_pre_retp = {}  # symbol_data，{symbol:DataFrame}
         self.symbol_pre_retm = {}  # symbol_data，{symbol:DataFrame}
 
-        self.symbol_aft_retp = {}  # symbol_data，{symbol:DataFrame}
+        # self.symbol_aft_retp = {}  # symbol_data，{symbol:DataFrame}
         self.symbol_aft_retp_high = {}  # symbol_data，{symbol:DataFrame}
         self.symbol_aft_retp_low = {}  # symbol_data，{symbol:DataFrame}
+        self.symbol_aft_reta = {}
         self.symbol_aft_half_std_up = {}
         self.symbol_aft_half_std_down = {}
         self.symbol_aft_drawup = {}  # symbol_data，{symbol:DataFrame}
@@ -344,31 +345,32 @@ class LoadCSVHandler(object):
     # 加载衍生后值
     def generate_a_derivative(self):
         for s in self.symbol_list_with_benchmark:
-            self.symbol_aft_retp[s] = []
+            # self.symbol_aft_retp[s] = []
             self.symbol_aft_retp_high[s] = []
             self.symbol_aft_retp_low[s] = []
+            self.symbol_aft_reta[s] = []
             self.symbol_aft_half_std_up[s] = []
             self.symbol_aft_half_std_down[s] = []
             self.symbol_aft_drawdown[s] = []
             self.symbol_aft_drawup[s] = []
             for aven in self.bband_list:
                 # 未来n天的 最大涨跌幅
-                self.symbol_aft_retp_high[s].append(
-                    self.tool_ins.max_highlow_ret_aft_n(self.symbol_ori_data[s]["high"], aven)[0])
-                self.symbol_aft_retp_low[s].append(
-                    self.tool_ins.max_highlow_ret_aft_n(self.symbol_ori_data[s]["low"], aven)[1])
+                self.symbol_aft_retp_high[s].append(self.tool_ins.max_highlow_ret_aft_n(self.symbol_ori_data[s], aven)[0])
+                self.symbol_aft_retp_low[s].append(self.tool_ins.max_highlow_ret_aft_n(self.symbol_ori_data[s], aven)[1])
                 tmpup, tmpdown = self.tool_ins.max_fallret_raiseret_aft_n(self.symbol_ori_data[s]["close"], aven)
                 self.symbol_aft_drawup[s].append(tmpup)
                 self.symbol_aft_drawdown[s].append(tmpdown)
                 # 涨幅
-                self.symbol_aft_retp[s].append([])
+                self.symbol_aft_reta[s].append(self.tool_ins.rise_n(self.symbol_ori_data[s]["close"], aven).shift(-aven + 1))
                 # 临时均线数据
                 # 方差 未来n天的 上下半std
                 tmpup, tmpdown = self.tool_ins.pre_up_down_std(self.symbol_ori_data[s]["close"], aven)
                 self.symbol_aft_half_std_up[s].append(tmpup.shift(-aven + 1))
                 self.symbol_aft_half_std_down[s].append(tmpdown.shift(-aven + 1))
-                # 待求涨幅值
-                for avem in self.bband_list:
-                    self.symbol_aft_retp[s][-1].append(
-                        self.tool_ins.rise_n(self.tool_ins.smaCal(self.symbol_ori_data[s]["close"], aven), avem).shift(
-                            -avem + 1))
+                # # 涨幅
+                # self.symbol_aft_retp[s].append([])
+                # # 待求涨幅值
+                # for avem in self.bband_list:
+                #     self.symbol_aft_retp[s][-1].append(
+                #         self.tool_ins.rise_n(self.tool_ins.smaCal(self.symbol_ori_data[s]["close"], aven), avem).shift(
+                #             -avem + 1))

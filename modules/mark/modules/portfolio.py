@@ -6,6 +6,7 @@ import numpy as np
 from utils.log_tool import *
 from modules.event import FillEvent, OrderEvent
 from modules.performance import create_sharpe_ratio, create_drawdowns
+from modules.stocks.finance_tool import TradeTool
 
 
 class Portfolio(object):
@@ -207,7 +208,7 @@ class Portfolio(object):
         self.equity_curve.to_csv(os.path.join(out_path, 'equity.csv'))
         return stats
 
-    # 基于预测结果 盈利测试
+    # 基于滞后统计结果 盈利测试
     def components_res_base_aft(self):
         # 1. 目标操作列表, 代号：均线考察日
         hand_unit = 100
@@ -300,4 +301,147 @@ class Portfolio(object):
                     self.all_holdings[id1]["total"] = self.all_holdings[id1]["cash"]
             print(self.all_holdings[id1], self.all_positions[id1], self.bars.symbol_ori_data["SAPower"]["close"][
                 self.all_holdings[id1]["datetime"]])
-        # return self.all_holdings
+            # return self.all_holdings
+
+    def components_res_base_predict(self, predict_bars, pred_list):
+        # 1. 目标操作列表, 代号：均线考察日
+        upprb, downprb, f_ratio, gain = self.calculate_probability_signals(predict_bars, pred_list)
+        print(upprb, downprb)
+        print(f_ratio)
+        print(gain)
+        exit()
+        f_ratio = {predict_bars.symbol_list[0]: f_ratio}
+        gain = {predict_bars.symbol_list[0]: gain}
+        hand_unit = 100
+        initial_capital = 10000.0
+        target_list = []
+        datalenth = predict_bars.symbol_ori_data[predict_bars.symbol_list[0]].shape[0]
+        # print(f_ratio,gain)
+        for i1 in range(1, datalenth + 1):
+            max_bbandid = []
+            max_list = []
+            for s in predict_bars.symbol_list:
+                rank_list = [i2[i1 - 1] if not np.isnan(i2[i1 - 1]) else 0.0 for i2 in gain[s]]
+                tmp_vlaue = max(rank_list)
+                max_bbandid.append(rank_list.index(tmp_vlaue))
+                max_list.append(tmp_vlaue)
+            day_max_val = max(max_list)
+            if day_max_val > 0.0:
+                symblname = predict_bars.symbol_list[max_list.index(day_max_val)]
+            else:
+                symblname = "没有"
+            target_list.append({
+                symblname: max_bbandid[max_list.index(day_max_val)],
+            })
+        # 2. 统计值
+        all_holdings = []
+        all_positions = []
+        for i1 in range(1, datalenth + 1):
+            d = {}
+            d['datetime'] = i1
+            d['cash'] = initial_capital
+            d['commission'] = 0.0
+            d['total'] = initial_capital
+            all_holdings.append(d)
+            v = dict((k, v) for k, v in [(s, 0) for s in self.symbol_list])
+            all_positions.append(v)
+        for id1, i1 in enumerate(target_list):
+            key_list = list(i1.keys())
+            print("id1:", id1, i1, key_list)
+            if key_list[0] not in predict_bars.symbol_list:
+                print("清仓")
+                if id1 == 0:
+                    pass
+                else:
+                    all_holdings[id1]["cash"] = all_holdings[id1 - 1]["cash"]
+                    for i2 in predict_bars.symbol_list:
+                        if id1 == 0:
+                            pass
+                        elif all_positions[id1 - 1][i2] > 0:
+                            all_positions[id1][i2] = 0
+                            all_holdings[id1]["cash"] += all_positions[id1 - 1][i2] * hand_unit * \
+                                                         predict_bars.symbol_ori_data[i2]["close"][
+                                                             all_holdings[id1]["datetime"]]
+                    all_holdings[id1]["total"] = all_holdings[id1]["cash"]
+            else:
+                print(f_ratio[key_list[0]][i1[key_list[0]]][id1])
+                if f_ratio[key_list[0]][i1[key_list[0]]][id1] > 0:
+                    print("目标仓位相同")
+                    # self.all_holdings[id1]["total"] = self.all_holdings[id1]["cash"]
+                    if id1 == 0:
+                        pass
+                    else:
+                        all_holdings[id1]["cash"] = all_holdings[id1 - 1]["cash"]
+                        for i2 in predict_bars.symbol_list:
+                            if all_positions[id1 - 1][i2] > 0:
+                                all_holdings[id1]["cash"] += all_positions[id1 - 1][i2] * hand_unit * \
+                                                             predict_bars.symbol_ori_data[i2]["close"][
+                                                                 all_holdings[id1]["datetime"]]
+                                all_positions[id1][i2] = 0
+                    all_holdings[id1]["total"] = all_holdings[id1]["cash"]
+                    targ_captail = f_ratio[key_list[0]][i1[key_list[0]]][id1] * all_holdings[id1]["total"]
+                    targ_mount = targ_captail / hand_unit // predict_bars.symbol_ori_data[key_list[0]]["close"][
+                        all_holdings[id1]["datetime"]]
+                    all_positions[id1][key_list[0]] = targ_mount
+                    all_holdings[id1]["cash"] = all_holdings[id1]["total"] - targ_mount * hand_unit * \
+                                                                             predict_bars.symbol_ori_data[
+                                                                                 key_list[0]]["close"][
+                                                                                 all_holdings[id1]["datetime"]]
+                else:
+                    print("目标仓位不同")
+                    if id1 == 0:
+                        pass
+                        # elif self.all_positions[id1 - 1][i2] != 0:
+                    else:
+                        all_holdings[id1]["cash"] = all_holdings[id1 - 1]["cash"]
+                        for i2 in predict_bars.symbol_list:
+                            all_positions[id1][i2] = 0
+                            all_holdings[id1]["cash"] += all_positions[id1 - 1][i2] * hand_unit * \
+                                                         predict_bars.symbol_ori_data[i2]["close"][
+                                                             all_holdings[id1]["datetime"]]
+                    all_holdings[id1]["total"] = all_holdings[id1]["cash"]
+            print(all_holdings[id1], all_positions[id1], predict_bars.symbol_ori_data["SAPower"]["close"][
+                all_holdings[id1]["datetime"]])
+            # return self.all_holdings
+
+    # 基于预测结果 盈利测试
+    def calculate_probability_signals(self, predict_bars, pred_list):
+        """
+        kelly_formula
+        """
+        # print(pred_list[1].shape)
+        # exit(0)
+        system_risk = 0.0001  # 系统归零概率
+        system_move = 1  # 上下概率平移系数
+        system_ram_vari = 1  # 振幅系数
+
+        upprb = []
+        downprb = []
+        f_ratio = []
+        gain = []
+        inst = TradeTool()
+        llenth = len(predict_bars.bband_list)
+        for id1, aven in enumerate(predict_bars.bband_list):
+            fixratio = system_ram_vari / aven
+            fw = pred_list[1][:, id1 * llenth + 2] - 1.0
+            fw = fw * fixratio
+            fl = 1.0 - pred_list[1][:, id1 * llenth + 3]
+            fl = fl * fixratio
+            upconst = np.exp(-(fw * system_move) ** 2 / pred_list[0][:, id1 * llenth + 1] ** 2)
+            downconst = np.exp(-(fl / system_move) ** 2 / pred_list[0][:, id1 * llenth + 2] ** 2)
+            # 加入系统风险后的极值一阶导数方程： y = a*f_ratio^2+b*f_ratio+c
+            p = (1 - system_risk) * upconst / (upconst + downconst)
+            q = (1 - system_risk) * downconst / (upconst + downconst)
+            wm = inst.kari_fix_normal_w(p, q, fw, fl, system_risk)
+            wm[:][wm[:] < 0] = 0
+            wm[:][fw[:] < 0] = 0
+            wm[:][fl[:] < 0] = 0
+            upprb.append(p)
+            downprb.append(q)
+            f_ratio.append(wm)
+            # print(p, q, fw, fl, system_risk, wm)
+            # exit(0)
+            gain.append(inst.kari_fix_normal_g(p, q, fw, fl, system_risk, wm))
+            # print(list(zip(p, q, fw, fl, wm, gain[-1])))
+        # print(gain)
+        return upprb, downprb, f_ratio, gain

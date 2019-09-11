@@ -49,15 +49,15 @@ class CRNN(AbstractModeltensor):
         }
         self.ydim = 1
         self.keep_prob_ph = config["dropout"]
-        self.ret_dim, self.std_dim = len(bband_list) * len(bband_list), len(bband_list) * 6
+        self.base_dim, self.much_dim = len(bband_list) * 3, len(bband_list) * 4
         self.input_dim = len(ave_list) * (2 * len(ave_list) + 2)
         with tf.name_scope('Inputs'):
             self.input_p = tf.placeholder(tf.float32, [None, self.input_dim])
             self.learn_rate_p = tf.placeholder(dtype=tf.float32, shape=[], name="lr")
             self.lr_decay = tf.placeholder(dtype=tf.float32, shape=[])
         with tf.name_scope('Outputs'):
-            self.target_ret_y = tf.placeholder(dtype=tf.float32, shape=[None, self.ret_dim])
-            self.target_std_y = tf.placeholder(dtype=tf.float32, shape=[None, self.std_dim])
+            self.target_base_y = tf.placeholder(dtype=tf.float32, shape=[None, self.base_dim])
+            self.target_much_y = tf.placeholder(dtype=tf.float32, shape=[None, self.much_dim])
 
     def buildModel(self):
         # 不同选择加载
@@ -138,29 +138,35 @@ class CRNN(AbstractModeltensor):
 
     def _cnn_dense_model(self):
         # 部分1，预测值
-        dense1 = tf.layers.dense(inputs=self.input_p, units=1024, activation=tf.nn.relu, name="layer_dense1")
-        denseo1 = tf.nn.dropout(dense1, keep_prob=self.keep_prob_ph)
+        dense1 = tf.layers.dense(inputs=self.input_p, units=128, activation=tf.nn.relu, name="layer_dense1")
+        concat1 = tf.concat([self.input_p, dense1], 1, name='concat1')
+        denseo1 = tf.nn.dropout(concat1, keep_prob=self.keep_prob_ph)
         # tf.summary.histogram('layer_dense1', dense1)  # 记录标量的变化
         dense2 = tf.layers.dense(inputs=denseo1, units=512, activation=tf.nn.relu, name="layer_dense2")
-        denseo2 = tf.nn.dropout(dense2, keep_prob=self.keep_prob_ph)
+        concat2 = tf.concat([self.input_p, dense1, dense2], 1, name='concat2')
+        denseo2 = tf.nn.dropout(concat2, keep_prob=self.keep_prob_ph)
+        dense3 = tf.layers.dense(inputs=denseo2, units=256, activation=tf.nn.relu, name="layer_dense3")
+        denseo3 = tf.nn.dropout(dense3, keep_prob=self.keep_prob_ph)
+        dense4 = tf.layers.dense(inputs=denseo3, units=128, activation=tf.nn.relu, name="layer_dense4")
+        denseo4 = tf.nn.dropout(dense4, keep_prob=self.keep_prob_ph)
         # tf.summary.histogram('layer_dense2', dense2)  # 记录标量的变化
-        y_ret = tf.layers.dense(inputs=denseo2, units=self.ret_dim, activation=None, name="y_ret")
-        y_std = tf.layers.dense(inputs=denseo2, units=self.std_dim, activation=None, name="y_std")
-        tf.summary.histogram('y_ret', y_ret)  # 记录标量的变化
-        tf.summary.histogram('y_std', y_std)  # 记录标量的变化
+        y_base = tf.layers.dense(inputs=denseo4, units=self.base_dim, activation=None, name="y_base")
+        y_much = tf.layers.dense(inputs=denseo4, units=self.much_dim, activation=None, name="y_much")
+        tf.summary.histogram('y_base', y_base)  # 记录标量的变化
+        tf.summary.histogram('y_much', y_much)  # 记录标量的变化
         # 损失返回值
-        y_loss_ret = tf.reduce_mean(tf.square(y_ret - self.target_ret_y), name="y_loss_ret")
-        y_loss_std = tf.reduce_mean(tf.square(y_std - self.target_std_y), name="y_loss_std")
+        y_loss_base = tf.reduce_mean(tf.square(y_base - self.target_base_y), name="y_loss_base")
+        y_loss_much = tf.reduce_mean(tf.square(y_much - self.target_much_y), name="y_loss_much")
         # 猜错的获取 实际盈利值的负数
         # self.learn_rate = tf.Variable(self.learn_rate_p, name="lr", trainable=False)
         # self.update_lr = tf.assign(self.learn_rate, tf.multiply(self.lr_decay, self.learn_rate))
-        self.train_list = [y_loss_ret, y_loss_std]
-        self.valid_list = [y_loss_ret, y_loss_std]
-        self.pred_list = [y_ret, y_std]
+        self.train_list = [y_loss_base, y_loss_much]
+        self.valid_list = [y_loss_base, y_loss_much]
+        self.pred_list = [y_base, y_much]
         # 打印信息
         tf.summary.scalar('lr', self.learn_rate_p)  # 记录标量的变化
-        tf.summary.scalar('y_loss_ret', y_loss_ret)  # 记录标量的变化
-        tf.summary.scalar('y_loss_std', y_loss_std)  # 记录标量的变化
+        tf.summary.scalar('y_loss_base', y_loss_base)  # 记录标量的变化
+        tf.summary.scalar('y_loss_much', y_loss_much)  # 记录标量的变化
 
     def _fullmodel(self):
         # 部分1，预测值
@@ -499,10 +505,15 @@ class CRNN(AbstractModeltensor):
         tf.summary.scalar('pred_bene', pred_bene)  # 记录标量的变化
         tf.summary.scalar('space_loss', space_loss)  # 记录标量的变化
 
-    def batch_train(self, inputs_t, targets_ret_t, targets_std_t, inputs_v, targets_ret_v, targets_std_v, batch_size=8,
-                    num_epochs=1):
+    def batch_train(self, inputs_t, targets_base_t, targets_much_t, inputs_v, targets_base_v, targets_much_v,
+                    batch_size=8, num_epochs=1):
         # 设置
-        dataiter = batch_iter_list([inputs_t, targets_ret_t, targets_std_t], batch_size, num_epochs)
+        # print(inputs_t.shape,targets_base_t.shape, targets_much_t.shape)
+        # self.input_dim=inputs_t.shape[1]
+        # self.base_dim=targets_base_t.shape[1]
+        # self.much_dim=targets_much_t.shape[1]
+        # exit()
+        dataiter = batch_iter_list([inputs_t, targets_base_t, targets_much_t], batch_size, num_epochs)
         config = tf.ConfigProto()
         config.gpu_options.allow_growth = True
         with tf.Session(config=config) as sess:
@@ -511,17 +522,17 @@ class CRNN(AbstractModeltensor):
             global_n = 0
             stop_n = 0
             startt = time.time()
-            pre_t_ret_loss = pre_t_std_loss = pre_v_std_loss = pre_v_ret_loss = 100000
+            pre_t_base_loss = pre_t_much_loss = pre_v_much_loss = pre_v_base_loss = 100000
             for epoch in range(num_epochs):
                 starte = time.time()
                 losslist = [0]
                 for batch_num in range(inputs_t.shape[0] // batch_size + 1):
                     # 获取数据
-                    inputs_x_t, inputs_yret_t, inputs_ystd_t = next(dataiter)
+                    inputs_x_t, inputs_ybase_t, inputs_ymuch_t = next(dataiter)
                     feed_dict_t = {
                         self.input_p: inputs_x_t,
-                        self.target_ret_y: inputs_yret_t,
-                        self.target_std_y: inputs_ystd_t,
+                        self.target_base_y: inputs_ybase_t,
+                        self.target_much_y: inputs_ymuch_t,
                         self.learn_rate_p: self.config["learn_rate"],
                         self.lr_decay: 1,
                     }
@@ -536,27 +547,29 @@ class CRNN(AbstractModeltensor):
                     writer.add_summary(result, global_n)
                     self.saver.save(sess, os.path.join(model_path, 'model_%s' % self.config["tailname"],
                                                        self.config["modelfile"]), global_step=global_n)
-                    print("batch %s, step %s, time: %s s, y_loss_ret_t %s, y_loss_std_t %s" % (
+                    print("batch %s, step %s, time: %s s, y_loss_base_t %s, y_loss_much_t %s" % (
                         batch_num, global_n, time.time() - starte, losslist_t[0], losslist_t[1]))
                 # valid part
                 feed_dict_v = {
                     self.input_p: inputs_v,
-                    self.target_ret_y: targets_ret_v,
-                    self.target_std_y: targets_std_v,
+                    self.target_base_y: targets_base_v,
+                    self.target_much_y: targets_much_v,
                     self.learn_rate_p: self.config["learn_rate"],
                     self.lr_decay: 1,
                 }
                 losslist_v = sess.run(self.valid_list, feed_dict_v)
-                if losslist_t[0] < pre_t_ret_loss and losslist_v[0] < pre_v_ret_loss:
+                if losslist_t[0] < pre_t_base_loss and losslist_v[0] < pre_v_base_loss:
                     stop_n += 1
                     if stop_n > self.config["early_stop"]:
                         break
-                print("epoch %s, step %s, stop_n %s, time: %s s, y_loss_ret_v %s, y_loss_std_v %s" % (
+                else:
+                    stop_n = 0
+                print("epoch %s, step %s, stop_n %s, time: %s s, y_loss_base_v %s, y_loss_much_v %s" % (
                     epoch, global_n, stop_n, time.time() - starte, losslist_v[0], losslist_v[1]))
-                pre_t_ret_loss = losslist_t[0]
-                pre_t_std_loss = losslist_t[1]
-                pre_v_ret_loss = losslist_v[0]
-                pre_v_std_loss = losslist_v[1]
+                pre_t_base_loss = losslist_t[0]
+                pre_t_much_loss = losslist_t[1]
+                pre_v_base_loss = losslist_v[0]
+                pre_v_much_loss = losslist_v[1]
             writer.close()
             print("total time: %s s" % (time.time() - startt))
         # 结束
@@ -577,7 +590,7 @@ class CRNN(AbstractModeltensor):
             return valist
 
     def predict(self, inputs):
-        # self.ret_dim, self.std_dim = ret_dim, std_dim
+        # self.base_dim, self.much_dim = base_dim, much_dim
         config = tf.ConfigProto()
         config.gpu_options.allow_growth = True
         with tf.Session(config=config) as sess:

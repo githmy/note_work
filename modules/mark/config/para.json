@@ -9,7 +9,7 @@
     "discount": 0.8,
     "start_date": "2013-08-26",
     "end_date": "2025-08-25",
-    "learn_rate": 1e-5,
+    "learn_rate": 1e-4,
     "early_stop": 10,
     "sudden_death": -1.0,
     "scope": 60,
@@ -21,7 +21,7 @@
     "dropout": 0.8,
     "modelname": "cnn_dense",
     "normal": 1e-4,
-    "sub_fix": "",
+    "sub_fix": "5",
     "file": "learn_file"
   }
 }
