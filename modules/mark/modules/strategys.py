@@ -474,7 +474,7 @@ class MlaStrategy(strategy.BacktestingStrategy):
         self.trainconfig["outretdim"], self.trainconfig["outstddim"] = targets_base_t.shape[1], targets_much_t.shape[1]
         modelcrnn = CRNN(ave_list, bband_list, config=self.trainconfig)
         modelcrnn.getModel()
-        batch_size, num_epochs = 32, 1000
+        batch_size, num_epochs = 32, 100000
         globalstep = modelcrnn.batch_train(inputs_t, targets_base_t, targets_much_t, inputs_v, targets_base_v,
                                            targets_much_v, batch_size, num_epochs)
 
