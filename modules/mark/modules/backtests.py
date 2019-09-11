@@ -57,23 +57,36 @@ class LoadBacktest(object):
         self._data_handler.generate_a_derivative()
         # 统计倾向概率
         self._strategy.calculate_probability_signals("event")
-        # 2. 训练数据, 输入原始规范训练数据，待时间截断
+        # # 2. 训练数据, 输入原始规范训练数据，待时间截断
+        # todo: 改变模型 1. 增加层 2. 细分ylabel发现不足 或震荡, half stddwon
         train_bars = LoadCSVHandler(queue.Queue(), data_path, ["DalianRP", "ChinaBank"], ave_list, bband_list)
         train_bars.generate_b_derivative()
         train_bars.generate_a_derivative()
         date_range = [1, 200]
         split = 0.8  # 先截range 再split
         self._strategy.train_probability_signals(train_bars, ave_list, bband_list, date_range, split=split, args=None)
-        # # 3. 预测概率
-        # predict_bars = LoadCSVHandler(queue.Queue(), data_path, ["SAPower"], ave_list, bband_list)
-        # predict_bars.generate_b_derivative()
-        # date_range = [1, 260]
-        # pred_list = self._strategy.predict_probability_signals(predict_bars, ave_list, bband_list, date_range,
-        #                                                        args=None)
+        # exit(0)
+        # 3. 预测概率
+        predict_bars = LoadCSVHandler(queue.Queue(), data_path, ["SAPower"], ave_list, bband_list)
+        predict_bars.generate_b_derivative()
+        date_range = [1, 260]
+        pred_list = self._strategy.predict_probability_signals(predict_bars, ave_list, bband_list, date_range,
+                                                               args=None)
         print(pred_list)
+        print(pred_list[0].shape, pred_list[1].shape)
         # 4. 投资比例
-        # todo: 概率和幅度需要y 对应的序号，改用参数传递。
-        self._portfolio.components_res_base_aft()
+        # self._portfolio.components_res_base_aft()
+        # symbol_aft_retp * bband 均线 * bband 涨幅
+
+        # symbol_aft_reta   bband 涨幅
+        # symbol_aft_half_std_up
+        # symbol_aft_half_std_down
+
+        # symbol_aft_drawup
+        # symbol_aft_drawdown
+        # symbol_aft_retp_high
+        # symbol_aft_retp_low
+        self._portfolio.components_res_base_predict(predict_bars, pred_list)
         # print(self._portfolio.all_holdings)
         # print(self._portfolio.all_positions)
         # 按规则投资的变化结果

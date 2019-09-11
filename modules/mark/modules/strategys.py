@@ -306,7 +306,7 @@ class MlaStrategy(strategy.BacktestingStrategy):
             hpara = simplejson.load(open(parafile))
             # if argspar.sub_fix is None:
             #     config["sub_fix"] = hpara["model"]["sub_fix"]
-
+        config["early_stop"] = hpara["env"]["early_stop"]
         if argspar.learnrate is None:
             config["learn_rate"] = hpara["env"]["learn_rate"]
         else:
@@ -343,8 +343,8 @@ class MlaStrategy(strategy.BacktestingStrategy):
 
     def _prepare_train_data(self, train_bars, ave_list, bband_list, data_range, split=0.8):
         mult_charactx = []
-        mult_characty_ret = []
-        mult_characty_std = []
+        mult_characty_base = []
+        mult_characty_much = []
         symbol_list = list(train_bars.symbol_pre_half_std_up.keys())
         for s in symbol_list:
             # 1. 加载标签数据
@@ -360,65 +360,62 @@ class MlaStrategy(strategy.BacktestingStrategy):
                     xchara_list.append(
                         train_bars.symbol_pre_retm[s][single_chara][single2_chara][data_range[0] - 1:data_range[1]])
             tmp_xnp = np.vstack(xchara_list)
-            ychara_list = []
-            ychara_ret_list = []
-            ychara_std_list = []
+            ychara_base_list = []
+            ychara_much_list = []
             ylen_slist = len(bband_list)
             for single_chara in range(ylen_slist):
-                ychara_std_list.append(
-                    train_bars.symbol_aft_half_std_up[s][single_chara][data_range[0] - 1:data_range[1]])
-                ychara_std_list.append(
-                    train_bars.symbol_aft_half_std_down[s][single_chara][data_range[0] - 1:data_range[1]])
-                ychara_std_list.append(train_bars.symbol_aft_drawup[s][single_chara][data_range[0] - 1:data_range[1]])
-                ychara_std_list.append(train_bars.symbol_aft_drawdown[s][single_chara][data_range[0] - 1:data_range[1]])
-                ychara_std_list.append(
-                    train_bars.symbol_aft_retp_high[s][single_chara][data_range[0] - 1:data_range[1]])
-                ychara_std_list.append(train_bars.symbol_aft_retp_low[s][single_chara][data_range[0] - 1:data_range[1]])
-                for single2_chara in range(ylen_slist):
-                    ychara_ret_list.append(
-                        train_bars.symbol_aft_retp[s][single_chara][single2_chara][data_range[0] - 1:data_range[1]])
-            tmp_ynp_ret = np.vstack(ychara_ret_list)
-            tmp_ynp_std = np.vstack(ychara_std_list)
+                ychara_base_list.append(train_bars.symbol_aft_reta[s][single_chara][data_range[0] - 1:data_range[1]])
+                ychara_base_list.append(train_bars.symbol_aft_half_std_up[s][single_chara][data_range[0] - 1:data_range[1]])
+                ychara_base_list.append(train_bars.symbol_aft_half_std_down[s][single_chara][data_range[0] - 1:data_range[1]])
+                ychara_much_list.append(train_bars.symbol_aft_drawup[s][single_chara][data_range[0] - 1:data_range[1]])
+                ychara_much_list.append(train_bars.symbol_aft_drawdown[s][single_chara][data_range[0] - 1:data_range[1]])
+                ychara_much_list.append(train_bars.symbol_aft_retp_high[s][single_chara][data_range[0] - 1:data_range[1]])
+                ychara_much_list.append(train_bars.symbol_aft_retp_low[s][single_chara][data_range[0] - 1:data_range[1]])
+                # for single2_chara in range(ylen_slist):
+                #     ychara_ret_list.append(
+                #         train_bars.symbol_aft_retp[s][single_chara][single2_chara][data_range[0] - 1:data_range[1]])
+            tmp_ynp_base = np.vstack(ychara_base_list)
+            tmp_ynp_much = np.vstack(ychara_much_list)
             # 2. 删除无效行
             delpresig = np.isnan(xchara_list[-1])
             # print(delpresig[~delpresig])
-            delaftsig = np.isnan(ychara_ret_list[-1])
+            delaftsig = np.isnan(ychara_base_list[-1])
             # print(delaftsig[~delaftsig])
             delpreaftsig = np.logical_or(delpresig, delaftsig)
             tmp_xnp = np.transpose(tmp_xnp)
             tmp_xnp = tmp_xnp[~delpreaftsig]
-            tmp_ynp_std = np.transpose(tmp_ynp_std)
-            tmp_ynp_std = tmp_ynp_std[~delpreaftsig]
-            tmp_ynp_ret = np.transpose(tmp_ynp_ret)
-            tmp_ynp_ret = tmp_ynp_ret[~delpreaftsig]
+            tmp_ynp_base = np.transpose(tmp_ynp_base)
+            tmp_ynp_base = tmp_ynp_base[~delpreaftsig]
+            tmp_ynp_much = np.transpose(tmp_ynp_much)
+            tmp_ynp_much = tmp_ynp_much[~delpreaftsig]
             mult_charactx.append(tmp_xnp)
-            mult_characty_ret.append(tmp_ynp_ret)
-            mult_characty_std.append(tmp_ynp_std)
-        all_ynp_ret = np.vstack(mult_characty_ret)
-        all_ynp_std = np.vstack(mult_characty_std)
+            mult_characty_base.append(tmp_ynp_base)
+            mult_characty_much.append(tmp_ynp_much)
+        all_ynp_base = np.vstack(mult_characty_base)
+        all_ynp_much = np.vstack(mult_characty_much)
         all_xnp = np.vstack(mult_charactx)
         # 3. split
         lenth = all_xnp.shape[0]
         mult_trainx = all_xnp[0:int(lenth * split)]
-        mult_trainy_ret = all_ynp_ret[0:int(lenth * split)]
-        mult_trainy_std = all_ynp_std[0:int(lenth * split)]
+        mult_trainy_base = all_ynp_base[0:int(lenth * split)]
+        mult_trainy_much = all_ynp_much[0:int(lenth * split)]
         mult_validx = all_xnp[int(lenth * split):]
-        mult_validy_ret = all_ynp_ret[int(lenth * split):]
-        mult_validy_std = all_ynp_std[int(lenth * split):]
+        mult_validy_base = all_ynp_base[int(lenth * split):]
+        mult_validy_much = all_ynp_much[int(lenth * split):]
         # 4. 处理nan inf
         mult_trainx[:, :][np.isnan(mult_trainx[:, :])] = 0
         mult_trainx[:, :][np.isinf(mult_trainx[:, :])] = 0
-        mult_trainy_std[:, :][np.isnan(mult_trainy_std[:, :])] = 0
-        mult_trainy_std[:, :][np.isinf(mult_trainy_std[:, :])] = 0
-        mult_trainy_ret[:, :][np.isnan(mult_trainy_ret[:, :])] = 0
-        mult_trainy_ret[:, :][np.isinf(mult_trainy_ret[:, :])] = 0
+        mult_trainy_much[:, :][np.isnan(mult_trainy_much[:, :])] = 0
+        mult_trainy_much[:, :][np.isinf(mult_trainy_much[:, :])] = 0
+        mult_trainy_base[:, :][np.isnan(mult_trainy_base[:, :])] = 0
+        mult_trainy_base[:, :][np.isinf(mult_trainy_base[:, :])] = 0
         mult_validx[:, :][np.isnan(mult_validx[:, :])] = 0
         mult_validx[:, :][np.isinf(mult_validx[:, :])] = 0
-        mult_validy_std[:, :][np.isnan(mult_validy_std[:, :])] = 0
-        mult_validy_std[:, :][np.isinf(mult_validy_std[:, :])] = 0
-        mult_validy_ret[:, :][np.isnan(mult_validy_ret[:, :])] = 0
-        mult_validy_ret[:, :][np.isinf(mult_validy_ret[:, :])] = 0
-        return mult_trainx, mult_trainy_ret, mult_trainy_std, mult_validx, mult_validy_ret, mult_validy_std
+        mult_validy_much[:, :][np.isnan(mult_validy_much[:, :])] = 0
+        mult_validy_much[:, :][np.isinf(mult_validy_much[:, :])] = 0
+        mult_validy_base[:, :][np.isnan(mult_validy_base[:, :])] = 0
+        mult_validy_base[:, :][np.isinf(mult_validy_base[:, :])] = 0
+        return mult_trainx, mult_trainy_base, mult_trainy_much, mult_validx, mult_validy_base, mult_validy_much
 
     def _prepare_predict_data(self, predict_bars, ave_list, data_range):
         mult_charactx = []
@@ -458,24 +455,28 @@ class MlaStrategy(strategy.BacktestingStrategy):
         # self.symbol_pre_retp
         # self.symbol_pre_retm
 
+        # self.symbol_aft_reta
         # self.symbol_aft_half_std_up
         # self.symbol_aft_half_std_down
+
         # self.symbol_aft_drawup
         # self.symbol_aft_drawdown
         # self.symbol_aft_retp_high
         # self.symbol_aft_retp_low
+        
         # self.symbol_aft_retp
         # 2. 生产数据 随机打乱，分成batch
-        inputs_t, targets_ret_t, targets_std_t, inputs_v, targets_ret_v, targets_std_v = self._prepare_train_data(
+        inputs_t, targets_base_t, targets_much_t, inputs_v, targets_base_v, targets_much_v = self._prepare_train_data(
             train_bars, ave_list, bband_list, date_range, split)
         # 3. 训练
+        print(targets_base_t, targets_much_t)
         self.trainconfig["inputdim"] = inputs_t.shape[1]
-        self.trainconfig["outretdim"], self.trainconfig["outstddim"] = targets_ret_t.shape[1], targets_std_t.shape[1]
+        self.trainconfig["outretdim"], self.trainconfig["outstddim"] = targets_base_t.shape[1], targets_much_t.shape[1]
         modelcrnn = CRNN(ave_list, bband_list, config=self.trainconfig)
         modelcrnn.getModel()
-        batch_size, num_epochs = 8, 1000
-        globalstep = modelcrnn.batch_train(inputs_t, targets_ret_t, targets_std_t, inputs_v, targets_ret_v,
-                                           targets_std_v, batch_size, num_epochs)
+        batch_size, num_epochs = 32, 1000
+        globalstep = modelcrnn.batch_train(inputs_t, targets_base_t, targets_much_t, inputs_v, targets_base_v,
+                                           targets_much_v, batch_size, num_epochs)
 
     def predict_probability_signals(self, predict_bars, ave_list, bband_list, date_range, args=None):
         """

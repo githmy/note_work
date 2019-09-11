@@ -49,7 +49,6 @@ class Acount(object):
                     self.csv_dir, self.symbol_list, self.ave_list, self.bband_list, self.ret_list,
                     CSVAppendDataHandler, SimulatedExecutionHandler, Portfolio, MultiCrossStrategy)
             elif self.data_type == "模拟":  # 已有数据，直观统计
-                # todo: doing 1.
                 backtest = LoadBacktest(
                     self.initial_capital, self.heartbeat, self.start_predict,
                     self.csv_dir, self.symbol_list, self.ave_list, self.bband_list,
