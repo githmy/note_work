@@ -4,8 +4,8 @@ import logging
 from utils.path_tool import makesurepath
 
 cmd_path = os.getcwd()
-basic_path = os.path.join(cmd_path, "..", "data")
-project_path = os.path.join(basic_path, "thinking2")
+basic_path = os.path.join(cmd_path, "..", "..", "data")
+project_path = os.path.join(basic_path, "thinking")
 model_path = os.path.join(project_path, "models")
 data_path = os.path.join(project_path, "data")
 conf_path = os.path.join(project_path, "config")

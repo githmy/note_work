@@ -90,6 +90,17 @@ def list_deal():
     dict_data = {6: 109, 10: 105, 3: 211, 8: 102, 7: 106}
 
 
+def list_transpose():
+    def transpose(matrix):
+        return zip(*matrix)
+
+    matrix = [
+        [1, 2, 3],
+        [4, 5, 6],
+        [7, 8, 9]]
+    print(transpose(matrix))
+
+
 def json_sort():
     # json 字典排序
     dict_data = {6: 109, 10: 105, 3: 211, 8: 102, 7: 106}

@@ -26,6 +26,10 @@ cmd_path = os.getcwd()
 data_pa = os.path.join(cmd_path, "data")
 data_path_res = os.path.join(data_pa, "res")
 
+# 阻塞开关
+plt.ion()
+plt.ioff()
+
 
 def pandas_candlestick_ohlc(stock_data, otherseries=None):
     # 设置绘图参数，主要是坐标轴
@@ -119,6 +123,7 @@ def plot_line_stock(ts, w, title='time_sequence'):
 
     plt.pie(a, labels=('（2,3]', '(3,4]', '(4,5]', '(5,6]'), colors=('b', 'g', 'r', 'c'), shadow=True)
     plt.title('中国银行收盘价分布饼图')
+
 
 # 多只股票时间序列
 def plot_timesq(datas):

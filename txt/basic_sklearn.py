@@ -8,7 +8,7 @@ import os
 import logging
 from sklearn.datasets import load_iris
 from sklearn.datasets import make_gaussian_quantiles
-
+import sklearn
 import tushare as ts
 import statsmodels.tsa.stattools as tsat
 import pandas as pd
@@ -78,6 +78,18 @@ def basic_Linear_Regression():
 
     # Predict Output
     predicted = linear.predict(x_test)
+
+
+def polynormal_Regression():
+    from sklearn.linear_model import LinearRegression
+    from sklearn.preprocessing import PolynomialFeatures
+    pf = PolynomialFeatures(degree=2)
+    x_2_fit = pf.fit_transform(x)  # 一元二次的方程就转化为二元一次的方程
+    lrModel = LinearRegression()
+    lrModel.fit(x_2_fit, y)
+    lrModel.score(x_2_fit, y)  # 模型拟合程度
+    x_2_predict = pf.fit_transform([[21], [22]])
+    lrModel.predict([[21], [22]])
 
 
 def basic_Logistic_Regression():
