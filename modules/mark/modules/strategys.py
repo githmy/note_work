@@ -365,12 +365,17 @@ class MlaStrategy(strategy.BacktestingStrategy):
             ylen_slist = len(bband_list)
             for single_chara in range(ylen_slist):
                 ychara_base_list.append(train_bars.symbol_aft_reta[s][single_chara][data_range[0] - 1:data_range[1]])
-                ychara_base_list.append(train_bars.symbol_aft_half_std_up[s][single_chara][data_range[0] - 1:data_range[1]])
-                ychara_base_list.append(train_bars.symbol_aft_half_std_down[s][single_chara][data_range[0] - 1:data_range[1]])
+                ychara_base_list.append(
+                    train_bars.symbol_aft_half_std_up[s][single_chara][data_range[0] - 1:data_range[1]])
+                ychara_base_list.append(
+                    train_bars.symbol_aft_half_std_down[s][single_chara][data_range[0] - 1:data_range[1]])
                 ychara_much_list.append(train_bars.symbol_aft_drawup[s][single_chara][data_range[0] - 1:data_range[1]])
-                ychara_much_list.append(train_bars.symbol_aft_drawdown[s][single_chara][data_range[0] - 1:data_range[1]])
-                ychara_much_list.append(train_bars.symbol_aft_retp_high[s][single_chara][data_range[0] - 1:data_range[1]])
-                ychara_much_list.append(train_bars.symbol_aft_retp_low[s][single_chara][data_range[0] - 1:data_range[1]])
+                ychara_much_list.append(
+                    train_bars.symbol_aft_drawdown[s][single_chara][data_range[0] - 1:data_range[1]])
+                ychara_much_list.append(
+                    train_bars.symbol_aft_retp_high[s][single_chara][data_range[0] - 1:data_range[1]])
+                ychara_much_list.append(
+                    train_bars.symbol_aft_retp_low[s][single_chara][data_range[0] - 1:data_range[1]])
                 # for single2_chara in range(ylen_slist):
                 #     ychara_ret_list.append(
                 #         train_bars.symbol_aft_retp[s][single_chara][single2_chara][data_range[0] - 1:data_range[1]])
@@ -463,7 +468,7 @@ class MlaStrategy(strategy.BacktestingStrategy):
         # self.symbol_aft_drawdown
         # self.symbol_aft_retp_high
         # self.symbol_aft_retp_low
-        
+
         # self.symbol_aft_retp
         # 2. 生产数据 随机打乱，分成batch
         inputs_t, targets_base_t, targets_much_t, inputs_v, targets_base_v, targets_much_v = self._prepare_train_data(
@@ -486,7 +491,8 @@ class MlaStrategy(strategy.BacktestingStrategy):
         self._prepare_train_para(args)
         # 2. 生产数据
         inputs_t = self._prepare_predict_data(predict_bars, ave_list, date_range)
+        self.trainconfig["dropout"] = 1.0
         modelcrnn = CRNN(ave_list, bband_list, config=self.trainconfig)
-        modelcrnn.getModel()
+        modelcrnn.buildModel()
         pred_list = modelcrnn.predict(inputs_t)
         return pred_list

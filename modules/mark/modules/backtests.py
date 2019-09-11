@@ -4,6 +4,7 @@ import pprint
 import time
 from modules.event import *
 from utils.log_tool import *
+from utils.mlp_tool import PlotTool
 from modules.datahandle import LoadCSVHandler
 
 
@@ -58,13 +59,13 @@ class LoadBacktest(object):
         # 统计倾向概率
         self._strategy.calculate_probability_signals("event")
         # # 2. 训练数据, 输入原始规范训练数据，待时间截断
-        # todo: 改变模型 1. 增加层 2. 细分ylabel发现不足 或震荡, half stddwon
-        train_bars = LoadCSVHandler(queue.Queue(), data_path, ["DalianRP", "ChinaBank"], ave_list, bband_list)
-        train_bars.generate_b_derivative()
-        train_bars.generate_a_derivative()
-        date_range = [1, 200]
-        split = 0.8  # 先截range 再split
-        self._strategy.train_probability_signals(train_bars, ave_list, bband_list, date_range, split=split, args=None)
+        # # todo: 1. 改用 tushare 数据，1.1 测试接口更新数据 2. 分类板块，每个模型，时间段回测
+        # train_bars = LoadCSVHandler(queue.Queue(), data_path, ["DalianRP", "ChinaBank"], ave_list, bband_list)
+        # train_bars.generate_b_derivative()
+        # train_bars.generate_a_derivative()
+        # date_range = [1, 200]
+        # split = 0.8  # 先截range 再split
+        # self._strategy.train_probability_signals(train_bars, ave_list, bband_list, date_range, split=split, args=None)
         # exit(0)
         # 3. 预测概率
         predict_bars = LoadCSVHandler(queue.Queue(), data_path, ["SAPower"], ave_list, bband_list)
@@ -72,8 +73,8 @@ class LoadBacktest(object):
         date_range = [1, 260]
         pred_list = self._strategy.predict_probability_signals(predict_bars, ave_list, bband_list, date_range,
                                                                args=None)
-        print(pred_list)
-        print(pred_list[0].shape, pred_list[1].shape)
+        # print(pred_list)
+        # print(pred_list[0].shape, pred_list[1].shape)
         # 4. 投资比例
         # self._portfolio.components_res_base_aft()
         # symbol_aft_retp * bband 均线 * bband 涨幅
@@ -86,7 +87,10 @@ class LoadBacktest(object):
         # symbol_aft_drawdown
         # symbol_aft_retp_high
         # symbol_aft_retp_low
-        self._portfolio.components_res_base_predict(predict_bars, pred_list)
+        all_holdings = self._portfolio.components_res_base_predict(predict_bars, pred_list)
+        show_x, show_y = [i1["datetime"] for i1 in all_holdings], [i1["total"] for i1 in all_holdings]
+        insplt = PlotTool()
+        insplt.plot_line([[show_x, show_y]])
         # print(self._portfolio.all_holdings)
         # print(self._portfolio.all_positions)
         # 按规则投资的变化结果
