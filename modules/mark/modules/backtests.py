@@ -59,14 +59,14 @@ class LoadBacktest(object):
         # 统计倾向概率
         self._strategy.calculate_probability_signals("event")
         # # 2. 训练数据, 输入原始规范训练数据，待时间截断
-        # # todo: 1. 改用 tushare 数据，1.1 测试接口更新数据 2. 分类板块，每个模型，时间段回测
-        # train_bars = LoadCSVHandler(queue.Queue(), data_path, ["DalianRP", "ChinaBank"], ave_list, bband_list)
-        # train_bars.generate_b_derivative()
-        # train_bars.generate_a_derivative()
-        # date_range = [1, 200]
-        # split = 0.8  # 先截range 再split
-        # self._strategy.train_probability_signals(train_bars, ave_list, bband_list, date_range, split=split, args=None)
-        # exit(0)
+        # todo: 1. 改用 tushare 数据，1.1 测试接口更新数据 2. 分类板块，每个模型，时间段回测
+        train_bars = LoadCSVHandler(queue.Queue(), data_path, ["DalianRP", "ChinaBank"], ave_list, bband_list)
+        train_bars.generate_b_derivative()
+        train_bars.generate_a_derivative()
+        date_range = [1, 200]
+        split = 0.8  # 先截range 再split
+        self._strategy.train_probability_signals(train_bars, ave_list, bband_list, date_range, split=split, args=None)
+        exit(0)
         # 3. 预测概率
         predict_bars = LoadCSVHandler(queue.Queue(), data_path, ["SAPower"], ave_list, bband_list)
         predict_bars.generate_b_derivative()
