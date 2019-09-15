@@ -12,6 +12,7 @@ from utils.log_tool import *
 class Acount(object):
     def __init__(self, config):
         self.account = config["account"]
+        self.func_type = config["data_ori"]["func_type"]
         self.test_type = config["back_test"]["test_type"]
         self.start_train = config["back_test"]["start_train"]
         self.end_train = config["back_test"]["end_train"]
@@ -34,6 +35,7 @@ class Acount(object):
         pass
 
     def __call__(self, *args, **kwargs):
+        # 1. 判断加载模型
         backtest = None
         if self.test_type == "实盘":
             pass
@@ -62,7 +64,15 @@ class Acount(object):
                 raise Exception("error data_type.")
         else:
             raise Exception("error test type.")
-        backtest.simulate_trading()
+        # 2. 判断执行功能
+        if self.func_type == "train":
+            backtest.train()
+        elif self.func_type == "backtest":
+            backtest.simulate_trading()
+        elif self.func_type == "lastday":
+            backtest.simulate_lastday()
+        else:
+            raise Exception("func_type 只能是 train, backtest, lastday")
 
 
 def main(paralist):
@@ -97,6 +107,7 @@ def main(paralist):
         },
         {
             "account": 2,
+            "desc": "非tushare,离线测试",
             "back_test": {
                 "test_type": "模拟",
                 "start_train": datetime.datetime(1990, 1, 1, 0, 0, 0),
@@ -123,9 +134,46 @@ def main(paralist):
             "portfolio": {
                 "portfolio_name": None
             },
+        },
+        {
+            "account": 3,
+            "desc": "tushare,离线测试",
+            "back_test": {
+                "test_type": "模拟",
+                "start_train": datetime.datetime(1990, 1, 1, 0, 0, 0),
+                "end_train": datetime.datetime(1990, 1, 1, 0, 0, 0),
+                "start_predict": datetime.datetime(1990, 1, 1, 0, 0, 0),
+                "end_predict": datetime.datetime(1990, 1, 1, 0, 0, 0),
+                "heartbeat": 0.0,
+                "initial_capital": 10000.0,
+            },
+            "data_ori": {
+                # "func_type": "lastday",
+                "func_type": "train",
+                # "func_type": "backtest",
+                # "func_type": "predict",
+                "data_type": "模拟",
+                # "data_type": "实盘",
+                "csv_dir": data_path,
+                # "symbol_list": ["SAPower", "DalianRP", "ChinaBank"],
+                # "symbol_list": ["DalianRP"],
+                # "symbol_list": ["SAPower"],
+                "symbol_list": ["SAPower", "DalianRP"],
+                # "symbol_list": ["ChinaBank"],
+                "ave_list": [1, 3, 5, 11, 19, 37, 67],
+                "bband_list": [5, 19, 37],
+                "ret_list": [1, 3, 5, 7, 17, 20, 23, 130, 140, 150],
+            },
+            "stratgey": {
+                "stratgey_name": "cross_break",
+            },
+            "portfolio": {
+                "portfolio_name": None
+            },
         }
+
     ]
-    ins = Acount(account_list[1])
+    ins = Acount(account_list[2])
     ins()
 
 

@@ -334,7 +334,8 @@ class LoadCSVHandler(object):
                 self.symbol_pre_avep[s].append(self.tool_ins.smaCal(self.symbol_ori_data[s]["close"], aven))
                 self.symbol_pre_avem[s].append(self.tool_ins.smaCal(self.symbol_ori_data[s]["volume"], aven))
                 # 方差
-                tmpup, tmpdown = self.tool_ins.pre_up_down_std(self.symbol_ori_data[s]["close"], aven)
+                # tmpup, tmpdown = self.tool_ins.pre_up_down_std(self.symbol_ori_data[s]["close"], aven)
+                tmpup, tmpdown = self.tool_ins.general_pre_up_down_std(self.symbol_ori_data[s]["close"], aven)
                 self.symbol_pre_half_std_up[s].append(tmpup)
                 self.symbol_pre_half_std_down[s].append(tmpdown)
                 # 待求涨幅值
@@ -355,13 +356,16 @@ class LoadCSVHandler(object):
             self.symbol_aft_drawup[s] = []
             for aven in self.bband_list:
                 # 未来n天的 最大涨跌幅
-                self.symbol_aft_retp_high[s].append(self.tool_ins.max_highlow_ret_aft_n(self.symbol_ori_data[s], aven)[0])
-                self.symbol_aft_retp_low[s].append(self.tool_ins.max_highlow_ret_aft_n(self.symbol_ori_data[s], aven)[1])
+                self.symbol_aft_retp_high[s].append(
+                    self.tool_ins.max_highlow_ret_aft_n(self.symbol_ori_data[s], aven)[0])
+                self.symbol_aft_retp_low[s].append(
+                    self.tool_ins.max_highlow_ret_aft_n(self.symbol_ori_data[s], aven)[1])
                 tmpup, tmpdown = self.tool_ins.max_fallret_raiseret_aft_n(self.symbol_ori_data[s]["close"], aven)
                 self.symbol_aft_drawup[s].append(tmpup)
                 self.symbol_aft_drawdown[s].append(tmpdown)
                 # 涨幅
-                self.symbol_aft_reta[s].append(self.tool_ins.rise_n(self.symbol_ori_data[s]["close"], aven).shift(-aven + 1))
+                self.symbol_aft_reta[s].append(
+                    self.tool_ins.rise_n(self.symbol_ori_data[s]["close"], aven).shift(-aven + 1))
                 # 临时均线数据
                 # 方差 未来n天的 上下半std
                 tmpup, tmpdown = self.tool_ins.pre_up_down_std(self.symbol_ori_data[s]["close"], aven)
@@ -374,3 +378,69 @@ class LoadCSVHandler(object):
                 #     self.symbol_aft_retp[s][-1].append(
                 #         self.tool_ins.rise_n(self.tool_ins.smaCal(self.symbol_ori_data[s]["close"], aven), avem).shift(
                 #             -avem + 1))
+
+    # 生成最后一日的空间 前一日的[-0.1~0.1]
+    def generate_lastspace(self, range_low=-10, range_high=11, range_eff=0.01, mount_low=-10, mount_high=11,
+                           mount_eff=0.01):
+        # 1. 如果超前日期不足以生成明日的特征，raise
+        # 2. 生产横轴为价位，纵轴为标的和操作比率数量
+        data_obj = {}
+        symfack_pre_avep = {}
+        symfack_pre_avem = {}
+        symfack_pre_half_std_up = {}
+        symfack_pre_half_std_down = {}
+        # 二维数组，第一维均线 第二维 涨幅
+        symfack_pre_retp = {}
+        symfack_pre_retm = {}
+        for s in self.symbol_list_with_benchmark:
+            symfack_pre_avep[s] = []
+            symfack_pre_avem[s] = []
+            symfack_pre_half_std_up[s] = []
+            symfack_pre_half_std_down[s] = []
+            symfack_pre_retp[s] = []
+            symfack_pre_retm[s] = []
+            for aven in self.ave_list:
+                # 临时均线数据
+                tmp_pre_avep = []
+                tmp_pre_avem = []
+                tmp_up = []
+                tmp_down = []
+                for lastret in range(range_low, range_high):
+                    for lastmount in range(mount_low, mount_high):
+                        tmpclose = self.symbol_ori_data[s]["close"][-self.ave_list[-1] - 1:]
+                        tmp_x = tmpclose.values[-2] * (1 + lastret * range_eff)
+                        tmpclose.values[-1] = tmp_x
+                        tmpvolume = self.symbol_ori_data[s]["volume"][-self.ave_list[-1] - 1:]
+                        tmp_m = tmpvolume.values[-2] * (1 + lastmount * mount_eff)
+                        tmpvolume.values[-1] = tmp_m
+                        tmp_pre_avep.append(self.tool_ins.smaCal(tmpclose, aven))
+                        tmp_pre_avem.append(self.tool_ins.smaCal(tmpvolume, aven))
+                        tmpup, tmpdown = self.tool_ins.general_pre_up_down_std(tmpclose, aven)
+                        tmp_up.append(tmpup.values[-1])
+                        tmp_down.append(tmpdown.values[-1])
+                # 每个均线 多个分组
+                symfack_pre_avep[s].append(tmp_pre_avep)
+                symfack_pre_avem[s].append(tmp_pre_avem)
+                # 方差
+                symfack_pre_half_std_up[s].append(np.array(tmp_up))
+                symfack_pre_half_std_down[s].append(np.array(tmp_down))
+                # 待求涨幅值
+                symfack_pre_retp[s].append([])
+                symfack_pre_retm[s].append([])
+                for avem in self.ave_list:
+                    tmp_pre_retp = []
+                    tmp_pre_retm = []
+                    lenth_p = len(range(range_low, range_high))
+                    lenth_m = len(range(mount_low, mount_high))
+                    for idm in range(lenth_p * lenth_m):
+                        tmp_pre_retp.append(self.tool_ins.rise_n(symfack_pre_avep[s][-1][idm], avem).values[-1])
+                        tmp_pre_retm.append(self.tool_ins.rise_n(symfack_pre_avem[s][-1][idm], avem).values[-1])
+                    symfack_pre_retp[s][-1].append(np.array(tmp_pre_retp))
+                    symfack_pre_retm[s][-1].append(np.array(tmp_pre_retm))
+            data_obj[s] = {
+                "pre_half_std_up": symfack_pre_half_std_up[s],
+                "pre_half_std_down": symfack_pre_half_std_down[s],
+                "pre_retp": symfack_pre_retp[s],
+                "pre_retm": symfack_pre_retm[s],
+            }
+        return data_obj

@@ -46,39 +46,28 @@ class LoadBacktest(object):
         self._portfolio = self.portfolio_cls(self._data_handler, self.events, self.start_date,
                                              self.ave_list, self.bband_list, self.initial_capital)
 
+    def train(self):
+        print(self.symbol_list)
+        print(self.ave_list)
+        print(self.bband_list)
+        # 1. 训练数据, 输入原始规范训练数据，待时间截断
+        # todo: 1. 改用 tushare 数据，1.1 测试接口更新数据 2. 分类板块，每个模型，时间段回测
+        train_bars = LoadCSVHandler(queue.Queue(), data_path, self.symbol_list, self.ave_list, self.bband_list)
+        # 2. 加载衍生前值
+        train_bars.generate_b_derivative()
+        # 2. 加载衍生后值
+        train_bars.generate_a_derivative()
+        date_range = [1, 200]
+        split = 0.8  # 先截range 再split
+        # 3. 训练
+        self._strategy.train_probability_signals(train_bars, self.ave_list, self.bband_list, date_range, split=split,
+                                                 args=None)
+
     # 回测，根据不同事件执行不同的方法
     def _run_backtest(self):
         print(self.symbol_list)
         print(self.ave_list)
         print(self.bband_list)
-        ave_list, bband_list = self.ave_list, self.bband_list
-        # 1. 加载衍生前值
-        self._data_handler.generate_b_derivative()
-        # 加载衍生后值
-        self._data_handler.generate_a_derivative()
-        # 统计倾向概率
-        self._strategy.calculate_probability_signals("event")
-        # # 2. 训练数据, 输入原始规范训练数据，待时间截断
-        # todo: 1. 改用 tushare 数据，1.1 测试接口更新数据 2. 分类板块，每个模型，时间段回测
-        train_bars = LoadCSVHandler(queue.Queue(), data_path, ["DalianRP", "ChinaBank"], ave_list, bband_list)
-        train_bars.generate_b_derivative()
-        train_bars.generate_a_derivative()
-        date_range = [1, 200]
-        split = 0.8  # 先截range 再split
-        self._strategy.train_probability_signals(train_bars, ave_list, bband_list, date_range, split=split, args=None)
-        exit(0)
-        # 3. 预测概率
-        predict_bars = LoadCSVHandler(queue.Queue(), data_path, ["SAPower"], ave_list, bband_list)
-        predict_bars.generate_b_derivative()
-        date_range = [1, 260]
-        pred_list = self._strategy.predict_probability_signals(predict_bars, ave_list, bband_list, date_range,
-                                                               args=None)
-        # print(pred_list)
-        # print(pred_list[0].shape, pred_list[1].shape)
-        # 4. 投资比例
-        # self._portfolio.components_res_base_aft()
-        # symbol_aft_retp * bband 均线 * bband 涨幅
-
         # symbol_aft_reta   bband 涨幅
         # symbol_aft_half_std_up
         # symbol_aft_half_std_down
@@ -87,19 +76,27 @@ class LoadBacktest(object):
         # symbol_aft_drawdown
         # symbol_aft_retp_high
         # symbol_aft_retp_low
-        all_holdings = self._portfolio.components_res_base_predict(predict_bars, pred_list)
+        predict_bars_json = {}
+        pred_list_json = {}
+        date_range = [1, None]
+        for i1 in self.symbol_list:
+            # 1. 预测概率
+            predict_bars = LoadCSVHandler(queue.Queue(), data_path, [i1], self.ave_list, self.bband_list)
+            predict_bars.generate_b_derivative()
+            predict_bars_json[i1] = predict_bars
+            # 2. 预测投资比例
+        pred_list_json = self._strategy.predict_probability_signals(predict_bars_json, self.ave_list, self.bband_list,
+                                                                    date_range, args=None)
+        # 3. 投资回测结果
+        all_holdings, annual_ratio = self._portfolio.components_res_base_predict(predict_bars_json, pred_list_json)
+        # 4. 绘制收益过程
         show_x, show_y = [i1["datetime"] for i1 in all_holdings], [i1["total"] for i1 in all_holdings]
         insplt = PlotTool()
         insplt.plot_line([[show_x, show_y]])
-        # print(self._portfolio.all_holdings)
-        # print(self._portfolio.all_positions)
-        # 按规则投资的变化结果
 
     # 从回测中得到策略的表现
     def _output_performance(self):
-        """
-        输出 回测的 性能结果
-        """
+        """输出 回测的 性能结果"""
         self._portfolio.create_equity_curve_dataframe()
 
         print("输出股本曲线")
@@ -115,11 +112,50 @@ class LoadBacktest(object):
 
     # 模拟回测并输出投资组合表现
     def simulate_trading(self):
-        """
-        回测 输出组合的 性能
-        """
+        """回测 输出组合的 性能"""
         self._run_backtest()
-        # self._output_performance()
+        self._output_performance()
+
+    # 模拟回测最后一天的不同情况
+    def simulate_lastday(self):
+        """回测 最后一天的不同情况"""
+        print(self.symbol_list)
+        print(self.ave_list)
+        print(self.bband_list)
+        # 显示设置
+        showconfig = {
+            "range_low": -10,
+            "range_high": 11,
+            "range_eff": 0.01,
+            "mount_low": -5,
+            "mount_high": 6,
+            "mount_eff": 1.0,
+        }
+        # symbol_aft_reta   bband 涨幅
+        # symbol_aft_half_std_up
+        # symbol_aft_half_std_down
+
+        # symbol_aft_drawup
+        # symbol_aft_drawdown
+        # symbol_aft_retp_high
+        # symbol_aft_retp_low
+        pred_list_json = {}
+        # 1. 预测概率
+        predict_bars = LoadCSVHandler(queue.Queue(), data_path, self.symbol_list, self.ave_list, self.bband_list)
+        predict_bars.generate_b_derivative()
+        # 2. 预测投资比例
+        pred_list_json = self._strategy.predict_fake_proba_signals(predict_bars, self.ave_list, self.bband_list,
+                                                                   showconfig, args=None)
+        # 3. 虚拟价格的操作空间
+        fake_gain, fake_f_ratio = self._portfolio.components_res_fake_predict(predict_bars, pred_list_json)
+        # 4. 绘制收益过程
+        insplt = PlotTool()
+        for symbol in self.symbol_list:
+            avestr = ",".join([str(i2) for i2 in self.bband_list])
+            titie_str = "gain ave {}".format(avestr)
+            insplt.plot_dim3(fake_gain[symbol], titie_str, **showconfig)
+            titie_str = "f_ratio ave {}".format(avestr)
+            insplt.plot_dim3(fake_f_ratio[symbol], titie_str, **showconfig)
 
 
 # 这个类进行驱动回测设置与组成

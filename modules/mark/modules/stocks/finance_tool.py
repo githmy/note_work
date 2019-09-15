@@ -130,6 +130,38 @@ class ElementTool(object):
         pre_down_BBand_std = pd.Series(None, index=tsPrice.index)
         for i in range(period, len(tsPrice) + 1):
             tmp_peri = tsPrice[i - period:i] / tsPrice[i - period + 1]
+            # pre_down_BBand_std = pd.Series(None, index=range(len(tsPrice.index)))
+            # for i in range(period - 1, len(tsPrice)):
+            # tmp_peri = tsPrice.values[i - period:i] / tsPrice.values[i - period + 1]
+            # 半方差的大小
+            pre_up_BBand_std[i] = cal_up_half_dev(tmp_peri)
+            pre_down_BBand_std[i] = cal_down_half_dev(tmp_peri)
+        return pre_up_BBand_std, pre_down_BBand_std
+
+    # 预涨跌std 周期区段内 相对于区段的第1日 (类似布林带)
+    def general_pre_up_down_std(self, tsPrice, period=20):
+        # 半方差公式 只算下降的
+        def cal_up_half_dev(relative_value):
+            tmp = relative_value[relative_value > 1.0]
+            if len(tmp) > 0:
+                half_pre_up_std = (sum((tmp - 1.0) ** 2) / len(tmp)) ** 0.5
+            else:
+                half_pre_up_std = None
+            return half_pre_up_std
+
+        def cal_down_half_dev(relative_value):
+            tmp = relative_value[relative_value <= 1.0]
+            if len(tmp) > 0:
+                half_pre_down_std = (sum((1.0 - tmp) ** 2) / len(tmp)) ** 0.5
+            else:
+                half_pre_down_std = None
+            return half_pre_down_std
+
+        # 初始值不可能为空
+        pre_up_BBand_std = pd.Series(None, index=range(len(tsPrice.index)))
+        pre_down_BBand_std = pd.Series(None, index=range(len(tsPrice.index)))
+        for i in range(period - 1, len(tsPrice)):
+            tmp_peri = tsPrice.values[i - period + 1:i + 1] / tsPrice.values[i - period + 1]
             # 半方差的大小
             pre_up_BBand_std[i] = cal_up_half_dev(tmp_peri)
             pre_down_BBand_std[i] = cal_down_half_dev(tmp_peri)

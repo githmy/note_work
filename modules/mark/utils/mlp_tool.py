@@ -6,18 +6,16 @@ from __future__ import absolute_import
 
 import pandas as pd
 import os, math
-import numpy as np
 import tushare as ts
 import matplotlib as mpl
-import matplotlib.pyplot as plt
 import seaborn as sns
 # from mpl_finance import candlestick_ohlc
 from matplotlib.dates import DateFormatter, WeekdayLocator, DayLocator, MONDAY, date2num, datestr2num
 from datetime import datetime
-# ! pip install statsmodels
 import statsmodels as stats
-
-# %matplotlib
+from mpl_toolkits.mplot3d import Axes3D
+import matplotlib.pyplot as plt
+import numpy as np
 
 mpl.rcParams[u'font.sans-serif'] = u'SimHei'
 mpl.rcParams[u'axes.unicode_minus'] = False
@@ -28,7 +26,7 @@ data_path_res = os.path.join(data_pa, "res")
 
 
 class PlotTool(object):
-    def plot_line(self, ts):
+    def plot_line(self, ts, titie_str):
         plt.figure()
         plt.grid()
         listlen = len(ts)
@@ -36,7 +34,28 @@ class PlotTool(object):
         for id1 in range(listlen):
             plt.plot(ts[id1][0], ts[id1][1], color=colorbar[id1], label='Original_{}'.format(id1))
         plt.legend(loc='best')
-        plt.title('Mean & Standard Deviation')
+        plt.title(titie_str)
+        plt.show()
+
+    def plot_dim3(self, ts, titie_str, range_low=-10, range_high=11, range_eff=0.01, mount_low=-10, mount_high=11,
+                  mount_eff=0.01):
+        listlen = len(ts)
+        dimx = range_high - range_low
+        dimy = mount_high - mount_low
+        x = np.arange(range_low, range_high, 1)
+        x = 1 + x * range_eff
+        y = np.arange(mount_low, mount_high, 1)
+        y = 1 + y * mount_eff
+
+        x, y = np.meshgrid(y, x)
+        z = []
+        for i1 in range(listlen):
+            z.append(ts[i1].reshape(dimx, dimy))
+        fig = plt.figure()
+        ax = Axes3D(fig)
+        for i1 in range(listlen):
+            ax.plot_surface(x, y, z[i1], rstride=1, cstride=1, cmap=plt.get_cmap('rainbow'))
+        plt.title(titie_str)
         plt.show()
 
     def plot_line_ideal(self, ts):

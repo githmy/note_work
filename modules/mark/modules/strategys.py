@@ -431,19 +431,39 @@ class MlaStrategy(strategy.BacktestingStrategy):
             xlen_slist = len(ave_list)
             for single_chara in range(xlen_slist):
                 xchara_list.append(
-                    predict_bars.symbol_pre_half_std_up[s][single_chara][data_range[0] - 1:data_range[1]])
+                    predict_bars.symbol_pre_half_std_up[s][single_chara].values[data_range[0] - 1:data_range[1]])
                 xchara_list.append(
-                    predict_bars.symbol_pre_half_std_down[s][single_chara][data_range[0] - 1:data_range[1]])
+                    predict_bars.symbol_pre_half_std_down[s][single_chara].values[data_range[0] - 1:data_range[1]])
                 for single2_chara in range(xlen_slist):
                     xchara_list.append(
-                        predict_bars.symbol_pre_retp[s][single_chara][single2_chara][data_range[0] - 1:data_range[1]])
+                        predict_bars.symbol_pre_retp[s][single_chara][single2_chara].values[
+                        data_range[0] - 1:data_range[1]])
                     xchara_list.append(
-                        predict_bars.symbol_pre_retm[s][single_chara][single2_chara][data_range[0] - 1:data_range[1]])
+                        predict_bars.symbol_pre_retm[s][single_chara][single2_chara].values[
+                        data_range[0] - 1:data_range[1]])
             # 2. 删除无效行
             tmp_xnp = np.vstack(xchara_list)
             tmp_xnp = np.transpose(tmp_xnp)
             mult_charactx.append(tmp_xnp)
         all_xnp = np.vstack(mult_charactx)
+        # 3. 处理nan inf
+        all_xnp[:, :][np.isnan(all_xnp[:, :])] = 0
+        all_xnp[:, :][np.isinf(all_xnp[:, :])] = 0
+        return all_xnp
+
+    def _prepare_fake_pred_data(self, one_fake_data, ave_list):
+        # 1. 加载标签数据
+        xchara_list = []
+        xlen_slist = len(ave_list)
+        for single_chara in range(xlen_slist):
+            xchara_list.append(one_fake_data["pre_half_std_up"][single_chara])
+            xchara_list.append(one_fake_data["pre_half_std_down"][single_chara])
+            for single2_chara in range(xlen_slist):
+                xchara_list.append(one_fake_data["pre_retp"][single_chara][single2_chara])
+                xchara_list.append(one_fake_data["pre_retm"][single_chara][single2_chara])
+                # 2. 删除无效行
+        all_xnp = np.vstack(xchara_list)
+        all_xnp = np.transpose(all_xnp)
         # 3. 处理nan inf
         all_xnp[:, :][np.isnan(all_xnp[:, :])] = 0
         all_xnp[:, :][np.isinf(all_xnp[:, :])] = 0
@@ -468,8 +488,6 @@ class MlaStrategy(strategy.BacktestingStrategy):
         # self.symbol_aft_drawdown
         # self.symbol_aft_retp_high
         # self.symbol_aft_retp_low
-
-        # self.symbol_aft_retp
         # 2. 生产数据 随机打乱，分成batch
         inputs_t, targets_base_t, targets_much_t, inputs_v, targets_base_v, targets_much_v = self._prepare_train_data(
             train_bars, ave_list, bband_list, date_range, split)
@@ -479,21 +497,38 @@ class MlaStrategy(strategy.BacktestingStrategy):
         self.trainconfig["outretdim"], self.trainconfig["outstddim"] = targets_base_t.shape[1], targets_much_t.shape[1]
         modelcrnn = CRNN(ave_list, bband_list, config=self.trainconfig)
         modelcrnn.buildModel()
-        # modelcrnn.getModel()
         batch_size, num_epochs = 32, 100000
         globalstep = modelcrnn.batch_train(inputs_t, targets_base_t, targets_much_t, inputs_v, targets_base_v,
                                            targets_much_v, batch_size, num_epochs)
 
-    def predict_probability_signals(self, predict_bars, ave_list, bband_list, date_range, args=None):
-        """
-        预测
-        """
+    def predict_probability_signals(self, predict_bars_json, ave_list, bband_list, date_range, args=None):
+        """预测"""
         # 1. 输入参数
         self._prepare_train_para(args)
         # 2. 生产数据
-        inputs_t = self._prepare_predict_data(predict_bars, ave_list, date_range)
         self.trainconfig["dropout"] = 1.0
         modelcrnn = CRNN(ave_list, bband_list, config=self.trainconfig)
         modelcrnn.buildModel()
-        pred_list = modelcrnn.predict(inputs_t)
-        return pred_list
+        # 3. 预测结果
+        pred_list_json = {}
+        for symbol in predict_bars_json:
+            inputs_t = self._prepare_predict_data(predict_bars_json[symbol], ave_list, date_range)
+            pred_list_json[symbol] = modelcrnn.predict(inputs_t)
+        return pred_list_json
+
+    def predict_fake_proba_signals(self, predict_bars, ave_list, bband_list, showconfig, args=None):
+        """预测"""
+        # 1. 输入参数
+        self._prepare_train_para(args)
+        # 2. 生产数据
+        self.trainconfig["dropout"] = 1.0
+        modelcrnn = CRNN(ave_list, bband_list, config=self.trainconfig)
+        modelcrnn.buildModel()
+        # 3. 预测结果
+        pred_list_json = {}
+        fake_data = predict_bars.generate_lastspace(**showconfig)
+        # fake_data = predict_bars.generate_lastspace(range_low=-10, range_high=11, range_eff=0.01)
+        for symbol in self.symbol_list:
+            inputs_t = self._prepare_fake_pred_data(fake_data[symbol], ave_list)
+            pred_list_json[symbol] = modelcrnn.predict(inputs_t)
+        return pred_list_json
