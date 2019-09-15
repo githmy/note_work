@@ -17,6 +17,7 @@
     "outspace": 3
   },
   "model": {
+    "retrain": 1,
     "globalstep": 0,
     "dropout": 0.8,
     "modelname": "cnn_dense",

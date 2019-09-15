@@ -8,6 +8,9 @@ from utils.mlp_tool import PlotTool
 from modules.datahandle import LoadCSVHandler
 
 
+# import numpy as np
+
+
 class LoadBacktest(object):
     def __init__(self, initial_capital, heartbeat, start_date,
                  csv_dir, symbol_list, ave_list, bband_list,
@@ -32,6 +35,9 @@ class LoadBacktest(object):
         self.fills = 0
         self.num_strats = 1
         self._generate_trading_instances()
+        print(self.symbol_list)
+        print(self.ave_list)
+        print(self.bband_list)
 
     # 各种实例生成
     def _generate_trading_instances(self):
@@ -47,17 +53,27 @@ class LoadBacktest(object):
                                              self.ave_list, self.bband_list, self.initial_capital)
 
     def train(self):
-        print(self.symbol_list)
-        print(self.ave_list)
-        print(self.bband_list)
+        # self.symbol_pre_half_std_up
+        # self.symbol_pre_half_std_down
+        # self.symbol_pre_retp
+        # self.symbol_pre_retm
+
+        # self.symbol_aft_reta
+        # self.symbol_aft_half_std_up
+        # self.symbol_aft_half_std_down
+
+        # self.symbol_aft_drawup
+        # self.symbol_aft_drawdown
+        # self.symbol_aft_retp_high
+        # self.symbol_aft_retp_low
         # 1. 训练数据, 输入原始规范训练数据，待时间截断
-        # todo: 1. 改用 tushare 数据，1.1 测试接口更新数据 2. 分类板块，每个模型，时间段回测
+        # todo: 1. 测试接口更新数据 2. 分类板块，每个模型，时间段回测, 3. 改用 tushare 数据，4. 按时间拆分测试集
         train_bars = LoadCSVHandler(queue.Queue(), data_path, self.symbol_list, self.ave_list, self.bband_list)
         # 2. 加载衍生前值
         train_bars.generate_b_derivative()
         # 2. 加载衍生后值
         train_bars.generate_a_derivative()
-        date_range = [1, 200]
+        date_range = [1, None]
         split = 0.8  # 先截range 再split
         # 3. 训练
         self._strategy.train_probability_signals(train_bars, self.ave_list, self.bband_list, date_range, split=split,
@@ -65,17 +81,13 @@ class LoadBacktest(object):
 
     # 回测，根据不同事件执行不同的方法
     def _run_backtest(self):
-        print(self.symbol_list)
-        print(self.ave_list)
-        print(self.bband_list)
-        # symbol_aft_reta   bband 涨幅
-        # symbol_aft_half_std_up
-        # symbol_aft_half_std_down
-
-        # symbol_aft_drawup
-        # symbol_aft_drawdown
-        # symbol_aft_retp_high
-        # symbol_aft_retp_low
+        para_config = {
+            "hand_unit": 100,
+            "initial_capital": 10000.0,
+            "stamp_tax_in": 0.0002,
+            "stamp_tax_out": 0.0002,
+            "commission": 5,
+        }
         predict_bars_json = {}
         pred_list_json = {}
         date_range = [1, None]
@@ -88,11 +100,13 @@ class LoadBacktest(object):
         pred_list_json = self._strategy.predict_probability_signals(predict_bars_json, self.ave_list, self.bband_list,
                                                                     date_range, args=None)
         # 3. 投资回测结果
-        all_holdings, annual_ratio = self._portfolio.components_res_base_predict(predict_bars_json, pred_list_json)
+        all_holdings, annual_ratio = self._portfolio.components_res_base_predict(predict_bars_json, pred_list_json,
+                                                                                 para_config)
         # 4. 绘制收益过程
         show_x, show_y = [i1["datetime"] for i1 in all_holdings], [i1["total"] for i1 in all_holdings]
         insplt = PlotTool()
-        insplt.plot_line([[show_x, show_y]])
+        titie_str = "gain curve "
+        insplt.plot_line([[show_x, show_y]], titie_str)
 
     # 从回测中得到策略的表现
     def _output_performance(self):
@@ -117,45 +131,28 @@ class LoadBacktest(object):
         self._output_performance()
 
     # 模拟回测最后一天的不同情况
-    def simulate_lastday(self):
+    def simulate_lastday(self, para_config, showconfig):
         """回测 最后一天的不同情况"""
-        print(self.symbol_list)
-        print(self.ave_list)
-        print(self.bband_list)
-        # 显示设置
-        showconfig = {
-            "range_low": -10,
-            "range_high": 11,
-            "range_eff": 0.01,
-            "mount_low": -5,
-            "mount_high": 6,
-            "mount_eff": 1.0,
-        }
-        # symbol_aft_reta   bband 涨幅
-        # symbol_aft_half_std_up
-        # symbol_aft_half_std_down
-
-        # symbol_aft_drawup
-        # symbol_aft_drawdown
-        # symbol_aft_retp_high
-        # symbol_aft_retp_low
         pred_list_json = {}
         # 1. 预测概率
         predict_bars = LoadCSVHandler(queue.Queue(), data_path, self.symbol_list, self.ave_list, self.bband_list)
         predict_bars.generate_b_derivative()
         # 2. 预测投资比例
-        pred_list_json = self._strategy.predict_fake_proba_signals(predict_bars, self.ave_list, self.bband_list,
-                                                                   showconfig, args=None)
+        pred_list_json, fake_ori = self._strategy.predict_fake_proba_signals(predict_bars, self.ave_list,
+                                                                             self.bband_list, showconfig, args=None)
         # 3. 虚拟价格的操作空间
-        fake_gain, fake_f_ratio = self._portfolio.components_res_fake_predict(predict_bars, pred_list_json)
+        fake_gain, fake_f_ratio, fake_mount = self._portfolio.components_res_fake_predict(predict_bars, pred_list_json,
+                                                                                          fake_ori, para_config)
         # 4. 绘制收益过程
         insplt = PlotTool()
         for symbol in self.symbol_list:
             avestr = ",".join([str(i2) for i2 in self.bband_list])
-            titie_str = "gain ave {}".format(avestr)
+            titie_str = "gain {} ave {}".format(symbol, avestr)
             insplt.plot_dim3(fake_gain[symbol], titie_str, **showconfig)
-            titie_str = "f_ratio ave {}".format(avestr)
+            titie_str = "f_ratio {} ave {}".format(symbol, avestr)
             insplt.plot_dim3(fake_f_ratio[symbol], titie_str, **showconfig)
+            titie_str = "keep_mount {} ave {}".format(symbol, avestr)
+            insplt.plot_dim3([fake_mount[symbol]], titie_str, **showconfig)
 
 
 # 这个类进行驱动回测设置与组成

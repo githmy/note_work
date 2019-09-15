@@ -285,7 +285,7 @@ class MlaStrategy(strategy.BacktestingStrategy):
                 self.bars.f_ratio[s].append(wm)
                 self.bars.gain[s].append(self.toolins.kari_fix_normal_g(p, q, fw, fl, self.system_risk, wm))
 
-    def _prepare_train_para(self, args=None):
+    def _prepare_model_para(self, args=None):
         # 2. 模型参数赋值
         config = {}
         parafile = os.path.join("config", "para.json")
@@ -330,6 +330,7 @@ class MlaStrategy(strategy.BacktestingStrategy):
         config["outspace"] = hpara["env"]["outspace"]
         config["single_num"] = hpara["env"]["single_num"]
         config["modelfile"] = hpara["model"]["file"]
+        config["retrain"] = hpara["model"]["retrain"]
         print()
         print("**********************************************************")
         print("parafile:", parafile)
@@ -376,9 +377,6 @@ class MlaStrategy(strategy.BacktestingStrategy):
                     train_bars.symbol_aft_retp_high[s][single_chara][data_range[0] - 1:data_range[1]])
                 ychara_much_list.append(
                     train_bars.symbol_aft_retp_low[s][single_chara][data_range[0] - 1:data_range[1]])
-                # for single2_chara in range(ylen_slist):
-                #     ychara_ret_list.append(
-                #         train_bars.symbol_aft_retp[s][single_chara][single2_chara][data_range[0] - 1:data_range[1]])
             tmp_ynp_base = np.vstack(ychara_base_list)
             tmp_ynp_much = np.vstack(ychara_much_list)
             # 2. 删除无效行
@@ -421,6 +419,124 @@ class MlaStrategy(strategy.BacktestingStrategy):
         mult_validy_base[:, :][np.isnan(mult_validy_base[:, :])] = 0
         mult_validy_base[:, :][np.isinf(mult_validy_base[:, :])] = 0
         return mult_trainx, mult_trainy_base, mult_trainy_much, mult_validx, mult_validy_base, mult_validy_much
+
+    def _prepare_newtrain_data(self, train_bars, ave_list, bband_list, data_range, split=0.8):
+        mult_charact_trainx = []
+        mult_charact_trainy_base = []
+        mult_charact_trainy_much = []
+        mult_charact_validx = []
+        mult_charact_validy_base = []
+        mult_charact_validy_much = []
+        symbol_list = list(train_bars.symbol_pre_half_std_up.keys())
+        totallenth = len(train_bars.symbol_ori_data[symbol_list[0]]["close"])
+        mid_lenth = max(bband_list[-1] - 1, ave_list[-1])
+        trainpre_pos = max(data_range[0] if data_range[0] is not None else 0, ave_list[-1] - 1)
+        validaft_lenth = max(data_range[1] if data_range[1] is not None else 0, bband_list[-1])
+        usefull_lenth = totallenth - trainpre_pos - validaft_lenth - mid_lenth
+        trainaft_pos = int(usefull_lenth * split) + trainpre_pos
+        validpre_pos = trainpre_pos + int(usefull_lenth * split) + mid_lenth
+        validaft_pos = trainpre_pos + usefull_lenth + mid_lenth
+        print("total length: {} train range:{}-{}. valid range:{}-{}.".format(totallenth, trainpre_pos, trainaft_pos,
+                                                                              validpre_pos, validaft_pos))
+        for s in symbol_list:
+            # 1. 加载标签数据
+            xchara_trainlist = []
+            xchara_validlist = []
+            xlen_slist = len(ave_list)
+            for single_chara in range(xlen_slist):
+                xchara_trainlist.append(train_bars.symbol_pre_half_std_up[s][single_chara][trainpre_pos:trainaft_pos])
+                xchara_trainlist.append(train_bars.symbol_pre_half_std_down[s][single_chara][trainpre_pos:trainaft_pos])
+                xchara_validlist.append(train_bars.symbol_pre_half_std_up[s][single_chara][validpre_pos:validaft_pos])
+                xchara_validlist.append(train_bars.symbol_pre_half_std_down[s][single_chara][validpre_pos:validaft_pos])
+                for single2_chara in range(xlen_slist):
+                    xchara_trainlist.append(
+                        train_bars.symbol_pre_retp[s][single_chara][single2_chara][trainpre_pos:trainaft_pos])
+                    xchara_trainlist.append(
+                        train_bars.symbol_pre_retm[s][single_chara][single2_chara][trainpre_pos:trainaft_pos])
+                    xchara_validlist.append(
+                        train_bars.symbol_pre_retp[s][single_chara][single2_chara][validpre_pos:validaft_pos])
+                    xchara_validlist.append(
+                        train_bars.symbol_pre_retm[s][single_chara][single2_chara][validpre_pos:validaft_pos])
+            tmp_xtrainnp = np.vstack(xchara_trainlist)
+            tmp_xvalidnp = np.vstack(xchara_validlist)
+            ychara_base_trainlist = []
+            ychara_much_trainlist = []
+            ychara_base_validlist = []
+            ychara_much_validlist = []
+            ylen_slist = len(bband_list)
+            for single_chara in range(ylen_slist):
+                ychara_base_trainlist.append(train_bars.symbol_aft_reta[s][single_chara][trainpre_pos:trainaft_pos])
+                ychara_base_trainlist.append(
+                    train_bars.symbol_aft_half_std_up[s][single_chara][trainpre_pos:trainaft_pos])
+                ychara_base_trainlist.append(
+                    train_bars.symbol_aft_half_std_down[s][single_chara][trainpre_pos:trainaft_pos])
+                ychara_much_trainlist.append(train_bars.symbol_aft_drawup[s][single_chara][trainpre_pos:trainaft_pos])
+                ychara_much_trainlist.append(train_bars.symbol_aft_drawdown[s][single_chara][trainpre_pos:trainaft_pos])
+                ychara_much_trainlist.append(
+                    train_bars.symbol_aft_retp_high[s][single_chara][trainpre_pos:trainaft_pos])
+                ychara_much_trainlist.append(train_bars.symbol_aft_retp_low[s][single_chara][trainpre_pos:trainaft_pos])
+                ychara_base_validlist.append(train_bars.symbol_aft_reta[s][single_chara][validpre_pos:validaft_pos])
+                ychara_base_validlist.append(
+                    train_bars.symbol_aft_half_std_up[s][single_chara][validpre_pos:validaft_pos])
+                ychara_base_validlist.append(
+                    train_bars.symbol_aft_half_std_down[s][single_chara][validpre_pos:validaft_pos])
+                ychara_much_validlist.append(train_bars.symbol_aft_drawup[s][single_chara][validpre_pos:validaft_pos])
+                ychara_much_validlist.append(train_bars.symbol_aft_drawdown[s][single_chara][validpre_pos:validaft_pos])
+                ychara_much_validlist.append(
+                    train_bars.symbol_aft_retp_high[s][single_chara][validpre_pos:validaft_pos])
+                ychara_much_validlist.append(train_bars.symbol_aft_retp_low[s][single_chara][validpre_pos:validaft_pos])
+            tmp_ytrainnp_base = np.vstack(ychara_base_trainlist)
+            tmp_ytrainnp_much = np.vstack(ychara_much_trainlist)
+            tmp_yvalidnp_base = np.vstack(ychara_base_validlist)
+            tmp_yvalidnp_much = np.vstack(ychara_much_validlist)
+            # # 2. 删除无效行
+            # delpresig = np.isnan(xchara_list[-1])
+            # # print(delpresig[~delpresig])
+            # delaftsig = np.isnan(ychara_base_list[-1])
+            # # print(delaftsig[~delaftsig])
+            # delpreaftsig = np.logical_or(delpresig, delaftsig)
+            tmp_xtrainnp = np.transpose(tmp_xtrainnp)
+            # tmp_xnp = tmp_xnp[~delpreaftsig]
+            tmp_ytrainnp_base = np.transpose(tmp_ytrainnp_base)
+            # tmp_ynp_base = tmp_ynp_base[~delpreaftsig]
+            tmp_ytrainnp_much = np.transpose(tmp_ytrainnp_much)
+            # tmp_ynp_much = tmp_ynp_much[~delpreaftsig]
+            tmp_xvalidnp = np.transpose(tmp_xvalidnp)
+            # tmp_xnp = tmp_xnp[~delpreaftsig]
+            tmp_yvalidnp_base = np.transpose(tmp_yvalidnp_base)
+            # tmp_ynp_base = tmp_ynp_base[~delpreaftsig]
+            tmp_yvalidnp_much = np.transpose(tmp_yvalidnp_much)
+            # tmp_ynp_much = tmp_ynp_much[~delpreaftsig]
+            mult_charact_trainx.append(tmp_xtrainnp)
+            mult_charact_trainy_base.append(tmp_ytrainnp_base)
+            mult_charact_trainy_much.append(tmp_ytrainnp_much)
+            mult_charact_validx.append(tmp_xvalidnp)
+            mult_charact_validy_base.append(tmp_yvalidnp_base)
+            mult_charact_validy_much.append(tmp_yvalidnp_much)
+        all_ytrainnp_base = np.vstack(mult_charact_trainy_base)
+        all_ytrainnp_much = np.vstack(mult_charact_trainy_much)
+        all_xtrainnp = np.vstack(mult_charact_trainx)
+        all_yvalidnp_base = np.vstack(mult_charact_validy_base)
+        all_yvalidnp_much = np.vstack(mult_charact_validy_much)
+        all_xvalidnp = np.vstack(mult_charact_validx)
+        # 4. 处理nan inf
+        all_xtrainnp[:, :][np.isnan(all_xtrainnp[:, :])] = 0
+        all_xtrainnp[:, :][np.isinf(all_xtrainnp[:, :])] = 0
+        all_ytrainnp_base[:, :][np.isnan(all_ytrainnp_base[:, :])] = 0
+        all_ytrainnp_base[:, :][np.isinf(all_ytrainnp_base[:, :])] = 0
+        all_ytrainnp_much[:, :][np.isnan(all_ytrainnp_much[:, :])] = 0
+        all_ytrainnp_much[:, :][np.isinf(all_ytrainnp_much[:, :])] = 0
+        all_xvalidnp[:, :][np.isnan(all_xvalidnp[:, :])] = 0
+        all_xvalidnp[:, :][np.isinf(all_xvalidnp[:, :])] = 0
+        all_yvalidnp_base[:, :][np.isnan(all_yvalidnp_base[:, :])] = 0
+        all_yvalidnp_base[:, :][np.isinf(all_yvalidnp_base[:, :])] = 0
+        all_yvalidnp_much[:, :][np.isnan(all_yvalidnp_much[:, :])] = 0
+        all_yvalidnp_much[:, :][np.isinf(all_yvalidnp_much[:, :])] = 0
+        # print(all_xtrainnp, all_ytrainnp_base, all_ytrainnp_much, all_xvalidnp, all_yvalidnp_base, all_yvalidnp_much)
+        # print(all_xtrainnp.shape, all_ytrainnp_base.shape, all_ytrainnp_much.shape, all_xvalidnp.shape,
+        #       all_yvalidnp_base.shape, all_yvalidnp_much.shape)
+        # exit()
+        return all_xtrainnp, all_ytrainnp_base, all_ytrainnp_much, all_xvalidnp, all_yvalidnp_base, all_yvalidnp_much
 
     def _prepare_predict_data(self, predict_bars, ave_list, data_range):
         mult_charactx = []
@@ -470,26 +586,13 @@ class MlaStrategy(strategy.BacktestingStrategy):
         return all_xnp
 
     def train_probability_signals(self, train_bars, ave_list, bband_list, date_range, split=0.8, args=None):
-        """
-        训练
-        """
+        """训练"""
         # 1. 输入参数
-        self._prepare_train_para(args)
-        # self.symbol_pre_half_std_up
-        # self.symbol_pre_half_std_down
-        # self.symbol_pre_retp
-        # self.symbol_pre_retm
-
-        # self.symbol_aft_reta
-        # self.symbol_aft_half_std_up
-        # self.symbol_aft_half_std_down
-
-        # self.symbol_aft_drawup
-        # self.symbol_aft_drawdown
-        # self.symbol_aft_retp_high
-        # self.symbol_aft_retp_low
+        self._prepare_model_para(args)
         # 2. 生产数据 随机打乱，分成batch
-        inputs_t, targets_base_t, targets_much_t, inputs_v, targets_base_v, targets_much_v = self._prepare_train_data(
+
+        # inputs_t, targets_base_t, targets_much_t, inputs_v, targets_base_v, targets_much_v = self._prepare_train_data(
+        inputs_t, targets_base_t, targets_much_t, inputs_v, targets_base_v, targets_much_v = self._prepare_newtrain_data(
             train_bars, ave_list, bband_list, date_range, split)
         # 3. 训练
         print(targets_base_t, targets_much_t)
@@ -504,7 +607,7 @@ class MlaStrategy(strategy.BacktestingStrategy):
     def predict_probability_signals(self, predict_bars_json, ave_list, bband_list, date_range, args=None):
         """预测"""
         # 1. 输入参数
-        self._prepare_train_para(args)
+        self._prepare_model_para(args)
         # 2. 生产数据
         self.trainconfig["dropout"] = 1.0
         modelcrnn = CRNN(ave_list, bband_list, config=self.trainconfig)
@@ -519,16 +622,15 @@ class MlaStrategy(strategy.BacktestingStrategy):
     def predict_fake_proba_signals(self, predict_bars, ave_list, bband_list, showconfig, args=None):
         """预测"""
         # 1. 输入参数
-        self._prepare_train_para(args)
+        self._prepare_model_para(args)
         # 2. 生产数据
         self.trainconfig["dropout"] = 1.0
         modelcrnn = CRNN(ave_list, bband_list, config=self.trainconfig)
         modelcrnn.buildModel()
         # 3. 预测结果
         pred_list_json = {}
-        fake_data = predict_bars.generate_lastspace(**showconfig)
-        # fake_data = predict_bars.generate_lastspace(range_low=-10, range_high=11, range_eff=0.01)
+        fake_data, fake_ori = predict_bars.generate_lastspace(**showconfig)
         for symbol in self.symbol_list:
             inputs_t = self._prepare_fake_pred_data(fake_data[symbol], ave_list)
             pred_list_json[symbol] = modelcrnn.predict(inputs_t)
-        return pred_list_json
+        return pred_list_json, fake_ori

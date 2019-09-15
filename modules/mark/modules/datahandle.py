@@ -371,13 +371,6 @@ class LoadCSVHandler(object):
                 tmpup, tmpdown = self.tool_ins.pre_up_down_std(self.symbol_ori_data[s]["close"], aven)
                 self.symbol_aft_half_std_up[s].append(tmpup.shift(-aven + 1))
                 self.symbol_aft_half_std_down[s].append(tmpdown.shift(-aven + 1))
-                # # 涨幅
-                # self.symbol_aft_retp[s].append([])
-                # # 待求涨幅值
-                # for avem in self.bband_list:
-                #     self.symbol_aft_retp[s][-1].append(
-                #         self.tool_ins.rise_n(self.tool_ins.smaCal(self.symbol_ori_data[s]["close"], aven), avem).shift(
-                #             -avem + 1))
 
     # 生成最后一日的空间 前一日的[-0.1~0.1]
     def generate_lastspace(self, range_low=-10, range_high=11, range_eff=0.01, mount_low=-10, mount_high=11,
@@ -385,6 +378,7 @@ class LoadCSVHandler(object):
         # 1. 如果超前日期不足以生成明日的特征，raise
         # 2. 生产横轴为价位，纵轴为标的和操作比率数量
         data_obj = {}
+        data_ori = {}
         symfack_pre_avep = {}
         symfack_pre_avem = {}
         symfack_pre_half_std_up = {}
@@ -399,20 +393,23 @@ class LoadCSVHandler(object):
             symfack_pre_half_std_down[s] = []
             symfack_pre_retp[s] = []
             symfack_pre_retm[s] = []
+            tmp_ori = []
             for aven in self.ave_list:
                 # 临时均线数据
                 tmp_pre_avep = []
                 tmp_pre_avem = []
                 tmp_up = []
                 tmp_down = []
+                tmp_ori = []
                 for lastret in range(range_low, range_high):
                     for lastmount in range(mount_low, mount_high):
                         tmpclose = self.symbol_ori_data[s]["close"][-self.ave_list[-1] - 1:]
                         tmp_x = tmpclose.values[-2] * (1 + lastret * range_eff)
                         tmpclose.values[-1] = tmp_x
+                        tmp_ori.append(tmp_x)
                         tmpvolume = self.symbol_ori_data[s]["volume"][-self.ave_list[-1] - 1:]
-                        tmp_m = tmpvolume.values[-2] * (1 + lastmount * mount_eff)
-                        tmpvolume.values[-1] = tmp_m
+                        tmp_em = lastmount * mount_eff if lastmount < 0 else lastmount
+                        tmpvolume.values[-1] = (1 + tmp_em) * tmpvolume.values[-2]
                         tmp_pre_avep.append(self.tool_ins.smaCal(tmpclose, aven))
                         tmp_pre_avem.append(self.tool_ins.smaCal(tmpvolume, aven))
                         tmpup, tmpdown = self.tool_ins.general_pre_up_down_std(tmpclose, aven)
@@ -443,4 +440,5 @@ class LoadCSVHandler(object):
                 "pre_retp": symfack_pre_retp[s],
                 "pre_retm": symfack_pre_retm[s],
             }
-        return data_obj
+            data_ori[s] = np.array(tmp_ori)
+        return data_obj, data_ori

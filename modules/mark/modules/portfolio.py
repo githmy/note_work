@@ -305,15 +305,8 @@ class Portfolio(object):
                 self.all_holdings[id1]["datetime"]])
             # return self.all_holdings
 
-    def components_res_base_predict(self, predict_bars_json, pred_list_json):
+    def components_res_base_predict(self, predict_bars_json, pred_list_json, para_config):
         # 1. 参数初始化
-        para_config = {
-            "hand_unit": 100,
-            "initial_capital": 10000.0,
-            "stamp_tax_in": 0.0002,
-            "stamp_tax_out": 0.0002,
-            "commission": 5,
-        }
         f_ratio_json = {}
         gain_json = {}
         for symbols in self.symbol_list:
@@ -329,17 +322,11 @@ class Portfolio(object):
         all_holdings, annual_ratio = self.simu_gains_history(para_config, predict_bars_json, target_list, f_ratio_json)
         return all_holdings, annual_ratio
 
-    def components_res_fake_predict(self, predict_bars, pred_list_json):
+    def components_res_fake_predict(self, predict_bars, pred_list_json, fake_ori, para_config):
         # 1. 参数初始化
-        para_config = {
-            "hand_unit": 100,
-            "initial_capital": 10000.0,
-            "stamp_tax_in": 0.0002,
-            "stamp_tax_out": 0.0002,
-            "commission": 5,
-        }
-        f_ratio_json = {}
         gain_json = {}
+        f_ratio_json = {}
+        mount_json = {}
         for symbols in self.symbol_list:
             pred_list = pred_list_json[symbols]
             # 2. 计算各种概率和收益列表
@@ -347,7 +334,11 @@ class Portfolio(object):
             # f_ratio 必然大于零
             f_ratio_json[symbols] = f_ratio
             gain_json[symbols] = gain
-        return gain_json, f_ratio_json
+            tmp_mount = []
+            for i1 in fake_ori[symbols]:
+                tmp_mount.append(para_config["initial_capital"] / para_config["hand_unit"] // i1)
+            mount_json[symbols] = np.array(tmp_mount)
+        return gain_json, f_ratio_json, mount_json
 
     def calcu_fee(self, commission, stamp_in, stamp_out, mount_in, mount_out, price_c, hand_unit):
         costs = commission + (stamp_in * mount_in + stamp_out * mount_out) * price_c * hand_unit

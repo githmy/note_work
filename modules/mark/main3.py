@@ -70,7 +70,31 @@ class Acount(object):
         elif self.func_type == "backtest":
             backtest.simulate_trading()
         elif self.func_type == "lastday":
-            backtest.simulate_lastday()
+            para_config = {
+                "hand_unit": 100,
+                "initial_capital": 10000.0,
+                "stamp_tax_in": 0.0002,
+                "stamp_tax_out": 0.0002,
+                "commission": 5,
+            }
+            # fake_data显示设置
+            showconfig = {
+                "range_low": -10,
+                "range_high": 11,
+                "range_eff": 0.01,
+                "mount_low": -4,
+                "mount_high": 6,
+                "mount_eff": 0.2,
+            }
+            # showconfig = {
+            #     "range_low": -3,
+            #     "range_high": 4,
+            #     "range_eff": 0.01,
+            #     "mount_low": -1,
+            #     "mount_high": 2,
+            #     "mount_eff": 0.5,
+            # }
+            backtest.simulate_lastday(para_config, showconfig)
         else:
             raise Exception("func_type 只能是 train, backtest, lastday")
 

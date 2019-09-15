@@ -16,6 +16,7 @@ import statsmodels as stats
 from mpl_toolkits.mplot3d import Axes3D
 import matplotlib.pyplot as plt
 import numpy as np
+from utils.log_tool import *
 
 mpl.rcParams[u'font.sans-serif'] = u'SimHei'
 mpl.rcParams[u'axes.unicode_minus'] = False
@@ -39,13 +40,16 @@ class PlotTool(object):
 
     def plot_dim3(self, ts, titie_str, range_low=-10, range_high=11, range_eff=0.01, mount_low=-10, mount_high=11,
                   mount_eff=0.01):
+        plt.ion()
         listlen = len(ts)
         dimx = range_high - range_low
         dimy = mount_high - mount_low
         x = np.arange(range_low, range_high, 1)
         x = 1 + x * range_eff
-        y = np.arange(mount_low, mount_high, 1)
-        y = 1 + y * mount_eff
+        y = 1.0 * np.arange(mount_low, mount_high, 1)
+        for id1, i1 in enumerate(y):
+            y[id1] = (i1 * mount_eff) if i1 < 0 else i1
+            y[id1] = 1 + y[id1]
 
         x, y = np.meshgrid(y, x)
         z = []
@@ -56,7 +60,9 @@ class PlotTool(object):
         for i1 in range(listlen):
             ax.plot_surface(x, y, z[i1], rstride=1, cstride=1, cmap=plt.get_cmap('rainbow'))
         plt.title(titie_str)
+        plt.savefig(os.path.join(out_path, titie_str + '.png'), format='png')
         plt.show()
+        plt.ioff()
 
     def plot_line_ideal(self, ts):
         plt.figure()
