@@ -55,13 +55,13 @@ class Acount(object):
                     self.initial_capital, self.heartbeat, self.start_predict,
                     self.csv_dir, self.symbol_list, self.ave_list, self.bband_list,
                     LoadCSVHandler, SimulatedExecutionHandler, Portfolio, MlaStrategy)
-            # elif self.data_type == "学习":  # 已有数据，统计强化学习
-            #     backtest = Backtest(
-            #         self.initial_capital, self.heartbeat, self.start_predict,
-            #         self.csv_dir, self.symbol_list, self.ave_list, self.bband_list, self.ret_list,
-            #         CSVAppendDataHandler, SimulatedExecutionHandler, Portfolio, MultiCrossStrategy)
+            elif self.data_type == "网络":  # 已有数据，统计强化学习
+                backtest = Backtest(
+                    self.initial_capital, self.heartbeat, self.start_predict,
+                    None, self.symbol_list, self.ave_list, self.bband_list, self.ret_list,
+                    LoadCSVHandler, SimulatedExecutionHandler, Portfolio, MlaStrategy)
             else:
-                raise Exception("error data_type.")
+                raise Exception("error data_type 只允许：实盘demo, 实盘, 模拟, 网络")
         else:
             raise Exception("error test type.")
         # 2. 判断执行功能
@@ -173,17 +173,18 @@ def main(paralist):
             },
             "data_ori": {
                 # "func_type": "lastday",
-                "func_type": "train",
-                # "func_type": "backtest",
+                # "func_type": "train",
+                "func_type": "backtest",
                 # "func_type": "predict",
-                "data_type": "模拟",
+                # "data_type": "模拟",
+                "data_type": "网络",
                 # "data_type": "实盘",
                 "csv_dir": data_path,
                 # "symbol_list": ["SAPower", "DalianRP", "ChinaBank"],
                 # "symbol_list": ["DalianRP"],
                 # "symbol_list": ["SAPower"],
-                "symbol_list": ["SAPower", "DalianRP"],
-                # "symbol_list": ["ChinaBank"],
+                # "symbol_list": ["SAPower", "DalianRP"],
+                "symbol_list": ["ChinaBank"],
                 "ave_list": [1, 3, 5, 11, 19, 37, 67],
                 "bband_list": [5, 19, 37],
                 "ret_list": [1, 3, 5, 7, 17, 20, 23, 130, 140, 150],

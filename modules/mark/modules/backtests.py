@@ -103,10 +103,18 @@ class LoadBacktest(object):
         all_holdings, annual_ratio = self._portfolio.components_res_base_predict(predict_bars_json, pred_list_json,
                                                                                  para_config)
         # 4. 绘制收益过程
-        show_x, show_y = [i1["datetime"] for i1 in all_holdings], [i1["total"] for i1 in all_holdings]
+        show_list = []
+        show_x = [i1["datetime"] for i1 in all_holdings]
+        show_y = [i1["total"] for i1 in all_holdings]
+        show_list.append([show_x, show_y])
+        titie_str = "gain curve ori_0"
+        for symbol in predict_bars_json:
+            tmp_ori = predict_bars_json[symbol].symbol_ori_data[symbol]["close"].values
+            tmp_y = tmp_ori * (para_config["initial_capital"] / tmp_ori[0])
+            show_list.append([show_x, tmp_y])
+            titie_str += symbol
         insplt = PlotTool()
-        titie_str = "gain curve "
-        insplt.plot_line([[show_x, show_y]], titie_str)
+        insplt.plot_line(show_list, titie_str)
 
     # 从回测中得到策略的表现
     def _output_performance(self):

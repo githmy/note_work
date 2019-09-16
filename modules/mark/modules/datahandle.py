@@ -6,6 +6,8 @@ import copy
 from abc import ABCMeta, abstractmethod
 from modules.event import *
 from modules.stocks.finance_tool import ElementTool
+from modules.stocks.stock_data2 import TSstockScrap
+from utils.log_tool import *
 
 '''
 DataHandler是一个抽象数据处理类，所以实际数据处理类都继承于此（包含历史回测、实盘）
@@ -295,7 +297,15 @@ class LoadCSVHandler(object):
         # 工具类实例化
         self.tool_ins = ElementTool()
         # 加载原始值
-        self._open_convert_csv_files()
+        if self.csv_dir is None:
+            self._get_net_csv2files()
+        else:
+            self._open_convert_csv_files()
+
+    def _get_net_csv2files(self):
+        dclass = TSstockScrap(data_path)
+        startdate = "2000-01-01 00:00:00"
+        dclass.scrap_all_n_store(startdate)
 
     def _open_convert_csv_files(self):
         comb_index = None
