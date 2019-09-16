@@ -22,6 +22,30 @@ class TSstockScrap:
         # self.data_path_h_stock = os.path.join(data_pa, "hstock")
         self.file_stock_info = os.path.join(self.data_path, "stock_info.csv")
 
+    def _get_concept_classified(self):
+        # 行业分类
+        tt = ts.get_industry_classified()
+        # 概念分类
+        tt = ts.get_concept_classified()
+        # 地域分类
+        tt = ts.get_area_classified()
+        # 中小板分类
+        tt = ts.get_sme_classified()
+        # 创业板分类
+        tt = ts.get_gem_classified()
+        # 风险警示板分类
+        tt = ts.get_st_classified()
+        # 沪深300成份及权重
+        tt = ts.get_hs300s()
+        # 上证50成份股
+        tt = ts.get_sz50s()
+        # 中证500成份股
+        tt = ts.get_zz500s()
+        # 终止上市股票列表
+        tt = ts.get_terminated()
+        # 暂停上市股票列表
+        tt = ts.get_suspended()
+
     # 常规数据
     def scrap_all_n_store(self, startdate):
         # 1.股票基本信息

@@ -310,10 +310,13 @@ class LoadCSVHandler(object):
     def _open_convert_csv_files(self):
         comb_index = None
         for s in self.symbol_list_with_benchmark:
-            # 加载csv文件,date,OHLC,Volume
+            # # 加载csv文件,date,OHLC,Volume
+            # self.symbol_ori_data[s] = pd.read_csv(
+            #     os.path.join(self.csv_dir, '%s.csv' % s), header=0, index_col=0, parse_dates=False,
+            #     names=['date', 'open', 'high', 'low', 'close', 'volume']).sort_index()
             self.symbol_ori_data[s] = pd.read_csv(
-                os.path.join(self.csv_dir, '%s.csv' % s), header=0, index_col=0, parse_dates=False,
-                names=['date', 'open', 'high', 'low', 'close', 'volume']).sort_index()
+                os.path.join(self.csv_dir, '%s.csv' % s), header=0, index_col=None, parse_dates=False).sort_index()
+            self.symbol_ori_data[s] = self.symbol_ori_data[s][['date', 'open', 'high', 'low', 'close', 'volume']]
             # Combine the index to pad forward values
             if comb_index is None:
                 comb_index = self.symbol_ori_data[s].index
