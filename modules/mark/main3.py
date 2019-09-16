@@ -56,9 +56,9 @@ class Acount(object):
                     self.csv_dir, self.symbol_list, self.ave_list, self.bband_list,
                     LoadCSVHandler, SimulatedExecutionHandler, Portfolio, MlaStrategy)
             elif self.data_type == "网络":  # 已有数据，统计强化学习
-                backtest = Backtest(
+                backtest = LoadBacktest(
                     self.initial_capital, self.heartbeat, self.start_predict,
-                    None, self.symbol_list, self.ave_list, self.bband_list, self.ret_list,
+                    None, self.symbol_list, self.ave_list, self.bband_list,
                     LoadCSVHandler, SimulatedExecutionHandler, Portfolio, MlaStrategy)
             else:
                 raise Exception("error data_type 只允许：实盘demo, 实盘, 模拟, 网络")
