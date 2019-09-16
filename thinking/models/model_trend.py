@@ -125,6 +125,7 @@ class TrendNN(object):
 
     def load_mode(self, modelname):
         saver = tf.train.Saver()
+        # print(self.model_dir)
         with tf.Session() as sess:
             latest_ckpt = tf.train.latest_checkpoint(self.model_dir)
             if latest_ckpt:

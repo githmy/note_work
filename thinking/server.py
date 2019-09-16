@@ -4,7 +4,7 @@ from __future__ import print_function
 from __future__ import unicode_literals
 import datetime
 from io import BytesIO
-from utils.log_tool import logger
+from utils.log_tool import logger, conf_path
 import os
 import json
 import six
@@ -21,6 +21,7 @@ from data_router import InvalidProjectError, AlreadyTrainingError, DataRouter
 import simplejson
 from models.project_model import Project
 from models.model_cnn import TextCNN
+from interdata import *
 
 
 class TrainingException(Exception):
@@ -97,7 +98,7 @@ class Delphis(object):
         self._model_json = model_json
         self.model_instance_name = "{}-{}".format(self._server_json["model_type"], self._server_json["model_name"])
         self.model_instance = None
-        self._load_model()
+        # self._load_model()
         # # 2. 数据功能路由
         # self.data_router = DataRouter(self._model_json, model_path)
         # 3.
@@ -112,6 +113,7 @@ class Delphis(object):
     def hello(self, request):
         """Main delphis route to check if the server is online"""
         logger.info("in home")
+        print("hello")
         return "hello from delphis: "
 
     def _collect_projects(self):
@@ -200,6 +202,38 @@ class Delphis(object):
         self.model_instance.build()
         self.model_instance.load_mode("")
         returnValue(json.dumps({"response": "{}".format("ok")}, ensure_ascii=False, indent=4))
+
+    @app.route("/trend", methods=['POST', 'OPTIONS'])
+    @check_cors
+    @inlineCallbacks
+    def trend_back(self, request):
+        logger.info("in home")
+        bstr = request.content.read()
+        request_params = simplejson.loads(bstr.decode('utf-8', 'strict'))
+        return None
+        datas = trend_back_interface(**request_params)
+        return datas
+
+    @app.route("/recommand", methods=['POST', 'OPTIONS'])
+    @check_cors
+    @inlineCallbacks
+    def recommand_back(self, request):
+        logger.info("in home")
+        bstr = request.content.read()
+        request_params = simplejson.loads(bstr.decode('utf-8', 'strict'))
+        return None
+        datas = recommand_back_interface(**request_params)
+        return datas
+
+    @app.route("/model", methods=['POST', 'OPTIONS'])
+    @check_cors
+    @inlineCallbacks
+    def model_back(self, request):
+        logger.info("in home")
+        bstr = request.content.read()
+        request_params = simplejson.loads(bstr.decode('utf-8', 'strict'))
+        datas = model_back_interface(**request_params)
+        return datas
 
     @app.route("/train", methods=['POST', 'OPTIONS'])
     # @requires_auth
@@ -303,5 +337,13 @@ class Delphis(object):
                 returnValue(json.dumps({"error": "{}".format(e)}, ensure_ascii=False, indent=4))
 
 
+def main():
+    server_json = simplejson.load(open(os.path.join("config", "server.json"), encoding="utf8"))
+    model_json = simplejson.load(open(os.path.join("config", "model.json"), encoding="utf8"))
+    instd = Delphis(server_json, model_json)
+    logger.info('Started http server on port %s' % server_json["port"])
+    instd.app.run('0.0.0.0', server_json["port"])
+
+
 if __name__ == '__main__':
-    pass
+    main()
