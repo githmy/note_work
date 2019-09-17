@@ -61,9 +61,9 @@ class Acount(object):
             elif self.data_type == "模拟":  # 已有数据，直观统计
                 backtest = LoadBacktest(
                     self.initial_capital, self.heartbeat, self.start_predict,
-                    self.csv_dir, self.symbol_list, self.ave_list, self.bband_list,
+                    # self.csv_dir, self.symbol_list, self.ave_list, self.bband_list,
                     self.csv_dir, self._get_train_list(), self.ave_list, self.bband_list,
-                    # LoadCSVHandler, SimulatedExecutionHandler, Portfolio, MlaStrategy)
+                    LoadCSVHandler, SimulatedExecutionHandler, Portfolio, MlaStrategy)
             elif self.data_type == "网络":  # 已有数据，统计强化学习
                 backtest = LoadBacktest(
                     self.initial_capital, self.heartbeat, self.start_predict,
