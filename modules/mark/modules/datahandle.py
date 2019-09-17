@@ -359,6 +359,7 @@ class LoadCSVHandler(object):
     # 加载衍生后值
     def generate_a_derivative(self):
         for s in self.symbol_list_with_benchmark:
+            print("generating {}".format(s))
             # self.symbol_aft_retp[s] = []
             self.symbol_aft_retp_high[s] = []
             self.symbol_aft_retp_low[s] = []
@@ -370,10 +371,14 @@ class LoadCSVHandler(object):
             for aven in self.bband_list:
                 # 未来n天的 最大涨跌幅
                 self.symbol_aft_retp_high[s].append(
-                    self.tool_ins.max_highlow_ret_aft_n(self.symbol_ori_data[s], aven)[0])
+                    self.tool_ins.general_max_highlow_ret_aft_n(self.symbol_ori_data[s], aven)[0])
+                # self.tool_ins.max_highlow_ret_aft_n(self.symbol_ori_data[s], aven)[0])
                 self.symbol_aft_retp_low[s].append(
-                    self.tool_ins.max_highlow_ret_aft_n(self.symbol_ori_data[s], aven)[1])
-                tmpup, tmpdown = self.tool_ins.max_fallret_raiseret_aft_n(self.symbol_ori_data[s]["close"], aven)
+                    self.tool_ins.general_max_highlow_ret_aft_n(self.symbol_ori_data[s], aven)[1])
+                # self.tool_ins.max_highlow_ret_aft_n(self.symbol_ori_data[s], aven)[1])
+                # tmpup, tmpdown = self.tool_ins.max_fallret_raiseret_aft_n(self.symbol_ori_data[s]["close"], aven)
+                tmpup, tmpdown = self.tool_ins.general_max_fallret_raiseret_aft_n(self.symbol_ori_data[s]["close"],
+                                                                                  aven)
                 self.symbol_aft_drawup[s].append(tmpup)
                 self.symbol_aft_drawdown[s].append(tmpdown)
                 # 涨幅

@@ -38,6 +38,8 @@ class Acount(object):
         flist = []
         for root, dirs, files in os.walk(data_path, topdown=True):
             flist = [i1.replace(".csv", "") for i1 in files if i1.endswith("_D.csv")]
+            break
+        flist = flist[0:len(flist) // 2]
         return flist
 
     def __call__(self, *args, **kwargs):
@@ -191,7 +193,8 @@ def main(paralist):
                 # "symbol_list": ["DalianRP"],
                 # "symbol_list": ["SAPower"],
                 # "symbol_list": ["SAPower", "DalianRP"],
-                "symbol_list": ["ChinaBank"],
+                # "symbol_list": ["ChinaBank"],
+                "symbol_list": ["000001_D"],
                 "ave_list": [1, 3, 5, 11, 19, 37, 67],
                 "bband_list": [5, 19, 37],
                 "ret_list": [1, 3, 5, 7, 17, 20, 23, 130, 140, 150],

@@ -42,8 +42,10 @@ class MysqlDB:
             self.conn.commit()
             return res
         except Exception as ex:
-            logger.error("exec sql error:")
-            logger.error(strsql, exc_info=True)
+            print("exec sql error:")
+            print(strsql)
+            # logger.error("exec sql error:")
+            # logger.error(strsql, exc_info=True)
             return 0
         finally:
             self.lock.release()

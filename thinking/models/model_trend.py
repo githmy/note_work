@@ -62,7 +62,6 @@ class TrendNN(object):
             self.c = tf.Variable(tf.constant(2.0), name='c')
             self.m = tf.Variable(tf.random_normal([self.curveshape[0]], stddev=0.35, name='m'))
             self.l = get_point_loss(self.input_xs, self.input_xl, self.a, self.b, self.c, self.m)
-
         tf.summary.scalar('a', self.a)
         tf.summary.scalar('b', self.b)
         tf.summary.scalar('c', self.c)

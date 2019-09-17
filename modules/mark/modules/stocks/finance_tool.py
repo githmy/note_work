@@ -176,10 +176,48 @@ class ElementTool(object):
             lowret[i] = min(priceall["low"][i - 1:i + period - 1]) / priceall["close"][i]
         return highret, lowret
 
+    # 最高低幅值
+    def general_max_highlow_ret_aft_n(self, priceall, period=1):
+        highret = pd.Series(index=priceall["close"].index)
+        lowret = pd.Series(index=priceall["close"].index)
+        for i in range(0, len(lowret) - period):
+            highret[i] = max(priceall["high"][i + 1:i + period + 1]) / priceall["close"][i]
+            lowret[i] = min(priceall["low"][i + 1:i + period + 1]) / priceall["close"][i]
+        return highret, lowret
+
+    # 最大涨跌
+    def general_max_fallret_raiseret_aft_n(self, price, period=20):
+        maxfallret = pd.Series(index=price.index)
+        maxraiseret = pd.Series(index=price.index)
+        for i in range(0, len(price) - period):
+            tmpsec = price[i + 1:i + period + 1]
+            tmpmax = price[i]
+            tmpmin = price[i]
+            tmpdrawdown = [1.0]
+            tmpdrawup = [1.0]
+            for t in range(i + 1, i + period + 1):
+                if tmpsec[t] > tmpmax:
+                    tmpmax = tmpsec[t]
+                    tmpdrawdown.append(tmpdrawdown[-1])
+                    tmpdrawup.append((tmpmax - tmpmin) / tmpmin)
+                elif tmpsec[t] <= tmpmin:
+                    tmpmin = tmpsec[t]
+                    tmpdrawup.append(tmpdrawup[-1])
+                    tmpdrawdown.append((tmpmax - tmpmin) / tmpmax)
+                else:
+                    pass
+            maxfallret[i] = min(tmpdrawdown)
+            maxraiseret[i] = max(tmpdrawup)
+        return maxraiseret, maxfallret
+
     # 最大涨跌
     def max_fallret_raiseret_aft_n(self, price, period=20):
         maxfallret = pd.Series(index=price.index)
         maxraiseret = pd.Series(index=price.index)
+        # print(price)
+        # print(price[0:3])
+        # print(price[1])
+        # exit()
         for i in range(1, len(price) - period):
             tmpsec = price[i - 1:i + period - 1]
             tmpmax = price[i]

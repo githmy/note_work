@@ -8,7 +8,7 @@ from __future__ import division
 from __future__ import print_function
 from __future__ import unicode_literals
 
-import copy
+import os, copy
 import itertools
 import math
 from pprint import pprint
@@ -22,8 +22,40 @@ from sklearn.cluster import KMeans
 from models.model_trend import TrendNN
 from utils.connect_mongo import MongoDB
 from utils.connect_mysql import MysqlDB
-from utils.log_tool import logger
+from utils.log_tool import *
 
+config_my = {
+    'host': "192.168.1.252",
+    'port': 3306,
+    'user': "thinking",
+    'password': "thinking2018",
+    'database': "htdb",
+    'charset': 'utf8mb4',  # 支持1-4个字节字符
+}
+# config_my = {
+#     'host': "192.168.1.52",
+#     'port': 3306,
+#     'user': "thinking",
+#     'password': "thinking2019",
+#     'database': "htdb",
+#     'charset': 'utf8mb4',  # 支持1-4个字节字符
+# }
+config_mon = {
+    'host': "192.168.1.252",
+    'port': 27017,
+    'database': "thinking2ht-test",
+    'col': 'col',
+    'charset': 'utf8mb4',  # 支持1-4个字节字符
+}
+
+
+# config_mon = {
+#     'host': "192.168.1.52",
+#     'port': 27017,
+#     'database': "thinking2ht",
+#     'col': 'col',
+#     'charset': 'utf8mb4',  # 支持1-4个字节字符
+# }
 
 class PlotTool(object):
     def plot_line(self, ts):
@@ -72,6 +104,7 @@ class OutPutResult(object):
         self.pd_quiz_point = pd.DataFrame(self.quiz_point)
         self.pd_learing_info = pd.DataFrame(self.learing_info)
         self.pd_triple_info = pd.DataFrame(self.triple_info)
+        self.insmysql = MysqlDB(config_my)
 
     def update_point_skill_level(self):
         # 1. 输入：所有人 历次 学习 测试的平均时间消耗 和错误率，及相关知识点，输出：更新题目和知识点的技能难度等级。
@@ -292,7 +325,7 @@ class OutPutResult(object):
         quality_point = np.mean(quality_nplist, axis=0)
         return quality_point
 
-    def gene_curve_data(self, all_data):
+    def gene_curve_paras(self, all_data, modelname):
         # 1. 转化数据
         def data2np(all_data, pad_lenth=5):
             alldata = copy.deepcopy(all_data)
@@ -325,125 +358,124 @@ class OutPutResult(object):
             "early_stop": 20000,
             "save_step": 2000,
         }
-        print(len(curvesobj), type(curvesobj))
-        print(len(curvesobj[0]), type(curvesobj[0]))
-        print(len(curvesobj[0][0]), type(curvesobj[0][0]))
-        insmodel = TrendNN("model_type", "model_name", model_json, curvesobj, lenlist)
+        # print(len(curvesobj), type(curvesobj))
+        # print(len(curvesobj[0]), type(curvesobj[0]))
+        # print(len(curvesobj[0][0]), type(curvesobj[0][0]))
+        model_dir = os.path.join(model_path, "model_trend_" + modelname)
+        if os.path.exists(model_dir):
+            os.removedirs(model_dir)
+        insmodel = TrendNN("model_trend", modelname, model_json, curvesobj, lenlist)
         insmodel.build()
         insmodel.load_mode("")
         paras = insmodel.fit()
-
-        def get_point_y(x, a, b, c, m):
-            xt = x + m
-            y = a * xt ** 2 + b * xt + c
-            return y
-
-        def get_curve_data(all_data_transpose, paras):
-            new_data = []
-            for id1, i1 in enumerate(all_data_transpose):
-                ty = get_point_y(i1[0], paras[0], paras[1], paras[2], paras[3][id1])
-                new_data.append([i1[0] + paras[3][id1], i1[1], ty])
-            stand_curvex = [i1 for i1 in range(-100, 100)]
-            stand_curvey = [paras[0] * i1 ** 2 + paras[1] * i1 + paras[2] for i1 in range(-100, 100)]
-            stand_curve = [[stand_curvex, stand_curvey]]
-            return new_data, stand_curve
-
-        # 3. 重整曲线
-        new_data, trend_curve = get_curve_data(all_data_transpose, paras)
-        return new_data, trend_curve
+        return paras
 
     def gene_trend_models(self, score_dim2_curves):
-        # 输入：知识点累计曲线 输出：模型列表信息
+        # 输入：知识点累计曲线 输出：模型列表信息 输出：分类映射原数据id, 分类映射分类坐标
         # 1. 生成报课id 的素质集合,
-        # 1.1 生成素质数据
-        print(score_dim2_curves)
         quality_points = [self.gene_quality(i1["data"]) for i1 in score_dim2_curves]
         lenth_curves = len(score_dim2_curves)
-        # 原索引，删后索引映射
-        curve_point_mapid = []
+        # 1.2 原索引，删后索引映射
+        point_curve_mapid = {}
         counter_p = 0
         quality_train_points = []
         for i1 in range(lenth_curves):
             if len(quality_points[i1].shape) != 0:
-                curve_point_mapid.append([i1, counter_p])
+                point_curve_mapid[str(counter_p)] = i1
                 quality_train_points.append(copy.deepcopy(quality_points[i1]))
                 counter_p += 1
-        print(curve_point_mapid)
         quality_train_points = np.array([i1 for i1 in quality_train_points if len(i1.shape) != 0])
-        print(quality_train_points)
-        print(quality_train_points.shape)
         # 2. 筛选属性相似，图谱接近的 数据
-        # model = KMeans(n_clusters=3, random_state=0)
         classn = 3
         n_clusters = quality_train_points.shape[0] // classn
         model = KMeans(n_clusters=n_clusters)
         model.fit(quality_train_points)
         predicted = model.predict(quality_train_points)
-        print(predicted)
-        # 2.3 获取拟合数据
-        # 3. 输出对应数据的拟合曲线
-        # 4. kmeans 结合的中心点
-        a = None
-        return a
+        # 2.1 分类映射原数据id
+        point_categ_map = {}
+        # 2.2. kmeans 结合的中心点
+        avexy_categ_map = {}
+        for i1 in set(predicted):
+            point_categ_map[str(i1)] = []
+            avexy_categ_map[str(i1)] = np.mean(quality_train_points[predicted[:] == i1], axis=0)
+            for id2, i2 in enumerate(predicted):
+                if i2 == i1:
+                    point_categ_map[str(i1)].append(point_curve_mapid[str(id2)])
+        return point_categ_map, avexy_categ_map
 
-    def get_trend_curve_data(self, accum_map, accum_curve, score_dim2_curves, studentid):
-        # 输入：知识点累计图谱，知识点累计曲线，学生素质列表，目标学生当前素质,报课id 输出：统计成长曲线
-        # print(accum_map)
-        # print(accum_curve)
-        # print(score_dim2_curves)
-        # print(studentid)
-        # 0. 临时假数据
-        score_dim2_curves[0]["data"] = [[0, 2, 3.5], [3, 5.3, 7.5], [6, 10.2, 13.5]]
-        # 1. 获取学生最近一次课程的素质特性
-        # 1.1 生成素质数据
+    def get_nearest_models(self, score_dim2_curves):
+        # 1. 生成素质数据
         quality_points = [self.gene_quality(i1["data"]) for i1 in score_dim2_curves]
-        latestid = -1
-        maxdata = "0"
-        for id1, i1 in enumerate(score_dim2_curves):
-            if i1["studentid"] == studentid and i1["datetime"] > maxdata:
-                latestid = id1
-        if latestid == -1:
-            raise Exception("没有找到该学生{}的数据信息".format(studentid))
-        quality_point = self.gene_quality(score_dim2_curves[latestid]["data"])
-        # 2. 筛选属性相似，图谱接近的 数据
-        # 2.1 筛选素质 fit_ids 为score_dim2_curves的自然序号
-        fit_ids = self.get_nearest_pointids(quality_point, quality_points, findnum=10)
-        # 2.2 筛选能力 暂时不考虑
-        # ability_datas = list(itertools.chain(*[i1['data'] for id1, i1 in enumerate(score_dim2_curves) if id1 in fit_ids]))
-        # 2.3 获取拟合数据
-        curve_datas = [i1['data'] for id1, i1 in enumerate(score_dim2_curves) if id1 in fit_ids]
-        curve1_datas = []
-        curve2_datas = []
-        for i1 in curve_datas:
-            tmp1 = []
-            tmp2 = []
-            for i2 in i1:
-                tmp1.append([i2[0], i2[1]])
-                tmp2.append([i2[0], i2[2]])
-            curve1_datas.append(tmp1)
-            curve2_datas.append(tmp2)
-        # 3. 输出对应数据的拟合曲线
-        all_data = [
-            [[0, 4.5], [2, 7.5]],
-            [[0, 3.5], [3, 7.5], [6, 13.5]],
-            [[0, 4.2], [7, 12.5]],
-            [[0, 0], [4, 2.5]],
-        ]
-        pprint(all_data)
-        pprint(curve1_datas)
-        pprint(curve2_datas)
-        # new_data, trend_curve = self.gene_curve_data(all_data)
-        _, trend1_curve = self.gene_curve_data(curve1_datas)
-        _, trend2_curve = self.gene_curve_data(curve2_datas)
-        # print(new_data)
-        # print(stand_curve)
-        # # 4. 显示测试数据
-        # insplot = PlotTool()
-        # insplot.plot_line(all_data_transpose)
-        # insplot.plot_line(stand_curve)
-        # insplot.plot_line(new_data)
-        # insplot.plot_line_ideal(new_data)
-        return trend1_curve, trend2_curve
+        # quality_points = [[0, 1]]
+        if len(np.array(quality_points).shape) == 1:
+            return "学生测验次数太少，无法预测。"
+        res = self.insmysql.exec_sql("select x,y from rpg_model_info GROUP BY x,y;")
+        # 2. 获取相近参数
+        modelcoord = np.array(pd.DataFrame(res))
+        targetid = -1
+        mindis = 1e9
+        for id1, i1 in enumerate(modelcoord):
+            tmpdis = (i1[0] - quality_points[0][0]) ** 2 + (i1[1] - quality_points[0][1]) ** 2
+            if mindis > tmpdis:
+                targetid = id1
+                mindis = tmpdis
+        res = self.insmysql.exec_sql(
+            "select `type`,a,b,`c` from rpg_model_info WHERE x={} AND y={};".format(modelcoord[targetid][0],
+                                                                                    modelcoord[targetid][1]))
+        paras = np.array(pd.DataFrame(res))
+
+        # # 2.3 输入：不同维度的曲线列表（知识点 方式 文件 多维得分 得分）输出：按用户测评时间 知识点累计值(图谱，曲线) 分布
+        # accum_map, accum_curve = insres.get_point_accum_data(data_reform, datadic["pointobj"])
+
+        def get_point_y_old(x, a, b, c, m):
+            xt = x + m
+            y = a * xt ** 2 + b * xt + c
+            return y
+
+        def get_point_y(x, a, b, c):
+            return a * x ** 2 + b * x + c
+
+        def adjust_x(y, a, b, c):
+            return (-b - (b ** 2 - 4 * a * (c - y) ** 0.5)) / (2 * a)
+
+        def get_curve_data(realdata, paras):
+            real_x = []
+            real_y1 = []
+            real_y2 = []
+            for id1, i1 in enumerate(realdata):
+                real_x.append(i1[0] - realdata[-1][0])
+                real_y1.append(i1[1])
+                real_y2.append(i1[2])
+            # x=0 为当前点，构建 y
+            # 真实curve1,真实curve2,预测curve1,预测curve2
+            # stand_curvex = [i1 for i1 in range(-100, 100)]
+            a1, b1, c1, a2, b2, c2 = [0] * 6
+            for i1 in paras:
+                if int(i1[-1]) == 0:
+                    a1, b1, c1, _ = i1
+                elif int(i1[-1]) == 1:
+                    a2, b2, c2, _ = i1
+                else:
+                    raise Exception("float error")
+            adjustx1 = adjust_x(real_y1[-1], a1, b1, c1)
+            adjustx2 = adjust_x(real_y2[-1], a2, b2, c2)
+            stand_x = [i1 for i1 in range(int(real_x[0]), int(real_x[0]) + 100)]
+            stand_x1 = [i1 - adjustx1 for i1 in range(int(real_x[0]), int(real_x[0]) + 100)]
+            stand_x2 = [i1 - adjustx2 for i1 in range(int(real_x[0]), int(real_x[0]) + 100)]
+            stand_y1 = []
+            stand_y2 = []
+            for i1 in stand_x:
+                stand_y1.append(get_point_y(i1, a1, b1, c1))
+                stand_y2.append(get_point_y(i1, a2, b2, c2))
+            return real_x, real_y1, real_y2, stand_x1, stand_y1, stand_x2, stand_y2
+
+        # 3. 重整曲线
+        real_stand = get_curve_data(score_dim2_curves[0]["data"], paras)
+        # 4. 显示测试数据
+        insplot = PlotTool()
+        # insplot.plot_line([[real_stand[0], real_stand[1]], [real_stand[0], real_stand[2]]])
+        insplot.plot_line([[real_stand[3], real_stand[4]], [real_stand[5], real_stand[6]]])
+        return real_stand
 
     def get_point_accum_data(self, data_reform, point_list):
         # 9. 输入：不同维度的曲线列表（知识点 方式 文件 多维得分 得分）输出：按用户测评时间 知识点累计值 分值
@@ -498,38 +530,8 @@ class OutPutResult(object):
 class GetData(object):
     def __init__(self):
         # mysql
-        config_my = {
-            'host': "192.168.1.252",
-            'port': 3306,
-            'user': "thinking",
-            'password': "thinking2018",
-            'database': "htdb",
-            'charset': 'utf8mb4',  # 支持1-4个字节字符
-        }
-        # config_my = {
-        #     'host': "192.168.1.52",
-        #     'port': 3306,
-        #     'user': "thinking",
-        #     'password': "thinking2019",
-        #     'database': "htdb",
-        #     'charset': 'utf8mb4',  # 支持1-4个字节字符
-        # }
         self.insmysql = MysqlDB(config_my)
         # mongo
-        config_mon = {
-            'host': "192.168.1.252",
-            'port': 27017,
-            'database': "thinking2ht-test",
-            'col': 'col',
-            'charset': 'utf8mb4',  # 支持1-4个字节字符
-        }
-        # config_mon = {
-        #     'host': "192.168.1.52",
-        #     'port': 27017,
-        #     'database': "thinking2ht",
-        #     'col': 'col',
-        #     'charset': 'utf8mb4',  # 支持1-4个字节字符
-        # }
         self.insmongo = MongoDB(config_mon)
 
     # 2. 筛选课程详情编号
@@ -651,14 +653,10 @@ class GetData(object):
         """.format(subjectid, sectionid, timestart, timeend)
         return self.insmysql.exec_sql(sqls)
 
-    def get_student_info(self, subjectid, sectionid, edition):
+    def get_student_info(self):
         # 3. 背景信息
         # 学生的学校等级, 父母教育程度, 其它业余培训班类型，其它业余培训时间(多个培训班分别算)
-        sqls = """
-        SELECT * FROM bus_account_info WHERE `Section`="{}" AND Edition IN (
-            SELECT `Value` FROM sys_dictdetail WHERE `Name`='{}');
-        """.format(sectionid, edition)
-        # subjectid,
+        sqls = """SELECT * FROM bus_account_info;"""
         return self.insmysql.exec_sql(sqls)
 
     def get_subject_stage_point_info(self, subjectid, sectionid, edition):
@@ -675,67 +673,6 @@ class GetData(object):
 
 def main():
     subjectid = "M"
-    sectionid = "J"
-    edition = "沪教版"
-    timestart = "2019-01-01 00:00:00"
-    timeend = "2019-09-17 00:00:00"
-    insdata = GetData()
-    # # 0. 单个学生的课程信息 studentid is not None
-    # studentid = "6e3fedf0-33ab-4315-ba1b-31809d160c06"
-    # coursedetailkeys = insdata.get_course_subject_stage_info(studentid, subjectid, sectionid, edition, timestart,
-    #                                                          timeend)
-    # single_course_res_info = insdata.get_course_result_info(coursedetailkeys)
-    # 1. 筛选课程相关id  [{课程id:xx, 课程时间:xx}]
-    studentid = None
-    coursedetailkeys = insdata.get_course_subject_stage_info(studentid, subjectid, sectionid, edition, timestart,
-                                                             timeend)
-    # 2. 筛选课程id 下的数据 整理成标准形式 [{起始时差:datatime, 课时id:xx, 知识点列表:[{知识点名称:xx, 学习时间:xx, 学习形式:xx, 成绩分值:xx, 成绩类型:xx}]}]
-    course_res_info = insdata.get_course_result_info(coursedetailkeys)
-    # print(course_res_info)
-    # quizres = insdata.get_quiz_subject_stage_info(subjectid, sectionid, edition, timestart, timeend)
-    # 3. 学生相关信息    todo: 需要补充：是否根据 学科 学段 过滤，还是从 课程主表里筛选。
-    studentinfo = insdata.get_student_info(subjectid, sectionid, edition)
-    # print(studentinfo)
-    # 4. 学期的知识点 ok
-    pointobj = insdata.get_subject_stage_point_info(subjectid, sectionid, edition)
-    datadic = {"course_res_info": course_res_info, "studentinfo": studentinfo,
-               "pointobj": [i1["PointCode"] for i1 in pointobj]}
-    # pprint(datadic)
-
-    # 2. 分析返回
-    insres = OutPutResult()
-    # 2.1 输入：学生的表现详情。输出：不同维度的曲线列表（知识点 方式 文件 多维得分 得分）
-    data_reform = insres.get_learn_info_multistudents(datadic["course_res_info"])
-    # pprint(data_reform)
-    # 2.2 输入：不同维度的曲线列表（知识点 方式 文件 多维得分 得分）输出：按用户测评时间 分值维度 分值线
-    score_dim1_curves, score_dim2_curves = insres.get_score_curve_data(data_reform)
-    # pprint(score_dim2_curves)
-    # 2.3 输入：不同维度的曲线列表（知识点 方式 文件 多维得分 得分）输出：按用户测评时间 知识点累计值(图谱，曲线) 分布
-    accum_map, accum_curve = insres.get_point_accum_data(data_reform, datadic["pointobj"])
-
-    # 2.4 输入：知识点累计图谱，知识点累计曲线，学生素质列表，目标学生当前素质,报课id 输出：统计成长曲线
-
-    def datac2np(accum_curve, pad_lenth=5):
-        print(accum_curve)
-        alldata = copy.deepcopy(accum_curve)
-        paralenth = len(alldata)
-        pad_lenth = 5
-        lenlist = np.array([len(i1["data"]) for i1 in alldata])
-        nplist = []
-        nplenlist = []
-        for i1 in range(paralenth):
-            tmpdata = alldata[i1]["data"]
-            nplist.append(np.array([np.vstack([np.array(tmpdata), np.ones(((pad_lenth - lenlist[i1]), 2))])]))
-            nplenlist.append(np.hstack([np.ones(lenlist[i1]), np.zeros(pad_lenth - lenlist[i1])]))
-        npobj = np.vstack(nplist)
-        nplenth = np.vstack(nplenlist)
-        return npobj, nplenth
-
-    studentid = "6e3fedf0-33ab-4315-ba1b-31809d160c06"
-    trend1_curve, trend2_curve = insres.get_trend_curve_data(accum_map, accum_curve, score_dim2_curves, studentid)
-    print(11112)
-    pprint(trend1_curve)
-    pprint(trend2_curve)
     # todo: 1. 根据 学生的 表现 做 推题，预测
     # 2.3 按用户当前 知识点累计值分值 和 用户的素质 筛选类似的数据
     # 2.4 按用户 的错题 和 知识图谱的顺序，倒推数据
@@ -746,52 +683,44 @@ def main():
 def trend_back_interface(subjectid="M", sectionid="J", timestart="2019-01-01 00:00:00",
                          timeend="2019-09-17 00:00:00", edition="沪教版", studentid="aaaaa"):
     insdata = GetData()
-    # # 0. 单个学生的课程信息 studentid is not None
-    # studentid = "6e3fedf0-33ab-4315-ba1b-31809d160c06"
-    # coursedetailkeys = insdata.get_course_subject_stage_info(studentid, subjectid, sectionid, edition, timestart,
-    #                                                          timeend)
-    # single_course_res_info = insdata.get_course_result_info(coursedetailkeys)
-    # 1. 筛选课程相关id  [{课程id:xx, 课程时间:xx}]
-    studentid = None
+    # 0. 单个学生的课程信息 studentid is not None
+    studentid = "6e3fedf0-33ab-4315-ba1b-31809d160c06"
     coursedetailkeys = insdata.get_course_subject_stage_info(studentid, subjectid, sectionid, edition, timestart,
                                                              timeend)
-    # 2. 筛选课程id 下的数据 整理成标准形式 [{起始时差:datatime, 课时id:xx, 知识点列表:[{知识点名称:xx, 学习时间:xx, 学习形式:xx, 成绩分值:xx, 成绩类型:xx}]}]
-    course_res_info = insdata.get_course_result_info(coursedetailkeys)
-    # print(course_res_info)
+    single_course_res_info = insdata.get_course_result_info(coursedetailkeys[-1:])
     # quizres = insdata.get_quiz_subject_stage_info(subjectid, sectionid, edition, timestart, timeend)
-    # 3. 学生相关信息    todo: 需要补充：是否根据 学科 学段 过滤，还是从 课程主表里筛选。
-    studentinfo = insdata.get_student_info(subjectid, sectionid, edition)
+    # 3. 学生相关信息    todo: 需要补充：暂时没有符合的筛选条件
+    studentinfo = insdata.get_student_info()
     # print(studentinfo)
     # 4. 学期的知识点 ok
     pointobj = insdata.get_subject_stage_point_info(subjectid, sectionid, edition)
-    datadic = {"course_res_info": course_res_info, "studentinfo": studentinfo,
+    datadic = {"course_res_info": single_course_res_info, "studentinfo": studentinfo,
                "pointobj": [i1["PointCode"] for i1 in pointobj]}
     # pprint(datadic)
 
     # 2. 分析返回
     insres = OutPutResult()
     # 2.1 输入：学生的表现详情。输出：不同维度的曲线列表（知识点 方式 文件 多维得分 得分）
-    data_reform = insres.get_learn_info_multistudents(datadic["course_res_info"])
-    # pprint(data_reform)
+    data_reform = insres.get_learn_info_multistudents(single_course_res_info)
     # 2.2 输入：不同维度的曲线列表（知识点 方式 文件 多维得分 得分）输出：按用户测评时间 分值维度 分值线
     score_dim1_curves, score_dim2_curves = insres.get_score_curve_data(data_reform)
     # pprint(score_dim2_curves)
-    # 2.3 输入：不同维度的曲线列表（知识点 方式 文件 多维得分 得分）输出：按用户测评时间 知识点累计值(图谱，曲线) 分布
-    accum_map, accum_curve = insres.get_point_accum_data(data_reform, datadic["pointobj"])
-
-    # 2.4 输入：知识点累计图谱，知识点累计曲线，学生素质列表，目标学生当前素质,报课id 输出：统计成长曲线
-    studentid = "6e3fedf0-33ab-4315-ba1b-31809d160c06"
-    trend1_curve, trend2_curve = insres.get_trend_curve_data(accum_map, accum_curve, score_dim2_curves, studentid)
-    print(11112)
-    pprint(trend1_curve)
-    pprint(trend2_curve)
-    return trend1_curve, trend2_curve
+    # 3. 根据学生的表现曲线 返回类似的轨迹
+    trend_curves = insres.get_nearest_models(score_dim2_curves)
+    # print(trend_curves)
+    return trend_curves
 
 
 def recommand_back_interface(subjectid="M", sectionid="J", timestart="2019-01-01 00:00:00",
                              timeend="2019-09-17 00:00:00", points=[], edition="沪教版", studentid="aaaaa"):
+    # 推荐相关知识点
     print(points)
     print(type(points))
+    # 一 本体构建、二 知识推理、三 质量评估。
+    # Domain(领域)，Type(类别)和Topic(主题，即实体)
+    # Type包含多个Topics且和多个Properties关联
+    # 抽取属于某个Type或满足某个Property的新实体(或实体对)
+
     datas = None
     return datas
 
@@ -800,32 +729,63 @@ def model_back_interface(subjectid="M", sectionid="J", timestart="2019-01-01 00:
                          edition="沪教版"):
     # 1. 获取素质集合
     insdata = GetData()
-    # 1. 筛选课程相关id  [{课程id:xx, 课程时间:xx}]
+    # 1.1 筛选课程相关id  [{课程id:xx, 课程时间:xx}]
     studentid = None
     coursedetailkeys = insdata.get_course_subject_stage_info(studentid, subjectid, sectionid, edition, timestart,
                                                              timeend)
     course_res_info = insdata.get_course_result_info(coursedetailkeys)
-    # print(len(course_res_info))
-    # quizres = insdata.get_quiz_subject_stage_info(subjectid, sectionid, edition, timestart, timeend)
-    # 4. 学期的知识点 ok
-    pointobj = insdata.get_subject_stage_point_info(subjectid, sectionid, edition)
+    # 1.2. 学期的知识点
+    # pointobj = insdata.get_subject_stage_point_info(subjectid, sectionid, edition)
     # 2. 数据预处理
     insres = OutPutResult()
     # 2.1 输入：学生的表现详情。输出：不同维度的曲线列表（知识点 方式 文件 多维得分 得分）
     data_reform = insres.get_learn_info_multistudents(course_res_info)
-    # pprint(data_reform)
     # 2.2 输入：不同维度的曲线列表（知识点 方式 文件 多维得分 得分）输出：按用户测评时间 分值维度 分值线
     score_dim1_curves, score_dim2_curves = insres.get_score_curve_data(data_reform)
-    # pprint(score_dim1_curves)
-    # pprint(score_dim2_curves)
     # 每个course 抽取成不同 quality
     # # 2.3 输入：不同维度的曲线列表（知识点 方式 文件 多维得分 得分）输出：按用户测评时间 知识点累计值(图谱，曲线) 分布
     # accum_ma, accum_curve = insres.get_point_accum_data(data_reform, [i1["PointCode"] for i1 in pointobj])
-    # 2. 聚类
-    insres.gene_trend_models(score_dim2_curves)
-    # 3. 生成参数
-    # 4. 写入中心坐标，参数 (sujectid_sectionid_edition_x_y)
-    return True
+    # 2. 聚类 映射
+    point_categ_map, avexy_categ_map = insres.gene_trend_models(score_dim2_curves)
+    # 2.1 获取拟合数据
+    modeldata = []
+    for i1 in point_categ_map:
+        curve_datas = [i2['data'] for id2, i2 in enumerate(score_dim2_curves) if id2 in point_categ_map[str(i1)]]
+        curve1_datas = []
+        curve2_datas = []
+        for i2 in curve_datas:
+            tmp1 = []
+            tmp2 = []
+            for i3 in i2:
+                tmp1.append([i3[0], i3[1]])
+                tmp2.append([i3[0], i3[2]])
+            curve1_datas.append(tmp1)
+            curve2_datas.append(tmp2)
+        # 3. 输出对应数据的拟合曲线
+        # all_data = [
+        #     [[0, 4.5], [2, 7.5]],
+        #     [[0, 3.5], [3, 7.5], [6, 13.5]],
+        #     [[0, 4.2], [7, 12.5]],
+        #     [[0, 0], [4, 2.5]],
+        # ]
+        # pprint(curve1_datas)
+        # 2.2 模型训练
+        modeltype = 0
+        tmp_modelname = "{}_{}_{}".format(str(avexy_categ_map[i1][0]), str(avexy_categ_map[i1][1]), modeltype)
+        paras = insres.gene_curve_paras(curve1_datas, tmp_modelname)
+        modeldata.append([avexy_categ_map[i1], modeltype, tmp_modelname, paras])
+        modeltype = 1
+        tmp_modelname = "{}_{}_{}".format(str(avexy_categ_map[i1][0]), str(avexy_categ_map[i1][1]), modeltype)
+        paras = insres.gene_curve_paras(curve2_datas, tmp_modelname)
+        modeldata.append([avexy_categ_map[i1], modeltype, tmp_modelname, paras])
+    # 3. 参数保存
+    res = insdata.insmysql.exec_sql("TRUNCATE rpg_model_info;")
+    for i1 in modeldata:
+        sqls = """
+        INSERT INTO rpg_model_info (x, y,`type`,modelname,a,b,`c`) VALUES({},{},{},"{}",{},{},{});
+        """.format(i1[0][0], i1[0][1], i1[1], i1[2], i1[3][0], i1[3][1], i1[3][2])
+        res = insdata.insmysql.exec_sql(sqls)
+    return res
 
 
 if __name__ == '__main__':
@@ -833,9 +793,11 @@ if __name__ == '__main__':
     logger.info("welcome to Delphis".center(30, " ").center(100, "*"))
     logger.info("".center(100, "*"))
     logger.info("")
-    model_back_interface()
+    recommand_back_interface()
+    # trend_back_interface()
+    # model_back_interface()
     exit(0)
-    main()
+    # main()
     logger.info("")
     logger.info("bye bye".center(30, " ").center(100, "*"))
     logger.info("".center(100, "*"))
