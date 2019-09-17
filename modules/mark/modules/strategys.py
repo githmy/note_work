@@ -441,6 +441,7 @@ class MlaStrategy(strategy.BacktestingStrategy):
                                                                               validpre_pos, validaft_pos))
         for s in symbol_list:
             # 1. 加载标签数据
+            print(s)
             xchara_trainlist = []
             xchara_validlist = []
             xlen_slist = len(ave_list)
@@ -460,6 +461,7 @@ class MlaStrategy(strategy.BacktestingStrategy):
                         train_bars.symbol_pre_retm[s][single_chara][single2_chara][validpre_pos:validaft_pos])
             tmp_xtrainnp = np.vstack(xchara_trainlist)
             tmp_xvalidnp = np.vstack(xchara_validlist)
+            # aft
             ychara_base_trainlist = []
             ychara_much_trainlist = []
             ychara_base_validlist = []
@@ -523,20 +525,23 @@ class MlaStrategy(strategy.BacktestingStrategy):
         # 4. 处理nan inf
         all_xtrainnp[:, :][np.isnan(all_xtrainnp[:, :])] = 0
         all_xtrainnp[:, :][np.isinf(all_xtrainnp[:, :])] = 0
-        all_ytrainnp_base[:, :][np.isnan(all_ytrainnp_base[:, :])] = 0
-        all_ytrainnp_base[:, :][np.isinf(all_ytrainnp_base[:, :])] = 0
-        all_ytrainnp_much[:, :][np.isnan(all_ytrainnp_much[:, :])] = 0
-        all_ytrainnp_much[:, :][np.isinf(all_ytrainnp_much[:, :])] = 0
         all_xvalidnp[:, :][np.isnan(all_xvalidnp[:, :])] = 0
         all_xvalidnp[:, :][np.isinf(all_xvalidnp[:, :])] = 0
-        all_yvalidnp_base[:, :][np.isnan(all_yvalidnp_base[:, :])] = 0
-        all_yvalidnp_base[:, :][np.isinf(all_yvalidnp_base[:, :])] = 0
+        all_ytrainnp_much = np.array(all_ytrainnp_much.tolist())
+        all_ytrainnp_much[:, :][np.isnan(all_ytrainnp_much[:, :])] = 0
+        all_ytrainnp_much[:, :][np.isinf(all_ytrainnp_much[:, :])] = 0
+        all_yvalidnp_much = np.array(all_yvalidnp_much.tolist())
         all_yvalidnp_much[:, :][np.isnan(all_yvalidnp_much[:, :])] = 0
         all_yvalidnp_much[:, :][np.isinf(all_yvalidnp_much[:, :])] = 0
-        # print(all_xtrainnp, all_ytrainnp_base, all_ytrainnp_much, all_xvalidnp, all_yvalidnp_base, all_yvalidnp_much)
+        all_ytrainnp_base = np.array(all_ytrainnp_base.tolist())
+        all_ytrainnp_base[:, :][np.isnan(all_ytrainnp_base[:, :])] = 0
+        all_ytrainnp_base[:, :][np.isinf(all_ytrainnp_base[:, :])] = 0
+        all_yvalidnp_base = np.array(all_yvalidnp_base.tolist())
+        all_yvalidnp_base[:, :][np.isnan(all_yvalidnp_base[:, :])] = 0
+        all_yvalidnp_base[:, :][np.isinf(all_yvalidnp_base[:, :])] = 0
         # print(all_xtrainnp.shape, all_ytrainnp_base.shape, all_ytrainnp_much.shape, all_xvalidnp.shape,
         #       all_yvalidnp_base.shape, all_yvalidnp_much.shape)
-        # exit()
+        exit()
         return all_xtrainnp, all_ytrainnp_base, all_ytrainnp_much, all_xvalidnp, all_yvalidnp_base, all_yvalidnp_much
 
     def _prepare_predict_data(self, predict_bars, ave_list, data_range):
@@ -591,7 +596,7 @@ class MlaStrategy(strategy.BacktestingStrategy):
         # 1. 输入参数
         self._prepare_model_para(args)
         # 2. 生产数据 随机打乱，分成batch
-        if os.path.isfile(os.path.join(data_path, "inputs_t.npy")):
+        if os.path.isfile(os.path.join(data_path, "npy", "inputs_t.npy")):
             print("loadingdata")
             inputs_t = np.load(os.path.join(data_path, "npy", "inputs_t.npy"))
             targets_base_t = np.load(os.path.join(data_path, "npy", "targets_base_t.npy"))

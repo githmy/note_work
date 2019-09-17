@@ -68,7 +68,7 @@ class LoadBacktest(object):
         # self.symbol_aft_retp_high
         # self.symbol_aft_retp_low
         # 1. 训练数据, 输入原始规范训练数据，待时间截断
-        # todo: 1. 测试接口更新数据 2. 分类板块，每个模型，时间段回测, 3. 改用 tushare 数据，4. 按时间拆分测试集
+        # todo: 1. 测试接口更新数据 2. 分类板块，每个模型，时间段回测
         train_bars = LoadCSVHandler(queue.Queue(), data_path, self.symbol_list, self.ave_list, self.bband_list)
         # 2. 加载衍生前值
         train_bars.generate_b_derivative()

@@ -192,9 +192,9 @@ class CRNN(AbstractModeltensor):
                     self.saver.restore(sess, latest_ckpt)
                     print("retraining {}".format(latest_ckpt))
                 else:
+                    sess.run(tf.global_variables_initializer())
                     print("no old model, training new----")
             writer = tf.summary.FileWriter(os.path.join(log_path, "logs_%s" % self.config["tailname"]), sess.graph)
-            sess.run(tf.global_variables_initializer())
             global_n = 0
             stop_n = 0
             startt = time.time()

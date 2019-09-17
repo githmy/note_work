@@ -383,7 +383,7 @@ class LoadCSVHandler(object):
                 self.symbol_aft_drawdown[s].append(tmpdown)
                 # 涨幅
                 self.symbol_aft_reta[s].append(
-                    self.tool_ins.rise_n(self.symbol_ori_data[s]["close"], aven).shift(-aven + 1))
+                    self.tool_ins.rise_n(self.symbol_ori_data[s]["close"], aven).shift(-aven))
                 # 临时均线数据
                 # 方差 未来n天的 上下半std
                 tmpup, tmpdown = self.tool_ins.pre_up_down_std(self.symbol_ori_data[s]["close"], aven)

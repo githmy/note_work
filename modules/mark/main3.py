@@ -39,7 +39,7 @@ class Acount(object):
         for root, dirs, files in os.walk(data_path, topdown=True):
             flist = [i1.replace(".csv", "") for i1 in files if i1.endswith("_D.csv")]
             break
-        flist = flist[0:len(flist) // 2]
+        # flist = flist[0:len(flist) // 2]
         return flist
 
     def __call__(self, *args, **kwargs):
@@ -61,9 +61,9 @@ class Acount(object):
             elif self.data_type == "模拟":  # 已有数据，直观统计
                 backtest = LoadBacktest(
                     self.initial_capital, self.heartbeat, self.start_predict,
-                    # self.csv_dir, self.symbol_list, self.ave_list, self.bband_list,
+                    self.csv_dir, self.symbol_list, self.ave_list, self.bband_list,
                     self.csv_dir, self._get_train_list(), self.ave_list, self.bband_list,
-                    LoadCSVHandler, SimulatedExecutionHandler, Portfolio, MlaStrategy)
+                    # LoadCSVHandler, SimulatedExecutionHandler, Portfolio, MlaStrategy)
             elif self.data_type == "网络":  # 已有数据，统计强化学习
                 backtest = LoadBacktest(
                     self.initial_capital, self.heartbeat, self.start_predict,
@@ -194,7 +194,8 @@ def main(paralist):
                 # "symbol_list": ["SAPower"],
                 # "symbol_list": ["SAPower", "DalianRP"],
                 # "symbol_list": ["ChinaBank"],
-                "symbol_list": ["000001_D"],
+                "symbol_list": ["000001_D", "000002_D"],
+                # "symbol_list": ["000002_D"],
                 "ave_list": [1, 3, 5, 11, 19, 37, 67],
                 "bband_list": [5, 19, 37],
                 "ret_list": [1, 3, 5, 7, 17, 20, 23, 130, 140, 150],
