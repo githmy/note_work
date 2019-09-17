@@ -1,4 +1,4 @@
-import sys
+import sys, os
 import datetime
 from modules.portfolio import Portfolio
 from modules.event import *
@@ -34,6 +34,12 @@ class Acount(object):
     def _gene_stand_paras(self):
         pass
 
+    def _get_train_list(self):
+        flist = []
+        for root, dirs, files in os.walk(data_path, topdown=True):
+            flist = [i1.replace(".csv", "") for i1 in files if i1.endswith("_D.csv")]
+        return flist
+
     def __call__(self, *args, **kwargs):
         # 1. 判断加载模型
         backtest = None
@@ -53,12 +59,13 @@ class Acount(object):
             elif self.data_type == "模拟":  # 已有数据，直观统计
                 backtest = LoadBacktest(
                     self.initial_capital, self.heartbeat, self.start_predict,
-                    self.csv_dir, self.symbol_list, self.ave_list, self.bband_list,
+                    # self.csv_dir, self.symbol_list, self.ave_list, self.bband_list,
+                    self.csv_dir, self._get_train_list(), self.ave_list, self.bband_list,
                     LoadCSVHandler, SimulatedExecutionHandler, Portfolio, MlaStrategy)
             elif self.data_type == "网络":  # 已有数据，统计强化学习
                 backtest = LoadBacktest(
                     self.initial_capital, self.heartbeat, self.start_predict,
-                    None, self.symbol_list, self.ave_list, self.bband_list,
+                    None, self._get_train_list(), self.ave_list, self.bband_list,
                     LoadCSVHandler, SimulatedExecutionHandler, Portfolio, MlaStrategy)
             else:
                 raise Exception("error data_type 只允许：实盘demo, 实盘, 模拟, 网络")
@@ -173,11 +180,11 @@ def main(paralist):
             },
             "data_ori": {
                 # "func_type": "lastday",
-                # "func_type": "train",
-                "func_type": "backtest",
+                "func_type": "train",
+                # "func_type": "backtest",
                 # "func_type": "predict",
-                # "data_type": "模拟",
-                "data_type": "网络",
+                "data_type": "模拟",
+                # "data_type": "网络",
                 # "data_type": "实盘",
                 "csv_dir": data_path,
                 # "symbol_list": ["SAPower", "DalianRP", "ChinaBank"],

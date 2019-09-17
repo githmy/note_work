@@ -6,6 +6,7 @@ import copy
 from abc import ABCMeta, abstractmethod
 from pyalgotrade import strategy
 import itertools
+from utils.log_tool import *
 from modules.event import *
 from modules.stocks.stock_network2 import CRNN
 from modules.stocks.finance_tool import TradeTool
@@ -590,12 +591,27 @@ class MlaStrategy(strategy.BacktestingStrategy):
         # 1. 输入参数
         self._prepare_model_para(args)
         # 2. 生产数据 随机打乱，分成batch
-
-        # inputs_t, targets_base_t, targets_much_t, inputs_v, targets_base_v, targets_much_v = self._prepare_train_data(
-        inputs_t, targets_base_t, targets_much_t, inputs_v, targets_base_v, targets_much_v = self._prepare_newtrain_data(
-            train_bars, ave_list, bband_list, date_range, split)
+        if os.path.isfile(os.path.join(data_path, "inputs_t.npy")):
+            print("loadingdata")
+            inputs_t = np.load(os.path.join(data_path, "npy", "inputs_t.npy"))
+            targets_base_t = np.load(os.path.join(data_path, "npy", "targets_base_t.npy"))
+            targets_much_t = np.load(os.path.join(data_path, "npy", "targets_much_t.npy"))
+            inputs_v = np.load(os.path.join(data_path, "npy", "inputs_v.npy"))
+            targets_base_v = np.load(os.path.join(data_path, "npy", "targets_base_v.npy"))
+            targets_much_v = np.load(os.path.join(data_path, "npy", "targets_much_v.npy"))
+        else:
+            inputs_t, targets_base_t, targets_much_t, inputs_v, targets_base_v, targets_much_v = self._prepare_newtrain_data(
+                train_bars, ave_list, bband_list, date_range, split)
+            np.save(os.path.join(data_path, "npy", "inputs_t"), inputs_t)
+            np.save(os.path.join(data_path, "npy", "targets_base_t"), targets_base_t)
+            np.save(os.path.join(data_path, "npy", "targets_much_t"), targets_much_t)
+            np.save(os.path.join(data_path, "npy", "inputs_v"), inputs_v)
+            np.save(os.path.join(data_path, "npy", "targets_base_v"), targets_base_v)
+            np.save(os.path.join(data_path, "npy", "targets_much_v"), targets_much_v)
         # 3. 训练
-        print(targets_base_t, targets_much_t)
+        print(inputs_t.shape, targets_base_t.shape, targets_much_t.shape, inputs_v.shape, targets_base_v.shape,
+              targets_much_v.shape)
+        print("start-training")
         self.trainconfig["inputdim"] = inputs_t.shape[1]
         self.trainconfig["outretdim"], self.trainconfig["outstddim"] = targets_base_t.shape[1], targets_much_t.shape[1]
         modelcrnn = CRNN(ave_list, bband_list, config=self.trainconfig)

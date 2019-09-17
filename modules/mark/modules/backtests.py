@@ -36,6 +36,7 @@ class LoadBacktest(object):
         self.num_strats = 1
         self._generate_trading_instances()
         print(self.symbol_list)
+        print(len(self.symbol_list))
         print(self.ave_list)
         print(self.bband_list)
 
