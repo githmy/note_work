@@ -204,36 +204,31 @@ class Delphis(object):
         returnValue(json.dumps({"response": "{}".format("ok")}, ensure_ascii=False, indent=4))
 
     @app.route("/trend", methods=['POST', 'OPTIONS'])
-    @check_cors
-    @inlineCallbacks
     def trend_back(self, request):
         logger.info("in home")
         bstr = request.content.read()
         request_params = simplejson.loads(bstr.decode('utf-8', 'strict'))
-        return None
         datas = trend_back_interface(**request_params)
-        return datas
+        return json.dumps(datas, ensure_ascii=False)
 
     @app.route("/recommand", methods=['POST', 'OPTIONS'])
-    @check_cors
-    @inlineCallbacks
     def recommand_back(self, request):
         logger.info("in home")
         bstr = request.content.read()
         request_params = simplejson.loads(bstr.decode('utf-8', 'strict'))
         return None
         datas = recommand_back_interface(**request_params)
-        return datas
+        returnValue(json.dumps({'info': 'new model trained: {}'.format(datas)}))
+        # return datas
 
     @app.route("/model", methods=['POST', 'OPTIONS'])
-    @check_cors
-    @inlineCallbacks
     def model_back(self, request):
         logger.info("in home")
         bstr = request.content.read()
         request_params = simplejson.loads(bstr.decode('utf-8', 'strict'))
         datas = model_back_interface(**request_params)
-        return datas
+        return json.dumps(datas, ensure_ascii=False)
+        # return json.dumps(datas)
 
     @app.route("/train", methods=['POST', 'OPTIONS'])
     # @requires_auth

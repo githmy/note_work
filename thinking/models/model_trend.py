@@ -39,6 +39,7 @@ class TrendNN(object):
         # 转入数据
         self.curvesobj = curvesobj
         self.lenlist = lenlist
+        self.graph = tf.Graph()  # 为每个类(实例)单独创建一个graph
 
     def build(self):
         self.curveshape = self.curvesobj.shape
@@ -50,91 +51,82 @@ class TrendNN(object):
             loss_all = tf.reduce_sum(tf.square(funcmani * xl))
             return loss_all
 
-        # 1. 输入层
-        with tf.name_scope('input'):
-            self.input_xs = tf.placeholder(tf.float32, [self.curveshape[0], self.curveshape[1], self.curveshape[2]],
-                                           name='input_xs')
-            self.input_xl = tf.placeholder(tf.float32, [self.curveshape[0], self.curveshape[1]], name='input_xl')
-            # 2. 输出
-        with tf.name_scope("process"):
-            self.a = tf.Variable(tf.constant(-5.0), name='a')
-            self.b = tf.Variable(tf.constant(3.0), name='b')
-            self.c = tf.Variable(tf.constant(2.0), name='c')
-            self.m = tf.Variable(tf.random_normal([self.curveshape[0]], stddev=0.35, name='m'))
-            self.l = get_point_loss(self.input_xs, self.input_xl, self.a, self.b, self.c, self.m)
-        tf.summary.scalar('a', self.a)
-        tf.summary.scalar('b', self.b)
-        tf.summary.scalar('c', self.c)
-        tf.summary.scalar('loss', self.l)
-        tf.summary.histogram('move', self.m)
+        with self.graph.as_default():
+            # 1. 输入层
+            with tf.name_scope('input'):
+                self.input_xs = tf.placeholder(tf.float32, [self.curveshape[0], self.curveshape[1], self.curveshape[2]],
+                                               name='input_xs')
+                self.input_xl = tf.placeholder(tf.float32, [self.curveshape[0], self.curveshape[1]], name='input_xl')
+                # 2. 输出
+            with tf.name_scope("process"):
+                self.a = tf.Variable(tf.constant(-5.0), name='a')
+                self.b = tf.Variable(tf.constant(3.0), name='b')
+                self.c = tf.Variable(tf.constant(2.0), name='c')
+                self.m = tf.Variable(tf.random_normal([self.curveshape[0]], stddev=0.35, name='m'))
+                self.l = get_point_loss(self.input_xs, self.input_xl, self.a, self.b, self.c, self.m)
+            tf.summary.scalar('a', self.a)
+            tf.summary.scalar('b', self.b)
+            tf.summary.scalar('c', self.c)
+            tf.summary.scalar('loss', self.l)
+            tf.summary.histogram('move', self.m)
 
     def fit(self):
         model_name = os.path.join(self.model_dir, "{}.ckpt".format(self.model_instance_name))
         best_loss = 1e9
         best_counter = 0
         # 9. 辅助参数
-        with tf.name_scope("assistant"):
-            train1 = tf.train.GradientDescentOptimizer(self.learning_rate).minimize(self.l)
-            merged = tf.summary.merge_all()
-            self.train_op = [merged, train1]
-            self.res_list = [self.a, self.b, self.c, self.m, self.l]
+        with self.graph.as_default():
+            with tf.name_scope("assistant"):
+                train1 = tf.train.GradientDescentOptimizer(self.learning_rate).minimize(self.l)
+                merged = tf.summary.merge_all()
+                self.train_op = [merged, train1]
+                self.res_list = [self.a, self.b, self.c, self.m, self.l]
+            saver = tf.train.Saver(tf.global_variables(), max_to_keep=self.early_stop)
         if 1:
             res_a, res_b, res_c, res_m = None, None, None, None
-            session_conf = tf.ConfigProto(
-                gpu_options=tf.GPUOptions(allow_growth=True),
-                allow_soft_placement=True,  # 如果指定的设备不存在，允许tf自动分配设备
-                log_device_placement=False)  # 不打印设备分配日志
-            saver = tf.train.Saver(tf.global_variables(), max_to_keep=self.early_stop)
-            with tf.Session(config=session_conf) as sess:
-                # 2. 用于统计全局的step
-                print("start".center(20, " ").center(80, "*"))
-                train_writer = tf.summary.FileWriter(self.log_dir, sess.graph)  # 保存位置
-                sess.run(tf.global_variables_initializer())
-                counter = 0  # 用于记录当前的batch数
-                for step in range(self.num_epochs):
-                    counter += 1
-                    # 训练
-                    feed_dict = {
-                        self.input_xs: self.curvesobj,
-                        self.input_xl: self.lenlist,
-                    }
-                    summary1, _ = sess.run(self.train_op, feed_dict)
-                    if step % self.save_step == 0:
-                        train_writer.add_summary(summary1, step)
-                        print("保存模型：", saver.save(sess, model_name, step))
-                    if step % self.evaluate_every == 0:
-                        res_a, res_b, res_c, res_m, res_l = sess.run(self.res_list, feed_dict)
-                        time_str = datetime.datetime.now().isoformat()
-                        print("{}: step {}, a {:g}, b {:g}, c {:g}".format(time_str, step, res_a, res_b, res_c))
-                        print(res_m)
-                        # 每10步保存一次参数
-                        if best_loss > res_l:
-                            best_loss = res_l
-                            best_counter = 0
-                        else:
-                            best_counter += 1
-                            if self.early_stop < best_counter:
-                                train_writer.add_summary(summary1, step)
-                                print("保存模型：", saver.save(sess, model_name, step))
-                                break
-                        print("best_loss: %s, best_counter: %s" % (best_loss, best_counter))
-                print("training finished!")
-                train_writer.close()
-                return res_a, res_b, res_c, res_m
 
-    def load_mode(self, modelname):
-        saver = tf.train.Saver()
-        # print(self.model_dir)
-        with tf.Session() as sess:
-            latest_ckpt = tf.train.latest_checkpoint(self.model_dir)
-            if latest_ckpt:
-                """Load model from a checkpoint."""
-                try:
-                    # 加载模型
-                    saver.restore(sess, latest_ckpt)
-                except tf.errors.NotFoundError as e:
-                    print("Can't load checkpoint")
-                    # 预读自定义权重
+            # session_conf = tf.ConfigProto(gpu_options=tf.GPUOptions(allow_growth=True),
+            #                               allow_soft_placement=True,  # 如果指定的设备不存在，允许tf自动分配设备
+            #                               log_device_placement=False)  # 不打印设备分配日志
+            sess = tf.Session(graph=self.graph)
+            # with tf.Session(config=session_conf) as sess:
+            with sess.as_default():
+                with self.graph.as_default():
+                    # 2. 用于统计全局的step
+                    print("start".center(20, " ").center(80, "*"))
+                    train_writer = tf.summary.FileWriter(self.log_dir, sess.graph)  # 保存位置
+                    sess.run(tf.global_variables_initializer())
+                    counter = 0  # 用于记录当前的batch数
+                    for step in range(self.num_epochs):
+                        counter += 1
+                        # 训练
+                        feed_dict = {
+                            self.input_xs: self.curvesobj,
+                            self.input_xl: self.lenlist,
+                        }
+                        summary1, _ = sess.run(self.train_op, feed_dict)
+                        if step % self.save_step == 0:
+                            train_writer.add_summary(summary1, step)
+                            # print("保存模型：", saver.save(sess, model_name, step))
+                        if step % self.evaluate_every == 0:
+                            res_a, res_b, res_c, res_m, res_l = sess.run(self.res_list, feed_dict)
+                            time_str = datetime.datetime.now().isoformat()
+                            print("{}: step {}, a {:g}, b {:g}, c {:g}".format(time_str, step, res_a, res_b, res_c))
+                            # print(res_m)
+                            # 每10步保存一次参数
+                            if best_loss > res_l:
+                                best_loss = res_l
+                                best_counter = 0
+                            else:
+                                best_counter += 1
+                                if self.early_stop < best_counter:
+                                    train_writer.add_summary(summary1, step)
+                                    print("保存模型：", saver.save(sess, model_name, step))
+                                    break
+                            print("best_loss: %s, best_counter: %s" % (best_loss, best_counter))
+                    print("training finished!")
+                    train_writer.close()
+                    return res_a, res_b, res_c, res_m
 
 
 def main():

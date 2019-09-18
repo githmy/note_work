@@ -5,7 +5,7 @@
     "epoch": 100000,
     "single_num": 1,
     "max_memory": 5000,
-    "batch_size": 128,
+    "batch_size": 1024,
     "discount": 0.8,
     "start_date": "2013-08-26",
     "end_date": "2025-08-25",

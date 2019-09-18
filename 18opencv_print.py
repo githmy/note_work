@@ -534,26 +534,26 @@ def main():
 
 if __name__ == "__main__":
     # 视频转化单版测试
-    filehead = "pcL_586ac9d1452a0a6a19061133"
+    filehead = "pcM_5bdc190322bb8136ba02b759"
     # # start_t = 3.01
     # # end_t = 6.1
     # # start_t = 36
     # # end_t = 80
-    start_t = 22
+    start_t = 9
     end_t = 0
-    # source_path = os.path.join("D:\\", "video_data", "乐乐小学数学mp4")
-    # source_root = os.path.join(source_path, filehead)
-    mid_path = os.path.join("D:\\", "video_data", "qsvtrans")
+    source_path = os.path.join("D:\\", "video_data", "洋葱incom")
+    source_root = os.path.join(source_path, filehead)
+    mid_path = os.path.join("D:\\", "video_data", "洋葱incommid")
     mid_root = os.path.join(mid_path, filehead)
     if not os.path.exists(mid_path):
         os.makedirs(mid_path)
-    target_path = os.path.join("D:\\", "video_data", "qsvtranslogo")
+    target_path = os.path.join("D:\\", "video_data", "洋葱incomtrans")
     target_root = os.path.join(target_path, filehead)
     if not os.path.exists(target_path):
         os.makedirs(target_path)
-    # moviepy_dehead(mid_root + ".mp4", target_root + ".mp4", start_t, end_t)
+    # moviepy_dehead(source_root + ".mp4", mid_root + ".mp4", start_t, end_t)
     # moviepy_demid(mid_root + ".mp4", target_root + ".mp4", start_t, end_t)
-    moviepy_trans(mid_root + ".mp4", target_root + ".mp4")
+    # moviepy_trans(mid_root + ".mp4", target_root + ".mp4")
 
     # # 视频批量转化
     # main()

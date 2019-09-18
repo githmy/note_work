@@ -12,17 +12,17 @@ import os, copy
 import itertools
 import math
 from pprint import pprint
-
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 from dateutil import parser
 from sklearn.cluster import KMeans
-
 from models.model_trend import TrendNN
 from utils.connect_mongo import MongoDB
 from utils.connect_mysql import MysqlDB
 from utils.log_tool import *
+import threading
+import multiprocessing
 
 config_my = {
     'host': "192.168.1.252",
@@ -81,29 +81,59 @@ class PlotTool(object):
         plt.show()
 
 
+# class MyThread(threading.Thread):
+#     def __init__(self, func, args):
+#         threading.Thread.__init__(self)
+#         self.func = func
+#         self.args = args
+#         self.result = self.func(*self.args)
+class MyThread(multiprocessing.Process):
+    def __init__(self, func, args):
+        multiprocessing.Process.__init__(self)
+        self.func = func
+        self.args = args
+        self.result = self.func(*self.args)
+
+    def get_result(self):
+        try:
+            return self.result
+        except Exception:
+            # print(traceback.print_exc())
+            return "threading result except"
+
+
+def gett_paras(model_dir, modelname, model_json, curvesobj, lenlist):
+    if os.path.exists(model_dir):
+        os.removedirs(model_dir)
+    insmodel = TrendNN("model_trend", modelname, model_json, curvesobj, lenlist)
+    insmodel.build()
+    paras = copy.deepcopy(insmodel.fit())
+    return paras
+
+
 class OutPutResult(object):
     def __init__(self, ):
         # 1. 采集数据源
-        self.student_quality = [
-            {"学生id": 1, "skill": 1, "thinking": 1, "hobby": 1, "school_type": 1, "student_point": 1}]
-        self.point_info = [{"知识点": 1, "技能水平": 1, }]
-        self.question_detial = [{"题目id": 1, "知识点": 1, "技能水平": 1, "建议时间": 1}]
-        self.question_main = [{"题目id": 1, "思维水平": 1, "技能水平": 1}]
-        self.quiz_detail = [{"学生id": 1, "题目id": 1, "测试时间": 1, "知识点id": 1, "答题时长": 1}]
-        self.quiz_main = [{"测试id": 1, "学生id": 1, "试卷id": 1, "测试时间": 1, "skill": 1, "thinking": 1}]
-        self.quiz_point = [
-            {"测试id": 1, "知识点id": 1, "know": 1, "skill": 1, "thinking": 1, "答点时长": 1, "建议时长": 1.5, "是否超前": 1}]
-        self.learing_info = [{"学生id": 1, "学习时间": 1, "知识点": 1, "学习时长": 1}]
-        self.triple_info = [{"主知识点id": 1, "关系id": 1, "客知识点id": 1, "场景id": 1}]
-        self.pd_student_quality = pd.DataFrame(self.student_quality)
-        self.pd_point_info = pd.DataFrame(self.point_info)
-        self.pd_question_detial = pd.DataFrame(self.question_detial)
-        self.pd_question_main = pd.DataFrame(self.question_main)
-        self.pd_quiz_detail = pd.DataFrame(self.quiz_detail)
-        self.pd_quiz_main = pd.DataFrame(self.quiz_main)
-        self.pd_quiz_point = pd.DataFrame(self.quiz_point)
-        self.pd_learing_info = pd.DataFrame(self.learing_info)
-        self.pd_triple_info = pd.DataFrame(self.triple_info)
+        # self.student_quality = [
+        #     {"学生id": 1, "skill": 1, "thinking": 1, "hobby": 1, "school_type": 1, "student_point": 1}]
+        # self.point_info = [{"知识点": 1, "技能水平": 1, }]
+        # self.question_detial = [{"题目id": 1, "知识点": 1, "技能水平": 1, "建议时间": 1}]
+        # self.question_main = [{"题目id": 1, "思维水平": 1, "技能水平": 1}]
+        # self.quiz_detail = [{"学生id": 1, "题目id": 1, "测试时间": 1, "知识点id": 1, "答题时长": 1}]
+        # self.quiz_main = [{"测试id": 1, "学生id": 1, "试卷id": 1, "测试时间": 1, "skill": 1, "thinking": 1}]
+        # self.quiz_point = [
+        #     {"测试id": 1, "知识点id": 1, "know": 1, "skill": 1, "thinking": 1, "答点时长": 1, "建议时长": 1.5, "是否超前": 1}]
+        # self.learing_info = [{"学生id": 1, "学习时间": 1, "知识点": 1, "学习时长": 1}]
+        # self.triple_info = [{"主知识点id": 1, "关系id": 1, "客知识点id": 1, "场景id": 1}]
+        # self.pd_student_quality = pd.DataFrame(self.student_quality)
+        # self.pd_point_info = pd.DataFrame(self.point_info)
+        # self.pd_question_detial = pd.DataFrame(self.question_detial)
+        # self.pd_question_main = pd.DataFrame(self.question_main)
+        # self.pd_quiz_detail = pd.DataFrame(self.quiz_detail)
+        # self.pd_quiz_main = pd.DataFrame(self.quiz_main)
+        # self.pd_quiz_point = pd.DataFrame(self.quiz_point)
+        # self.pd_learing_info = pd.DataFrame(self.learing_info)
+        # self.pd_triple_info = pd.DataFrame(self.triple_info)
         self.insmysql = MysqlDB(config_my)
 
     def update_point_skill_level(self):
@@ -238,19 +268,6 @@ class OutPutResult(object):
         res_pd = pd.DataFrame(reslist)
         return res_pd
 
-    def cluster_student_quality(self, single_pd_in):
-        # 5. 输入：历次测试2个维度的知识点降维结果：更新学生的素质属性。（为了得出发展轨迹）
-        lines_pd = self._lines2rank()
-        # 1. 统计 同一科目 同一学段同一学期 的 各个报名时间 各个学生 的发展轨迹，做学习模式聚类，作为背景参照。
-        cls = KMeans(n_clusters=4, init='k-means++')
-        y_hat = cls.fit_predict(lines_pd)
-        # 2. 选   某一科目 某一学段某一学期 的 某个报名时间 某个学生 的评测结果。
-        single_pd = self._single_lines2rank(single_pd_in)
-        single_y_hat = cls.fit(single_pd)
-        # 3. 属于 查看该学生属于某个类
-        # 4. 画出 该科目 该学段该学期 该聚类 的 均值轨迹和波动值，外加拟合延长线
-        return None
-
     def update_point_weigh(self):
         # 6. 输入：题库的统计结果，输出：所有相关的知识点按权重排序（同权重的或全选或全不先，题目出现多就代表重要）。
         pass
@@ -297,19 +314,6 @@ class OutPutResult(object):
             score_dim1_curves.append(oneline)
             score_dim2_curves.append(multline)
         return score_dim1_curves, score_dim2_curves
-
-    def get_nearest_pointids(self, origin_point, point_set, findnum=20):
-        # 输入：原始点，待比较列表，最近书目  输出：最近点的索引
-        pointnum = len(point_set)
-        targetnum = findnum
-        if findnum > pointnum:
-            targetnum = pointnum
-        # 1. 获取点的长度
-        point_setnp = np.array(point_set)
-        origin_pointnp = np.array(origin_point)
-        distancelist = (origin_pointnp[0] - point_setnp[:, 0]) ** 2 + (origin_pointnp[1] - point_setnp[:, 1]) ** 2
-        ordlist = np.argsort(distancelist)
-        return ordlist[0:targetnum]
 
     # 1.1 生成素质数据
     def gene_quality(self, datalist):
@@ -361,12 +365,19 @@ class OutPutResult(object):
         # print(len(curvesobj), type(curvesobj))
         # print(len(curvesobj[0]), type(curvesobj[0]))
         # print(len(curvesobj[0][0]), type(curvesobj[0][0]))
+
+        # model_dir = os.path.join(model_path, "model_trend_" + modelname)
+        # insthread = MyThread(gett_paras, args=(model_dir, modelname, model_json, curvesobj, lenlist,))
+        # # target表示调用对象。name是子线程的名称。args 传入target函数中的位置参数，是个元组，参数后必须加逗号
+        # insthread.start()  # 开始执行线程任务，启动进程
+        # insthread.join()
+        # paras = insthread.get_result()
+
         model_dir = os.path.join(model_path, "model_trend_" + modelname)
         if os.path.exists(model_dir):
             os.removedirs(model_dir)
         insmodel = TrendNN("model_trend", modelname, model_json, curvesobj, lenlist)
         insmodel.build()
-        insmodel.load_mode("")
         paras = insmodel.fit()
         return paras
 
@@ -403,13 +414,17 @@ class OutPutResult(object):
                     point_categ_map[str(i1)].append(point_curve_mapid[str(id2)])
         return point_categ_map, avexy_categ_map
 
-    def get_nearest_models(self, score_dim2_curves):
+    def get_nearest_models(self, score_dim2_curves, subjectid="M", sectionid="J", gradeid=1, termid=1, edition="沪教版"):
         # 1. 生成素质数据
+        score_dim2_curves[0]["data"] = [[0, 2.2, 2.2], [2, 3.3, 3.5]]
+        # print(score_dim2_curves[0]["data"])
         quality_points = [self.gene_quality(i1["data"]) for i1 in score_dim2_curves]
-        # quality_points = [[0, 1]]
+        # print(quality_points)
         if len(np.array(quality_points).shape) == 1:
             return "学生测验次数太少，无法预测。"
-        res = self.insmysql.exec_sql("select x,y from rpg_model_info GROUP BY x,y;")
+        sqls = """select x,y from rpg_model_info WHERE subjectid="{}" AND sectionid="{}" AND edition="{}" GROUP BY x,y;""".format(
+            subjectid, sectionid, edition)
+        res = self.insmysql.exec_sql(sqls)
         # 2. 获取相近参数
         modelcoord = np.array(pd.DataFrame(res))
         targetid = -1
@@ -419,9 +434,9 @@ class OutPutResult(object):
             if mindis > tmpdis:
                 targetid = id1
                 mindis = tmpdis
-        res = self.insmysql.exec_sql(
-            "select `type`,a,b,`c` from rpg_model_info WHERE x={} AND y={};".format(modelcoord[targetid][0],
-                                                                                    modelcoord[targetid][1]))
+        sqls = """select `type`,a,b,`c` from rpg_model_info WHERE x={} AND y={} AND subjectid="{}" AND sectionid="{}" AND edition="{}";""".format(
+            modelcoord[targetid][0], modelcoord[targetid][1], subjectid, sectionid, edition)
+        res = self.insmysql.exec_sql(sqls)
         paras = np.array(pd.DataFrame(res))
 
         # # 2.3 输入：不同维度的曲线列表（知识点 方式 文件 多维得分 得分）输出：按用户测评时间 知识点累计值(图谱，曲线) 分布
@@ -436,7 +451,8 @@ class OutPutResult(object):
             return a * x ** 2 + b * x + c
 
         def adjust_x(y, a, b, c):
-            return (-b - (b ** 2 - 4 * a * (c - y) ** 0.5)) / (2 * a)
+            # print(y, a, b, c)
+            return (-b + (b ** 2 - 4 * a * (c - y)) ** 0.5) / (2 * a)
 
         def get_curve_data(realdata, paras):
             real_x = []
@@ -459,22 +475,25 @@ class OutPutResult(object):
                     raise Exception("float error")
             adjustx1 = adjust_x(real_y1[-1], a1, b1, c1)
             adjustx2 = adjust_x(real_y2[-1], a2, b2, c2)
-            stand_x = [i1 for i1 in range(int(real_x[0]), int(real_x[0]) + 100)]
-            stand_x1 = [i1 - adjustx1 for i1 in range(int(real_x[0]), int(real_x[0]) + 100)]
-            stand_x2 = [i1 - adjustx2 for i1 in range(int(real_x[0]), int(real_x[0]) + 100)]
+            stand_x = [i1 for i1 in range(int(real_x[0]) - 50, int(real_x[0]) + 100)]
+            stand_x1 = [i1 - adjustx1 for i1 in range(int(real_x[0]) - 50, int(real_x[0]) + 100)]
+            stand_x2 = [i1 - adjustx2 for i1 in range(int(real_x[0]) - 50, int(real_x[0]) + 100)]
             stand_y1 = []
             stand_y2 = []
             for i1 in stand_x:
                 stand_y1.append(get_point_y(i1, a1, b1, c1))
                 stand_y2.append(get_point_y(i1, a2, b2, c2))
-            return real_x, real_y1, real_y2, stand_x1, stand_y1, stand_x2, stand_y2
+            # 0.实际x, 1.实际y1, 2.实际y2, 3.拟合x, 4.拟合移动x1, 5.拟合y1, 6.拟合移动x2, 7.拟合y2
+            return real_x, real_y1, real_y2, stand_x, stand_x1, stand_y1, stand_x2, stand_y2
 
         # 3. 重整曲线
+        # print(score_dim2_curves[0]["data"], paras)
         real_stand = get_curve_data(score_dim2_curves[0]["data"], paras)
-        # 4. 显示测试数据
-        insplot = PlotTool()
-        # insplot.plot_line([[real_stand[0], real_stand[1]], [real_stand[0], real_stand[2]]])
-        insplot.plot_line([[real_stand[3], real_stand[4]], [real_stand[5], real_stand[6]]])
+        # print(real_stand)
+        # # 4. 显示测试数据
+        # insplot = PlotTool()
+        # insplot.plot_line(
+        #     [[real_stand[4], real_stand[5]], [real_stand[6], real_stand[7]]])
         return real_stand
 
     def get_point_accum_data(self, data_reform, point_list):
@@ -680,8 +699,9 @@ def main():
     # 由于题目的思维难度根据步骤来，是客观的，不需要人为干预（暂时没考虑不同解决方案的步骤不同，即一道题多个解法的情况）
 
 
-def trend_back_interface(subjectid="M", sectionid="J", timestart="2019-01-01 00:00:00",
+def trend_back_interface(subjectid="M", sectionid="J", gradeid=1, termid=1, timestart="2019-01-01 00:00:00",
                          timeend="2019-09-17 00:00:00", edition="沪教版", studentid="aaaaa"):
+    # gradeid = 1, termid = 1, 这两项尚未考虑
     insdata = GetData()
     # 0. 单个学生的课程信息 studentid is not None
     studentid = "6e3fedf0-33ab-4315-ba1b-31809d160c06"
@@ -706,12 +726,24 @@ def trend_back_interface(subjectid="M", sectionid="J", timestart="2019-01-01 00:
     score_dim1_curves, score_dim2_curves = insres.get_score_curve_data(data_reform)
     # pprint(score_dim2_curves)
     # 3. 根据学生的表现曲线 返回类似的轨迹
-    trend_curves = insres.get_nearest_models(score_dim2_curves)
-    # print(trend_curves)
-    return trend_curves
+    errormessage = None
+    trend_curves = []
+    # trend_curves = insres.get_nearest_models(score_dim2_curves, subjectid, sectionid, gradeid, termid, edition)
+    try:
+        trend_curves = insres.get_nearest_models(score_dim2_curves, subjectid, sectionid, gradeid, termid, edition)
+        if isinstance(trend_curves, str):
+            errormessage = trend_curves
+        elif np.isnan(trend_curves[4][0]) or np.isnan(trend_curves[6][0]):
+            errormessage = "学生的表现形式，没有类似学生的数模型"
+        else:
+            pass
+    except Exception as e:
+        errormessage = e
+    # print(trend_curves, errormessage)
+    return trend_curves, errormessage
 
 
-def recommand_back_interface(subjectid="M", sectionid="J", timestart="2019-01-01 00:00:00",
+def recommand_back_interface(subjectid="M", sectionid="J", gradeid=1, termid=1, timestart="2019-01-01 00:00:00",
                              timeend="2019-09-17 00:00:00", points=[], edition="沪教版", studentid="aaaaa"):
     # 推荐相关知识点
     print(points)
@@ -720,13 +752,30 @@ def recommand_back_interface(subjectid="M", sectionid="J", timestart="2019-01-01
     # Domain(领域)，Type(类别)和Topic(主题，即实体)
     # Type包含多个Topics且和多个Properties关联
     # 抽取属于某个Type或满足某个Property的新实体(或实体对)
-
     datas = None
     return datas
 
 
-def model_back_interface(subjectid="M", sectionid="J", timestart="2019-01-01 00:00:00", timeend="2019-09-17 00:00:00",
-                         edition="沪教版"):
+def update_weigh_interface(subjectid="M", sectionid="J", timestart="2019-01-01 00:00:00", timeend="2019-09-17 00:00:00",
+                           edition="沪教版"):
+    # 1. 知识点难度 = 学习时长/考试该点的正确率
+    # bus_point_info 的 增autolevel
+    # 2. 学习方式优先权重 = 随堂得分/该环节学习时长
+    # bus_teachway_point 的 增weigh
+    # 3. 学习文件优先权重 = 随堂得分/该文件学习时长
+    # bus_file_point 的 增weigh
+    # 4. 考题难度 = 答题时长/考试该点的正确率
+    # bus_question_info 的 weigh
+    # 5. 建议答题时长权重 = 考题难度 * 考试该点的正确率
+    # bus_question_info 的 timeweigh
+    # 6. 建议学习时长权重 = 随堂得分/学习文件优先权重
+    # bus_file_point 的 增timeweigh
+    pass
+
+
+def model_back_interface(subjectid="M", sectionid="J", gradeid=1, termid=1, timestart="2019-01-01 00:00:00",
+                         timeend="2019-09-17 00:00:00", edition="沪教版"):
+    # 目前之筛选了学科和学段，未考考虑年级和学期的需求。
     # 1. 获取素质集合
     insdata = GetData()
     # 1.1 筛选课程相关id  [{课程id:xx, 课程时间:xx}]
@@ -749,6 +798,7 @@ def model_back_interface(subjectid="M", sectionid="J", timestart="2019-01-01 00:
     point_categ_map, avexy_categ_map = insres.gene_trend_models(score_dim2_curves)
     # 2.1 获取拟合数据
     modeldata = []
+    errormessage = []
     for i1 in point_categ_map:
         curve_datas = [i2['data'] for id2, i2 in enumerate(score_dim2_curves) if id2 in point_categ_map[str(i1)]]
         curve1_datas = []
@@ -761,6 +811,20 @@ def model_back_interface(subjectid="M", sectionid="J", timestart="2019-01-01 00:
                 tmp2.append([i3[0], i3[2]])
             curve1_datas.append(tmp1)
             curve2_datas.append(tmp2)
+        # # 维度1的四条线
+        # curve1_datas = [
+        #     [[0, 4.5], [2, 7.5]],
+        #     [[0, 3.5], [3, 7.5], [6, 13.5]],
+        #     [[0, 4.2], [7, 12.5]],
+        #     [[0, 0], [4, 2.5]],
+        # ]
+        # # 维度2的四条线
+        # curve2_datas = [
+        #     [[0, 4.5], [2, 8.5]],
+        #     [[0, 3.5], [3, 6.5], [6, 13.5]],
+        #     [[0, 4.2], [7, 11.5]],
+        #     [[0, 0], [3, 2.5]],
+        # ]
         # 3. 输出对应数据的拟合曲线
         # all_data = [
         #     [[0, 4.5], [2, 7.5]],
@@ -770,22 +834,34 @@ def model_back_interface(subjectid="M", sectionid="J", timestart="2019-01-01 00:
         # ]
         # pprint(curve1_datas)
         # 2.2 模型训练
-        modeltype = 0
-        tmp_modelname = "{}_{}_{}".format(str(avexy_categ_map[i1][0]), str(avexy_categ_map[i1][1]), modeltype)
-        paras = insres.gene_curve_paras(curve1_datas, tmp_modelname)
-        modeldata.append([avexy_categ_map[i1], modeltype, tmp_modelname, paras])
-        modeltype = 1
-        tmp_modelname = "{}_{}_{}".format(str(avexy_categ_map[i1][0]), str(avexy_categ_map[i1][1]), modeltype)
-        paras = insres.gene_curve_paras(curve2_datas, tmp_modelname)
-        modeldata.append([avexy_categ_map[i1], modeltype, tmp_modelname, paras])
+        try:
+            modeltype = 0
+            tmp_modelname = "{}_{}_{}_{}_{}_{}_{}_{}".format(subjectid, sectionid, gradeid, termid,
+                                                             str(avexy_categ_map[i1][0]), str(avexy_categ_map[i1][1]),
+                                                             modeltype, edition)
+            paras = insres.gene_curve_paras(curve1_datas, tmp_modelname)
+            modeldata.append([avexy_categ_map[i1], modeltype, tmp_modelname, paras])
+            modeltype = 1
+            tmp_modelname = "{}_{}_{}_{}_{}_{}_{}_{}".format(subjectid, sectionid, gradeid, termid,
+                                                             str(avexy_categ_map[i1][0]), str(avexy_categ_map[i1][1]),
+                                                             modeltype, edition)
+            paras = insres.gene_curve_paras(curve2_datas, tmp_modelname)
+            modeldata.append([avexy_categ_map[i1], modeltype, tmp_modelname, paras])
+        except Exception as e:
+            errormessage.append(curve_datas)
+            logger.info("问题数据如下。")
+            logger.info(errormessage)
     # 3. 参数保存
-    res = insdata.insmysql.exec_sql("TRUNCATE rpg_model_info;")
-    for i1 in modeldata:
-        sqls = """
-        INSERT INTO rpg_model_info (x, y,`type`,modelname,a,b,`c`) VALUES({},{},{},"{}",{},{},{});
-        """.format(i1[0][0], i1[0][1], i1[1], i1[2], i1[3][0], i1[3][1], i1[3][2])
-        res = insdata.insmysql.exec_sql(sqls)
-    return res
+    res = 0
+    if len(modeldata) != 0:
+        res = insdata.insmysql.exec_sql("TRUNCATE rpg_model_info;")
+        for i1 in modeldata:
+            sqls = """
+            INSERT INTO rpg_model_info (x, y,`type`,edition,`subjectid`,`sectionid`,gradeid, termid, modelname,a,b,`c`) VALUES({},{},{},"{}","{}","{}",{},{},"{}",{},{},{});
+            """.format(i1[0][0], i1[0][1], i1[1], edition, subjectid, sectionid, gradeid, termid, i1[2], i1[3][0],
+                       i1[3][1], i1[3][2])
+            res = insdata.insmysql.exec_sql(sqls)
+    return res, errormessage
 
 
 if __name__ == '__main__':
@@ -794,9 +870,8 @@ if __name__ == '__main__':
     logger.info("".center(100, "*"))
     logger.info("")
     recommand_back_interface()
-    # trend_back_interface()
     # model_back_interface()
-    exit(0)
+    # trend_back_interface()
     # main()
     logger.info("")
     logger.info("bye bye".center(30, " ").center(100, "*"))

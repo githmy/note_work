@@ -332,6 +332,8 @@ class MlaStrategy(strategy.BacktestingStrategy):
         config["single_num"] = hpara["env"]["single_num"]
         config["modelfile"] = hpara["model"]["file"]
         config["retrain"] = hpara["model"]["retrain"]
+        config["batchsize"] = hpara["env"]["batch_size"]
+        config["epoch"] = hpara["env"]["epoch"]
         print()
         print("**********************************************************")
         print("parafile:", parafile)
@@ -604,6 +606,10 @@ class MlaStrategy(strategy.BacktestingStrategy):
             targets_base_v = np.load(os.path.join(data_path, "npy", "targets_base_v.npy"))
             targets_much_v = np.load(os.path.join(data_path, "npy", "targets_much_v.npy"))
         else:
+            # 2. 加载衍生前值
+            train_bars.generate_b_derivative()
+            # 2. 加载衍生后值
+            train_bars.generate_a_derivative()
             inputs_t, targets_base_t, targets_much_t, inputs_v, targets_base_v, targets_much_v = self._prepare_newtrain_data(
                 train_bars, ave_list, bband_list, date_range, split)
             np.save(os.path.join(data_path, "npy", "inputs_t"), inputs_t)
@@ -620,7 +626,8 @@ class MlaStrategy(strategy.BacktestingStrategy):
         self.trainconfig["outretdim"], self.trainconfig["outstddim"] = targets_base_t.shape[1], targets_much_t.shape[1]
         modelcrnn = CRNN(ave_list, bband_list, config=self.trainconfig)
         modelcrnn.buildModel()
-        batch_size, num_epochs = 32, 100000
+        batch_size = self.trainconfig["batchsize"]
+        num_epochs = self.trainconfig["epoch"]
         globalstep = modelcrnn.batch_train(inputs_t, targets_base_t, targets_much_t, inputs_v, targets_base_v,
                                            targets_much_v, batch_size, num_epochs)
 

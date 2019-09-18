@@ -70,10 +70,6 @@ class LoadBacktest(object):
         # 1. 训练数据, 输入原始规范训练数据，待时间截断
         # todo: 1. 测试接口更新数据 2. 分类板块，每个模型，时间段回测
         train_bars = LoadCSVHandler(queue.Queue(), data_path, self.symbol_list, self.ave_list, self.bband_list)
-        # 2. 加载衍生前值
-        train_bars.generate_b_derivative()
-        # 2. 加载衍生后值
-        train_bars.generate_a_derivative()
         date_range = [1, None]
         split = 0.8  # 先截range 再split
         # 3. 训练
