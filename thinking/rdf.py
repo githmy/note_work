@@ -8,14 +8,18 @@ from __future__ import division
 from __future__ import print_function
 from __future__ import unicode_literals
 import pandas as pd
-from server import Delphis
-from models.model_cnn import TextCNN
-from utils.log_tool import logger
-from sklearn.cluster import KMeans
 import os
 import jieba
+from utils.log_tool import *
 from utils.connect_mysql import MysqlDB
 import pymysql
+import neo4j
+import networkx as nx
+import matplotlib.pyplot as plt
+import matplotlib
+
+matplotlib.rcParams['font.sans-serif'] = ['SimHei']
+matplotlib.rcParams['font.family'] = 'sans-serif'
 
 pd.options.display.max_columns = 999
 
@@ -37,18 +41,22 @@ pd.options.display.max_columns = 999
 4. 知识推理
 """
 
+config = {
+    'host': "127.0.0.1",
+    'user': "root",
+    'password': "333",
+    'port': 3306,
+    'database': "thinkingdata",
+    'charset': 'utf8mb4',  # 支持1-4个字节字符
+    'cursorclass': pymysql.cursors.DictCursor
+}
+
+
 class RDF(object):
-    def __init__(self):
-        config = {
-            'host': "127.0.0.1",
-            'user': "root",
-            'password': "333",
-            'database': "thinkingdata",
-            'charset': 'utf8mb4',  # 支持1-4个字节字符
-            'cursorclass': pymysql.cursors.DictCursor
-        }
+    def __init__(self, config, data=None):
         self.mysql = MysqlDB(config)
         self.update_triples_from_db()
+        self.data = data
 
     # 1. 根据 实体 找到相关 的属性
     def find_entity_property(self, entityname):
@@ -96,7 +104,7 @@ class RDF(object):
 
 
 def main():
-    ins = RDF()
+    ins = RDF(config)
     entityname = "单项式"
     find_list = ins.find_entity_property(entityname)
     print(find_list)
@@ -111,11 +119,78 @@ def main():
     print(discrete_list)
 
 
+def test_neo4j():
+    # 图库驱动
+    driver = neo4j.GraphDatabase.driver("bolt://localhost:7687", auth=("neo4j", "neo4j"))
+
+    def add_friend(tx, name, friend_name):
+        tx.run("MERGE (a:Person {name: $name}) "
+               "MERGE (a)-[:KNOWS]->(friend:Person {name: $friend_name})",
+               name=name, friend_name=friend_name)
+
+    def print_friends(tx, name):
+        for record in tx.run("MATCH (a:Person)-[:KNOWS]->(friend) WHERE a.name = $name "
+                             "RETURN friend.name ORDER BY friend.name", name=name):
+            print(record["friend.name"])
+
+    def add_obj(tx, name):
+        tx.run("MERGE (a:obj {name: $name}) ",
+               name=name)
+
+    def add_relation(tx, subject, relation, object, domain=None):
+        tx.run("MERGE (a:obj {name: $subject_name}) "
+               "MERGE (a)-[r:%s {domain:$domain_name}]->(b:obj {name: $object_name})" % (relation),
+               subject_name=subject, object_name=object, domain_name=domain)
+        # tx.run("MERGE (a:obj {name: $subject_name}) "
+        #        "MERGE (a)-[r:%s]->(b:obj {name: $object_name})" % relation,
+        #        subject_name=subject, object_name=object)
+
+    def delete_all(tx):
+        "start n=node(*)  match (n)-[r:observer]-()  delete n,r match (o:org{name: 'juxinli'}) match (n)-[r:observer]-()  delete o,r"
+        tx.run("match (n) detach delete n")
+
+    with driver.session() as session:
+        # session.write_transaction(add_friend, "Arthur", "Guinevere")
+        # session.write_transaction(add_friend, "Arthur", "Lancelot")
+        # session.write_transaction(add_friend, "Arthur", "Merlin")
+        # session.read_transaction(print_friends, "Arthur")
+        # session.write_transaction(add_obj, "ab")
+        # 1. 清空原有
+        session.write_transaction(delete_all)
+        # 2. 获取数据
+        filename = os.path.join(project_path, "graph.xlsx")
+        pdobj = pd.read_excel(filename, sheet_name='Sheet1', header=0)
+        for i1 in pdobj.iterrows():
+            # session.write_transaction(add_relation, "个", "键", "安")
+            session.write_transaction(add_relation, i1[1][0], i1[1][2], i1[1][4], "教育")
+    # print(pdobj)
+    exit()
+    ins = RDF(config, pdobj)
+    entityname = "单项式"
+    find_list = ins.find_entity_property(entityname)
+    # pdobj = pd.DataFrame(os.path.join(data_path, "graph.xlsx"))
+
+
+def test_networkx():
+    G0 = nx.MultiDiGraph()  # 创建多重有向图
+    filename = os.path.join(project_path, "graph.xlsx")
+    pdobj = pd.read_excel(filename, sheet_name='Sheet1', header=0, encoding="utf8")
+    G = nx.from_pandas_edgelist(pdobj[["subject", "object"]], "subject", "object", create_using=G0)
+    nx.draw(G, with_labels=True, font_weight='bold')
+    plt.axis('on')
+    plt.xticks([])
+    plt.yticks([])
+    plt.show()
+
+
 if __name__ == '__main__':
     logger.info("".center(100, "*"))
     logger.info("welcome to Delphis".center(30, " ").center(100, "*"))
     logger.info("".center(100, "*"))
     logger.info("")
+    test_networkx()
+    # test_neo4j()
+    exit(0)
     main()
     logger.info("")
     logger.info("bye bye".center(30, " ").center(100, "*"))

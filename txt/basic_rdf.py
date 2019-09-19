@@ -1,5 +1,16 @@
 import networkx as nx
 import matplotlib.pyplot as plt
+import matplotlib
+
+matplotlib.rcParams['font.sans-serif'] = ['SimHei']
+matplotlib.rcParams['font.family'] = 'sans-serif'
+
+
+def 绘图方式():
+    nx.draw(g)
+    nx.draw_random(g)  # 点随机分布
+    nx.draw_circular(g)  # 点的分布形成一个环
+    nx.draw_spectral(g)
 
 
 def 构建方式():
@@ -71,6 +82,13 @@ def 构建方式():
     G.clear()
     import pandas as pd
     df = pd.DataFrame([[1, 1], [2, 1]])
+    """
+       weight  cost  0  b
+    0       4     7  A  D
+    1       7     1  B  A
+    2      10     9  C  E
+    """
+    G = nx.from_pandas_edgelist(df, 0, 'b', ['weight', 'cost'], create_using=G0)
     G = nx.from_pandas_adjacency(df)
     nx.draw(D, with_labels=True, font_weight='bold')
     plt.axis('on')
@@ -86,7 +104,7 @@ def rdf_build():
     G = nx.Graph()  # 创建无向图
     G = nx.DiGraph()  # 创建有向图
     G = nx.MultiGraph()  # 创建多重无向图
-    G = nx.MultiDigraph()  # 创建多重有向图
+    G = nx.MultiDiGraph()  # 创建多重有向图
     G.clear()  # 清空图
 
     G = nx.Graph()  # 建立一个空的无向图G
@@ -116,6 +134,15 @@ def rdf_build():
     F = H.to_directed()
     # 或者
     F = nx.DiGraph(H)
+    nx.subgraph(G, nbunch)  # induce subgraph of G on nodes in nbunch
+    nx.union(G1, G2)  # graph union
+    nx.disjoint_union(G1, G2)  # graph union assuming all nodes are different
+    nx.cartesian_product(G1, G2)  # return Cartesian product graph
+    nx.compose(G1, G2)  # combine graphs identifying nodes common to both
+    nx.complement(G)  # graph complement
+    nx.create_empty_copy(G)  # return an empty copy of the same graph class
+    nx.convert_to_undirected(G)  # return an undirected representation of G
+    nx.convert_to_directed(G)  # return a directed representation of G
 
     # 访问节点
     print('图中所有的节点', G.nodes())
@@ -140,12 +167,21 @@ def rdf_build():
     # 添加边
     F = nx.Graph()  # 创建无向图
     F.add_edge(11, 12)  # 一次添加一条边
+    g[1][2]['color'] = 'blue'
+    g.add_edge(1, 2, weight=4.7)
+    g.add_edges_from([(3, 4), (4, 5)], color='red')
+    g.add_edges_from([(1, 2, {'color': 'blue'}), (2, 3, {'weight': 8})])
+    g[1][2]['weight'] = 4.7
+    g.edge[1][2]['weight'] = 4
     # 等价于
     e = (13, 14)  # e是一个元组
     F.add_edge(*e)  # 这是python中解包裹的过程
     F.add_edges_from([(1, 2), (1, 3)])  # 通过添加list来添加多条边
     # 通过添加任何ebunch来添加边
     F.add_edges_from(H.edges())  # 不能写作F.add_edges_from(H)
+    e = [('a', 'b', 0.3), ('b', 'c', 0.9), ('a', 'c', 0.5), ('c', 'd', 1.2)]
+    G.add_weighted_edges_from(e)
+    print(nx.dijkstra_path(G, 'a', 'd'))
     nx.draw(F, with_labels=True)
     plt.show()
 
