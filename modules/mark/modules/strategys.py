@@ -599,7 +599,7 @@ class MlaStrategy(strategy.BacktestingStrategy):
         # 2. 生产数据 随机打乱，分成batch
         data_buff_dir = "npy_" + "_".join([str(i1) for i1 in bband_list])
         full_data_buff_dir = os.path.join(data_path, data_buff_dir)
-        if os.path.isfile(os.path.join(data_path, data_buff_dir, "inputs_t.npy")):
+        if os.path.isfile(os.path.join(full_data_buff_dir, "inputs_t.npy")):
             print("loadingdata")
             inputs_t = np.load(os.path.join(full_data_buff_dir, "inputs_t.npy"))
             targets_base_t = np.load(os.path.join(full_data_buff_dir, "targets_base_t.npy"))
