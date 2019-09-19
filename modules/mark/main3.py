@@ -1,5 +1,6 @@
 import sys, os
 import datetime
+import json
 from modules.portfolio import Portfolio
 from modules.event import *
 from modules.datahandle import CSVDataHandler, CSVAppendDataHandler, LoadCSVHandler
@@ -7,6 +8,26 @@ from modules.strategys import MovingAverageCrossStrategy, MultiCrossStrategy, Ml
 from modules.executions import SimulatedExecutionHandler
 from modules.backtests import Backtest, LoadBacktest
 from utils.log_tool import *
+import tushare as ts
+
+
+def choice_list():
+    # 行业分类
+    tt = ts.get_industry_classified()
+    infos = tt['code'].groupby([tt['c_name']]).apply(list)
+    industjson = json.loads(infos.to_json(orient='index', force_ascii=False))
+    # 中小板分类
+    tt = ts.get_sme_classified()
+    smartlist = list(set(tt["code"]).intersection(set(industjson["电子信息"])))
+    # # 概念分类
+    # tt = ts.get_concept_classified()
+    # infos = tt['code'].groupby([tt['c_name']]).apply(to_list)
+    # conceptjson = json.loads(infos.to_json(orient='index', force_ascii=False))
+    # # 小轻，突破边缘的信息类
+    # nearbreaklist = list(set(smartlist).intersection(set(conceptjson["智能机器"])))
+    # print(conceptjson["智能机器"])
+    # print(nearbreaklist)
+    return smartlist
 
 
 class Acount(object):
@@ -59,10 +80,13 @@ class Acount(object):
                     self.csv_dir, self.symbol_list, self.ave_list, self.bband_list, self.ret_list,
                     CSVAppendDataHandler, SimulatedExecutionHandler, Portfolio, MultiCrossStrategy)
             elif self.data_type == "模拟":  # 已有数据，直观统计
+                print(data_buff_dir)
+                exit()
                 backtest = LoadBacktest(
                     self.initial_capital, self.heartbeat, self.start_predict,
                     # self.csv_dir, self.symbol_list, self.ave_list, self.bband_list,
-                    self.csv_dir, self._get_train_list(), self.ave_list, self.bband_list,
+                    # self.csv_dir, self._get_train_list(), self.ave_list, self.bband_list,
+                    self.csv_dir, choice_list(), self.ave_list, self.bband_list,
                     LoadCSVHandler, SimulatedExecutionHandler, Portfolio, MlaStrategy)
             elif self.data_type == "网络":  # 已有数据，统计强化学习
                 backtest = LoadBacktest(

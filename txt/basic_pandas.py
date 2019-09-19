@@ -293,6 +293,12 @@ for name, group in df1.groupby('key1'):
 
 # # 导出json
 # have_res = pdobj.to_json(orient='records', force_ascii=False)
+# have_res = pdobj.to_json(orient='columns', force_ascii=False)
+# have_res = pdobj.to_json(orient='index', force_ascii=False)
+# have_res = pdobj.to_json(orient='split', force_ascii=False)
+# have_res = pdobj.to_json(orient='values', force_ascii=False)
+# have_res = pdobj.to_json(orient='table', force_ascii=False)
+
 # have_res = json.loads(have_res, encoding="utf-8")
 
 # 读文件

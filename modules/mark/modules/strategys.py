@@ -597,14 +597,16 @@ class MlaStrategy(strategy.BacktestingStrategy):
         # 1. 输入参数
         self._prepare_model_para(args)
         # 2. 生产数据 随机打乱，分成batch
-        if os.path.isfile(os.path.join(data_path, "npy", "inputs_t.npy")):
+        data_buff_dir = "npy_" + "_".join([str(i1) for i1 in bband_list])
+        full_data_buff_dir = os.path.join(data_path, data_buff_dir)
+        if os.path.isfile(os.path.join(data_path, data_buff_dir, "inputs_t.npy")):
             print("loadingdata")
-            inputs_t = np.load(os.path.join(data_path, "npy", "inputs_t.npy"))
-            targets_base_t = np.load(os.path.join(data_path, "npy", "targets_base_t.npy"))
-            targets_much_t = np.load(os.path.join(data_path, "npy", "targets_much_t.npy"))
-            inputs_v = np.load(os.path.join(data_path, "npy", "inputs_v.npy"))
-            targets_base_v = np.load(os.path.join(data_path, "npy", "targets_base_v.npy"))
-            targets_much_v = np.load(os.path.join(data_path, "npy", "targets_much_v.npy"))
+            inputs_t = np.load(os.path.join(full_data_buff_dir, "inputs_t.npy"))
+            targets_base_t = np.load(os.path.join(full_data_buff_dir, "targets_base_t.npy"))
+            targets_much_t = np.load(os.path.join(full_data_buff_dir, "targets_much_t.npy"))
+            inputs_v = np.load(os.path.join(full_data_buff_dir, "inputs_v.npy"))
+            targets_base_v = np.load(os.path.join(full_data_buff_dir, "targets_base_v.npy"))
+            targets_much_v = np.load(os.path.join(full_data_buff_dir, "targets_much_v.npy"))
         else:
             # 2. 加载衍生前值
             train_bars.generate_b_derivative()
@@ -612,12 +614,12 @@ class MlaStrategy(strategy.BacktestingStrategy):
             train_bars.generate_a_derivative()
             inputs_t, targets_base_t, targets_much_t, inputs_v, targets_base_v, targets_much_v = self._prepare_newtrain_data(
                 train_bars, ave_list, bband_list, date_range, split)
-            np.save(os.path.join(data_path, "npy", "inputs_t"), inputs_t)
-            np.save(os.path.join(data_path, "npy", "targets_base_t"), targets_base_t)
-            np.save(os.path.join(data_path, "npy", "targets_much_t"), targets_much_t)
-            np.save(os.path.join(data_path, "npy", "inputs_v"), inputs_v)
-            np.save(os.path.join(data_path, "npy", "targets_base_v"), targets_base_v)
-            np.save(os.path.join(data_path, "npy", "targets_much_v"), targets_much_v)
+            np.save(os.path.join(full_data_buff_dir, "inputs_t"), inputs_t)
+            np.save(os.path.join(full_data_buff_dir, "targets_base_t"), targets_base_t)
+            np.save(os.path.join(full_data_buff_dir, "targets_much_t"), targets_much_t)
+            np.save(os.path.join(full_data_buff_dir, "inputs_v"), inputs_v)
+            np.save(os.path.join(full_data_buff_dir, "targets_base_v"), targets_base_v)
+            np.save(os.path.join(full_data_buff_dir, "targets_much_v"), targets_much_v)
         # 3. 训练
         print(inputs_t.shape, targets_base_t.shape, targets_much_t.shape, inputs_v.shape, targets_base_v.shape,
               targets_much_v.shape)
