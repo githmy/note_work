@@ -7,6 +7,7 @@ from abc import ABCMeta, abstractmethod
 from pyalgotrade import strategy
 import itertools
 from utils.log_tool import *
+from utils.path_tool import makesurepath
 from modules.event import *
 from modules.stocks.stock_network2 import CRNN
 from modules.stocks.finance_tool import TradeTool
@@ -599,6 +600,7 @@ class MlaStrategy(strategy.BacktestingStrategy):
         # 2. 生产数据 随机打乱，分成batch
         data_buff_dir = "npy_" + "_".join([str(i1) for i1 in bband_list])
         full_data_buff_dir = os.path.join(data_path, data_buff_dir)
+        makesurepath(full_data_buff_dir)
         if os.path.isfile(os.path.join(full_data_buff_dir, "inputs_t.npy")):
             print("loadingdata")
             inputs_t = np.load(os.path.join(full_data_buff_dir, "inputs_t.npy"))
