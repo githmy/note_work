@@ -220,11 +220,12 @@ class CRNN(AbstractModeltensor):
                         global_n += 1
                     losslist_t = sess.run(self.train_list, feed_dict_t)
                     result = sess.run(self.merged, feed_dict_t)
-                    writer.add_summary(result, global_n)
-                    self.saver.save(sess, os.path.join(model_path, 'model_%s' % self.config["tailname"],
-                                                       self.config["modelfile"]), global_step=global_n)
-                    print("batch %s, step %s, time: %s s, y_loss_base_t %s, y_loss_much_t %s" % (
-                        batch_num, global_n, time.time() - starte, losslist_t[0], losslist_t[1]))
+                    if batch_num % 20 == 0:
+                        writer.add_summary(result, global_n)
+                        self.saver.save(sess, os.path.join(model_path, 'model_%s' % self.config["tailname"],
+                                                           self.config["modelfile"]), global_step=global_n)
+                        print("batch %s, step %s, time: %s s, y_loss_base_t %s, y_loss_much_t %s" % (
+                            batch_num, global_n, time.time() - starte, losslist_t[0], losslist_t[1]))
                 # valid part
                 feed_dict_v = {
                     self.input_p: inputs_v,
