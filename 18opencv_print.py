@@ -534,7 +534,7 @@ def main():
 
 if __name__ == "__main__":
     # 视频转化单版测试
-    filehead = "pcM_5bdc190322bb8136ba02b759"
+    filehead = "pcM_5c08f39ae8200039b3d4543d"
     # # start_t = 3.01
     # # end_t = 6.1
     # # start_t = 36
@@ -551,9 +551,9 @@ if __name__ == "__main__":
     target_root = os.path.join(target_path, filehead)
     if not os.path.exists(target_path):
         os.makedirs(target_path)
-    # moviepy_dehead(source_root + ".mp4", mid_root + ".mp4", start_t, end_t)
+    moviepy_dehead(source_root + ".mp4", mid_root + ".mp4", start_t, end_t)
     # moviepy_demid(mid_root + ".mp4", target_root + ".mp4", start_t, end_t)
-    # moviepy_trans(mid_root + ".mp4", target_root + ".mp4")
+    moviepy_trans(mid_root + ".mp4", target_root + ".mp4")
 
     # # 视频批量转化
     # main()

@@ -11,7 +11,7 @@ from __future__ import unicode_literals
 import os, copy
 import itertools
 import math
-from pprint import pprint
+# from pprint import pprint
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
@@ -20,9 +20,9 @@ from sklearn.cluster import KMeans
 from models.model_trend import TrendNN
 from utils.connect_mongo import MongoDB
 from utils.connect_mysql import MysqlDB
-from utils.log_tool import *
-import threading
+# import threading
 import multiprocessing
+from utils.log_tool import *
 
 config_my = {
     'host': "192.168.1.252",
@@ -288,11 +288,11 @@ class OutPutResult(object):
         # 8. 输入：不同素质群体，不同时间(规范化学期开始为时间0)综合降维知识点的掌握情况，输出：不同素质群体，2个维度的曲线的拟合参数方差。
         pass
 
-    def get_score_curve_data(self, data_reform):
+    def get_score_curve_data(self, examination_data):
         # 9. 输入：学生素质，曲线基本参数，起始学习时间，知识点评测，返回最合理的预测：当前学生表现的象限能力，输出发展曲线 及标准差。
         score_dim1_curves = []
         score_dim2_curves = []
-        for tmpobj in data_reform:
+        for tmpobj in examination_data:
             oneline = copy.deepcopy(tmpobj)
             oneline["data"] = []
             for i1 in tmpobj["data"]:
@@ -345,12 +345,12 @@ class OutPutResult(object):
             nplenth = np.vstack(nplenlist)
             return npobj, nplenth
 
-        def transpose(matrix):
-            return zip(*matrix)
-
-        all_data_transpose = []
-        for i1 in all_data:
-            all_data_transpose.append(list(transpose(i1)))
+        # def transpose(matrix):
+        #     return zip(*matrix)
+        #
+        # all_data_transpose = []
+        # for i1 in all_data:
+        #     all_data_transpose.append(list(transpose(i1)))
 
         # npobj, len_list = datac2np(accum_curve)
         curvesobj, lenlist = data2np(all_data, 25)
@@ -440,7 +440,7 @@ class OutPutResult(object):
         paras = np.array(pd.DataFrame(res))
 
         # # 2.3 输入：不同维度的曲线列表（知识点 方式 文件 多维得分 得分）输出：按用户测评时间 知识点累计值(图谱，曲线) 分布
-        # accum_map, accum_curve = insres.get_point_accum_data(data_reform, datadic["pointobj"])
+        # accum_map, accum_curve = insres.get_point_accum_data(examination_data, datadic["pointobj"])
 
         def get_point_y_old(x, a, b, c, m):
             xt = x + m
@@ -496,10 +496,10 @@ class OutPutResult(object):
         #     [[real_stand[4], real_stand[5]], [real_stand[6], real_stand[7]]])
         return real_stand
 
-    def get_point_accum_data(self, data_reform, point_list):
+    def get_point_accum_data(self, examination_data, point_list):
         # 9. 输入：不同维度的曲线列表（知识点 方式 文件 多维得分 得分）输出：按用户测评时间 知识点累计值 分值
         # 9.1 切片数据
-        poinsmap = self.get_point_splice_data(data_reform)
+        poinsmap = self.get_point_splice_data(examination_data)
         # 9.2 累计数据
         accummap = []
         accumcurve = []
@@ -525,11 +525,11 @@ class OutPutResult(object):
             accumcurve.append(twoline)
         return accummap, accumcurve
 
-    def get_point_splice_data(self, data_reform):
+    def get_point_splice_data(self, examination_data):
         # 9. 输入：学生素质，曲线基本参数，起始学习时间，知识点评测，返回最合理的预测：当前学生表现的象限能力，输出发展曲线 及标准差。
         poinsmap = []
         # print(555)
-        for tmpobj in data_reform:
+        for tmpobj in examination_data:
             oneline = copy.deepcopy(tmpobj)
             oneline["data"] = []
             for i1 in tmpobj["data"]:
@@ -635,7 +635,7 @@ class GetData(object):
             cd_dict.append({"datetime": str(courseinfo[0]["startTime"]),
                             "studentid": courseinfo[0]["studentid"],
                             "data": list(zip(tmp_cd_list, tmptimelist, tmppointinfo))})
-        # # [{课时id:xx, 起始时差:datatime, 知识评测完善度, 知识点列表:[{知识点名称:xx, 学习时间:xx, 学习形式:xx, 成绩分值:xx, 成绩类型:xx}]}]
+        # [{起始时:datatime, studentid:xx, 数据列表:[详情id,第一次的间隔时间,{视频信息:[{文件id:xx,知识点:xx,消耗时间:xx}], 例题信息:[{例题id:xx,知识点id:xx,消耗时间:xx}],练习信息:[{练习模式:xx,主知识点:[],辅知识点:[],得分:xx,满分:xx,消耗时间:xx,问题id:xx,问题类别:xx}],学习时间:xx, 学习形式:xx, 成绩分值:xx, 成绩类型:xx}]}]
         return cd_dict
 
     def get_quiz_subject_stage_info(self, subjectid, sectionid, edition, timestart, timeend):
@@ -721,9 +721,9 @@ def trend_back_interface(subjectid="M", sectionid="J", gradeid=1, termid=1, time
     # 2. 分析返回
     insres = OutPutResult()
     # 2.1 输入：学生的表现详情。输出：不同维度的曲线列表（知识点 方式 文件 多维得分 得分）
-    data_reform = insres.get_learn_info_multistudents(single_course_res_info)
+    examination_data = insres.get_learn_info_multistudents(single_course_res_info)
     # 2.2 输入：不同维度的曲线列表（知识点 方式 文件 多维得分 得分）输出：按用户测评时间 分值维度 分值线
-    score_dim1_curves, score_dim2_curves = insres.get_score_curve_data(data_reform)
+    score_dim1_curves, score_dim2_curves = insres.get_score_curve_data(examination_data)
     # pprint(score_dim2_curves)
     # 3. 根据学生的表现曲线 返回类似的轨迹
     errormessage = None
@@ -783,17 +783,20 @@ def model_back_interface(subjectid="M", sectionid="J", gradeid=1, termid=1, time
     coursedetailkeys = insdata.get_course_subject_stage_info(studentid, subjectid, sectionid, edition, timestart,
                                                              timeend)
     course_res_info = insdata.get_course_result_info(coursedetailkeys)
+    # [{起始时:datatime, studentid:xx, 数据列表:[详情id,第一次的间隔时间,{视频信息:[{文件id:xx,知识点:xx,消耗时间:xx}], 例题信息:[{例题id:xx,知识点id:xx,消耗时间:xx}],练习信息:[{练习模式:xx,主知识点:[],辅知识点:[],得分:xx,满分:xx,消耗时间:xx,问题id:xx,问题类别:xx}],学习时间:xx, 学习形式:xx, 成绩分值:xx, 成绩类型:xx}]}]
     # 1.2. 学期的知识点
     # pointobj = insdata.get_subject_stage_point_info(subjectid, sectionid, edition)
     # 2. 数据预处理
     insres = OutPutResult()
     # 2.1 输入：学生的表现详情。输出：不同维度的曲线列表（知识点 方式 文件 多维得分 得分）
-    data_reform = insres.get_learn_info_multistudents(course_res_info)
+    examination_data = insres.get_learn_info_multistudents(course_res_info)
+    # examination_data 只提取 course_res_info 的 考试信息
     # 2.2 输入：不同维度的曲线列表（知识点 方式 文件 多维得分 得分）输出：按用户测评时间 分值维度 分值线
-    score_dim1_curves, score_dim2_curves = insres.get_score_curve_data(data_reform)
+    score_dim1_curves, score_dim2_curves = insres.get_score_curve_data(examination_data)
+    # score_dim2_curves 实际的分和总分
     # 每个course 抽取成不同 quality
     # # 2.3 输入：不同维度的曲线列表（知识点 方式 文件 多维得分 得分）输出：按用户测评时间 知识点累计值(图谱，曲线) 分布
-    # accum_ma, accum_curve = insres.get_point_accum_data(data_reform, [i1["PointCode"] for i1 in pointobj])
+    # accum_ma, accum_curve = insres.get_point_accum_data(examination_data, [i1["PointCode"] for i1 in pointobj])
     # 2. 聚类 映射
     point_categ_map, avexy_categ_map = insres.gene_trend_models(score_dim2_curves)
     # 2.1 获取拟合数据
@@ -869,8 +872,8 @@ if __name__ == '__main__':
     logger.info("welcome to Delphis".center(30, " ").center(100, "*"))
     logger.info("".center(100, "*"))
     logger.info("")
-    recommand_back_interface()
-    # model_back_interface()
+    # recommand_back_interface()
+    model_back_interface()
     # trend_back_interface()
     # main()
     logger.info("")
