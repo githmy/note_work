@@ -626,6 +626,7 @@ class MlaStrategy(strategy.BacktestingStrategy):
         print(inputs_t.shape, targets_base_t.shape, targets_much_t.shape, inputs_v.shape, targets_base_v.shape,
               targets_much_v.shape)
         print("start-training")
+        self.trainconfig["tailname"] += data_buff_dir
         self.trainconfig["inputdim"] = inputs_t.shape[1]
         self.trainconfig["outretdim"], self.trainconfig["outstddim"] = targets_base_t.shape[1], targets_much_t.shape[1]
         modelcrnn = CRNN(ave_list, bband_list, config=self.trainconfig)
@@ -641,6 +642,8 @@ class MlaStrategy(strategy.BacktestingStrategy):
         self._prepare_model_para(args)
         # 2. 生产数据
         self.trainconfig["dropout"] = 1.0
+        data_buff_dir = "npy_" + "_".join([str(i1) for i1 in bband_list])
+        self.trainconfig["tailname"] += data_buff_dir
         modelcrnn = CRNN(ave_list, bband_list, config=self.trainconfig)
         modelcrnn.buildModel()
         # 3. 预测结果
@@ -656,6 +659,8 @@ class MlaStrategy(strategy.BacktestingStrategy):
         self._prepare_model_para(args)
         # 2. 生产数据
         self.trainconfig["dropout"] = 1.0
+        data_buff_dir = "npy_" + "_".join([str(i1) for i1 in bband_list])
+        self.trainconfig["tailname"] += data_buff_dir
         modelcrnn = CRNN(ave_list, bband_list, config=self.trainconfig)
         modelcrnn.buildModel()
         # 3. 预测结果
