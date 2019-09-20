@@ -10,7 +10,7 @@
     "start_date": "2013-08-26",
     "end_date": "2025-08-25",
     "learn_rate": 1e-4,
-    "early_stop": 10,
+    "early_stop": 10000000,
     "sudden_death": -1.0,
     "scope": 60,
     "inputdim": 61,

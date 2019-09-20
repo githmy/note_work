@@ -386,7 +386,8 @@ class LoadCSVHandler(object):
                     self.tool_ins.rise_n(self.symbol_ori_data[s]["close"], aven).shift(-aven))
                 # 临时均线数据
                 # 方差 未来n天的 上下半std
-                tmpup, tmpdown = self.tool_ins.pre_up_down_std(self.symbol_ori_data[s]["close"], aven)
+                tmpup, tmpdown = self.tool_ins.general_pre_up_down_std(self.symbol_ori_data[s]["close"], aven)
+                # tmpup, tmpdown = self.tool_ins.pre_up_down_std(self.symbol_ori_data[s]["close"], aven)
                 self.symbol_aft_half_std_up[s].append(tmpup.shift(-aven + 1))
                 self.symbol_aft_half_std_down[s].append(tmpdown.shift(-aven + 1))
 

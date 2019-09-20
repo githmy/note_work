@@ -416,10 +416,9 @@ class OutPutResult(object):
 
     def get_nearest_models(self, score_dim2_curves, subjectid="M", sectionid="J", gradeid=1, termid=1, edition="沪教版"):
         # 1. 生成素质数据
-        score_dim2_curves[0]["data"] = [[0, 2.2, 2.2], [2, 3.3, 3.5]]
+        # score_dim2_curves[0]["data"] = [[0, 2.2, 2.2], [2, 3.3, 3.5]]
         # print(score_dim2_curves[0]["data"])
         quality_points = [self.gene_quality(i1["data"]) for i1 in score_dim2_curves]
-        # print(quality_points)
         if len(np.array(quality_points).shape) == 1:
             return "学生测验次数太少，无法预测。"
         sqls = """select x,y from rpg_model_info WHERE subjectid="{}" AND sectionid="{}" AND edition="{}" GROUP BY x,y;""".format(
@@ -434,10 +433,10 @@ class OutPutResult(object):
             if mindis > tmpdis:
                 targetid = id1
                 mindis = tmpdis
-        sqls = """select `type`,a,b,`c` from rpg_model_info WHERE x={} AND y={} AND subjectid="{}" AND sectionid="{}" AND edition="{}";""".format(
+        sqls = """select `type`,a,b,`c`,normalpara from rpg_model_info WHERE x={} AND y={} AND subjectid="{}" AND sectionid="{}" AND edition="{}";""".format(
             modelcoord[targetid][0], modelcoord[targetid][1], subjectid, sectionid, edition)
         res = self.insmysql.exec_sql(sqls)
-        paras = np.array(pd.DataFrame(res))
+        paras = res
 
         # # 2.3 输入：不同维度的曲线列表（知识点 方式 文件 多维得分 得分）输出：按用户测评时间 知识点累计值(图谱，曲线) 分布
         # accum_map, accum_curve = insres.get_point_accum_data(examination_data, datadic["pointobj"])
@@ -466,34 +465,41 @@ class OutPutResult(object):
             # 真实curve1,真实curve2,预测curve1,预测curve2
             # stand_curvex = [i1 for i1 in range(-100, 100)]
             a1, b1, c1, a2, b2, c2 = [0] * 6
+            normalpara1, normalpara2 = None, None
             for i1 in paras:
-                if int(i1[-1]) == 0:
-                    a1, b1, c1, _ = i1
-                elif int(i1[-1]) == 1:
-                    a2, b2, c2, _ = i1
+                if int(i1["type"]) == 0:
+                    a1, b1, c1, normalpara1 = i1["a"], i1["b"], i1["c"], i1["normalpara"]
+                elif int(i1["type"]) == 1:
+                    a2, b2, c2, normalpara2 = i1["a"], i1["b"], i1["c"], i1["normalpara"]
                 else:
                     raise Exception("float error")
-            adjustx1 = adjust_x(real_y1[-1], a1, b1, c1)
-            adjustx2 = adjust_x(real_y2[-1], a2, b2, c2)
-            stand_x = [i1 for i1 in range(int(real_x[0]) - 50, int(real_x[0]) + 100)]
-            stand_x1 = [i1 - adjustx1 for i1 in range(int(real_x[0]) - 50, int(real_x[0]) + 100)]
-            stand_x2 = [i1 - adjustx2 for i1 in range(int(real_x[0]) - 50, int(real_x[0]) + 100)]
+            adjustx1 = adjust_x(real_y1[-1], a1 * normalpara1, b1 * normalpara1, c1 * normalpara1)
+            adjustx2 = adjust_x(real_y2[-1], a2 * normalpara2, b2 * normalpara2, c2 * normalpara2)
+            standx10 = adjust_x(0, a1, b1, c1)
+            standx20 = adjust_x(0, a2, b2, c2)
+            standx10 = int(math.floor(standx10))
+            standx20 = int(math.floor(standx20))
+            standx1h = int(math.ceil(-b1 / a1 / 2))
+            standx2h = int(math.ceil(-b2 / a2 / 2))
+            # stand_x = [i1 for i1 in range(int(real_x[0]) - 50, int(real_x[0]) + 100)]
+            stand_x1 = [i1 - adjustx1 for i1 in range(standx10, standx1h)]
+            stand_x2 = [i1 - adjustx2 for i1 in range(standx20, standx2h)]
             stand_y1 = []
             stand_y2 = []
-            for i1 in stand_x:
-                stand_y1.append(get_point_y(i1, a1, b1, c1))
-                stand_y2.append(get_point_y(i1, a2, b2, c2))
+            for i1 in stand_x1:
+                stand_y1.append(get_point_y(i1, a1 * normalpara1, b1 * normalpara1, c1 * normalpara1))
+            for i1 in stand_x2:
+                stand_y2.append(get_point_y(i1, a2 * normalpara2, b2 * normalpara2, c2 * normalpara2))
             # 0.实际x, 1.实际y1, 2.实际y2, 3.拟合x, 4.拟合移动x1, 5.拟合y1, 6.拟合移动x2, 7.拟合y2
-            return real_x, real_y1, real_y2, stand_x, stand_x1, stand_y1, stand_x2, stand_y2
+            return real_x, real_y1, real_y2, stand_x1, stand_y1, stand_x2, stand_y2
 
         # 3. 重整曲线
         # print(score_dim2_curves[0]["data"], paras)
         real_stand = get_curve_data(score_dim2_curves[0]["data"], paras)
-        # print(real_stand)
         # # 4. 显示测试数据
-        # insplot = PlotTool()
-        # insplot.plot_line(
-        #     [[real_stand[4], real_stand[5]], [real_stand[6], real_stand[7]]])
+        insplot = PlotTool()
+        insplot.plot_line(
+            [[real_stand[3], real_stand[4]], [real_stand[5], real_stand[6]]])
         return real_stand
 
     def get_point_accum_data(self, examination_data, point_list):
@@ -843,13 +849,15 @@ def model_back_interface(subjectid="M", sectionid="J", gradeid=1, termid=1, time
                                                              str(avexy_categ_map[i1][0]), str(avexy_categ_map[i1][1]),
                                                              modeltype, edition)
             paras = insres.gene_curve_paras(curve1_datas, tmp_modelname)
-            modeldata.append([avexy_categ_map[i1], modeltype, tmp_modelname, paras])
+            maxdata = 1
+            modeldata.append([avexy_categ_map[i1], modeltype, tmp_modelname, paras, maxdata])
             modeltype = 1
             tmp_modelname = "{}_{}_{}_{}_{}_{}_{}_{}".format(subjectid, sectionid, gradeid, termid,
                                                              str(avexy_categ_map[i1][0]), str(avexy_categ_map[i1][1]),
                                                              modeltype, edition)
             paras = insres.gene_curve_paras(curve2_datas, tmp_modelname)
-            modeldata.append([avexy_categ_map[i1], modeltype, tmp_modelname, paras])
+            maxdata = 1
+            modeldata.append([avexy_categ_map[i1], modeltype, tmp_modelname, paras, maxdata])
         except Exception as e:
             errormessage.append(curve_datas)
             logger.info("问题数据如下。")
@@ -860,9 +868,9 @@ def model_back_interface(subjectid="M", sectionid="J", gradeid=1, termid=1, time
         res = insdata.insmysql.exec_sql("TRUNCATE rpg_model_info;")
         for i1 in modeldata:
             sqls = """
-            INSERT INTO rpg_model_info (x, y,`type`,edition,`subjectid`,`sectionid`,gradeid, termid, modelname,a,b,`c`) VALUES({},{},{},"{}","{}","{}",{},{},"{}",{},{},{});
+            INSERT INTO rpg_model_info (x, y,`type`,edition,`subjectid`,`sectionid`,gradeid, termid, modelname,a,b,`c`,normalpara) VALUES({},{},{},"{}","{}","{}",{},{},"{}",{},{},{},{});
             """.format(i1[0][0], i1[0][1], i1[1], edition, subjectid, sectionid, gradeid, termid, i1[2], i1[3][0],
-                       i1[3][1], i1[3][2])
+                       i1[3][1], i1[3][2], i1[-1])
             res = insdata.insmysql.exec_sql(sqls)
     return res, errormessage
 
@@ -873,8 +881,8 @@ if __name__ == '__main__':
     logger.info("".center(100, "*"))
     logger.info("")
     # recommand_back_interface()
-    model_back_interface()
-    # trend_back_interface()
+    # model_back_interface()
+    trend_back_interface()
     # main()
     logger.info("")
     logger.info("bye bye".center(30, " ").center(100, "*"))
