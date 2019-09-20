@@ -24,6 +24,7 @@ class CRNN(AbstractModeltensor):
         super(CRNN, self).__init__(config)
         self.modeldic = {
             "cnn_dense": self._cnn_dense_model,  # 原始结构
+            "cnn_dense_more": self._cnn_dense_more_model,
             "cnn_full": self._cnn_full_model,  # 原始结构
             "full": self._fullmodel,  # 原始结构
             "one": self._one,  # 原始改单层结构
@@ -133,6 +134,39 @@ class CRNN(AbstractModeltensor):
         denseo2 = tf.nn.dropout(concat2, keep_prob=self.keep_prob_ph)
         dense3 = tf.layers.dense(inputs=denseo2, units=256, activation=tf.nn.relu, name="layer_dense3")
         denseo3 = tf.nn.dropout(dense3, keep_prob=self.keep_prob_ph)
+        dense4 = tf.layers.dense(inputs=denseo3, units=128, activation=tf.nn.relu, name="layer_dense4")
+        denseo4 = tf.nn.dropout(dense4, keep_prob=self.keep_prob_ph)
+        # tf.summary.histogram('layer_dense2', dense2)  # 记录标量的变化
+        y_base = tf.layers.dense(inputs=denseo4, units=self.base_dim, activation=None, name="y_base")
+        y_much = tf.layers.dense(inputs=denseo4, units=self.much_dim, activation=None, name="y_much")
+        tf.summary.histogram('y_base', y_base)  # 记录标量的变化
+        tf.summary.histogram('y_much', y_much)  # 记录标量的变化
+        # 损失返回值
+        y_loss_base = tf.reduce_mean(tf.square(y_base - self.target_base_y), name="y_loss_base")
+        y_loss_much = tf.reduce_mean(tf.square(y_much - self.target_much_y), name="y_loss_much")
+        # 猜错的获取 实际盈利值的负数
+        # self.learn_rate = tf.Variable(self.learn_rate_p, name="lr", trainable=False)
+        # self.update_lr = tf.assign(self.learn_rate, tf.multiply(self.lr_decay, self.learn_rate))
+        self.train_list = [y_loss_base, y_loss_much]
+        self.valid_list = [y_loss_base, y_loss_much]
+        self.pred_list = [y_base, y_much]
+        # 打印信息
+        tf.summary.scalar('lr', self.learn_rate_p)  # 记录标量的变化
+        tf.summary.scalar('y_loss_base', y_loss_base)  # 记录标量的变化
+        tf.summary.scalar('y_loss_much', y_loss_much)  # 记录标量的变化
+
+    def _cnn_dense_more_model(self):
+        # 部分1，预测值
+        dense1 = tf.layers.dense(inputs=self.input_p, units=128, activation=tf.nn.relu, name="layer_dense1")
+        concat1 = tf.concat([self.input_p, dense1], 1, name='concat1')
+        denseo1 = tf.nn.dropout(concat1, keep_prob=self.keep_prob_ph)
+        # tf.summary.histogram('layer_dense1', dense1)  # 记录标量的变化
+        dense2 = tf.layers.dense(inputs=denseo1, units=512, activation=tf.nn.relu, name="layer_dense2")
+        concat2 = tf.concat([self.input_p, dense1, dense2], 1, name='concat2')
+        denseo2 = tf.nn.dropout(concat2, keep_prob=self.keep_prob_ph)
+        dense3 = tf.layers.dense(inputs=denseo2, units=256, activation=tf.nn.relu, name="layer_dense3")
+        concat3 = tf.concat([self.input_p, dense1, dense2, dense3], 1, name='concat3')
+        denseo3 = tf.nn.dropout(concat3, keep_prob=self.keep_prob_ph)
         dense4 = tf.layers.dense(inputs=denseo3, units=128, activation=tf.nn.relu, name="layer_dense4")
         denseo4 = tf.nn.dropout(dense4, keep_prob=self.keep_prob_ph)
         # tf.summary.histogram('layer_dense2', dense2)  # 记录标量的变化
