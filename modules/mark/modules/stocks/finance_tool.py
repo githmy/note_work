@@ -65,7 +65,8 @@ class ElementTool(object):
         # Sma = pd.Series(0.0, index=tsPrice.index)
         Sma = pd.Series(index=tsPrice.index)
         for i in range(k - 1, len(tsPrice)):
-            Sma[i + 1] = sum(tsPrice[(i - k + 1):(i + 1)]) / k
+            Sma[i] = sum(tsPrice[(i - k + 1):(i + 1)]) / k
+            # Sma[i + 1] = sum(tsPrice[(i - k + 1):(i + 1)]) / k
         return Sma
 
     def wmaCal(self, tsPrice, weight):
