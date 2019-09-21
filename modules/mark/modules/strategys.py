@@ -9,7 +9,7 @@ import itertools
 from utils.log_tool import *
 from utils.path_tool import makesurepath
 from modules.event import *
-from modules.stocks.stock_network2 import CRNN
+from modules.stocks.stock_network2 import CRNN, CRNNevery
 from modules.stocks.finance_tool import TradeTool
 import simplejson
 import argparse
@@ -346,83 +346,196 @@ class MlaStrategy(strategy.BacktestingStrategy):
         self.trainconfig = config
         # return config
 
-    def _prepare_train_data(self, train_bars, ave_list, bband_list, data_range, split=0.8):
-        mult_charactx = []
-        mult_characty_base = []
-        mult_characty_much = []
+    def _prepare_every_train_data(self, train_bars, ave_list, bband_list, data_range, split=0.8):
+        mult_charact_trainx = []
+        mult_charact_validx = []
+        mult_charact_trainy_ret_a = []
+        mult_charact_trainy_ret_h = []
+        mult_charact_trainy_ret_l = []
+        mult_charact_trainy_stdup = []
+        mult_charact_trainy_stddw = []
+        mult_charact_trainy_drawup = []
+        mult_charact_trainy_drawdw = []
+        mult_charact_validy_ret_a = []
+        mult_charact_validy_ret_h = []
+        mult_charact_validy_ret_l = []
+        mult_charact_validy_stdup = []
+        mult_charact_validy_stddw = []
+        mult_charact_validy_drawup = []
+        mult_charact_validy_drawdw = []
         symbol_list = list(train_bars.symbol_pre_half_std_up.keys())
+        totallenth = len(train_bars.symbol_ori_data[symbol_list[0]]["close"])
+        mid_lenth = max(bband_list[-1] - 1, ave_list[-1])
+        trainpre_pos = max(data_range[0] if data_range[0] is not None else 0, ave_list[-1] - 1)
+        validaft_lenth = max(data_range[1] if data_range[1] is not None else 0, bband_list[-1])
+        usefull_lenth = totallenth - trainpre_pos - validaft_lenth - mid_lenth
+        trainaft_pos = int(usefull_lenth * split) + trainpre_pos
+        validpre_pos = trainpre_pos + int(usefull_lenth * split) + mid_lenth
+        validaft_pos = trainpre_pos + usefull_lenth + mid_lenth
+        print("total length: {} train range:{}-{}. valid range:{}-{}.".format(totallenth, trainpre_pos, trainaft_pos,
+                                                                              validpre_pos, validaft_pos))
         for s in symbol_list:
             # 1. 加载标签数据
-            xchara_list = []
+            print(s)
+            xchara_trainlist = []
+            xchara_validlist = []
             xlen_slist = len(ave_list)
             for single_chara in range(xlen_slist):
-                xchara_list.append(train_bars.symbol_pre_half_std_up[s][single_chara][data_range[0] - 1:data_range[1]])
-                xchara_list.append(
-                    train_bars.symbol_pre_half_std_down[s][single_chara][data_range[0] - 1:data_range[1]])
+                xchara_trainlist.append(train_bars.symbol_pre_half_std_up[s][single_chara][trainpre_pos:trainaft_pos])
+                xchara_trainlist.append(train_bars.symbol_pre_half_std_down[s][single_chara][trainpre_pos:trainaft_pos])
+                xchara_validlist.append(train_bars.symbol_pre_half_std_up[s][single_chara][validpre_pos:validaft_pos])
+                xchara_validlist.append(train_bars.symbol_pre_half_std_down[s][single_chara][validpre_pos:validaft_pos])
                 for single2_chara in range(xlen_slist):
-                    xchara_list.append(
-                        train_bars.symbol_pre_retp[s][single_chara][single2_chara][data_range[0] - 1:data_range[1]])
-                    xchara_list.append(
-                        train_bars.symbol_pre_retm[s][single_chara][single2_chara][data_range[0] - 1:data_range[1]])
-            tmp_xnp = np.vstack(xchara_list)
-            ychara_base_list = []
-            ychara_much_list = []
+                    xchara_trainlist.append(
+                        train_bars.symbol_pre_retp[s][single_chara][single2_chara][trainpre_pos:trainaft_pos])
+                    xchara_trainlist.append(
+                        train_bars.symbol_pre_retm[s][single_chara][single2_chara][trainpre_pos:trainaft_pos])
+                    xchara_validlist.append(
+                        train_bars.symbol_pre_retp[s][single_chara][single2_chara][validpre_pos:validaft_pos])
+                    xchara_validlist.append(
+                        train_bars.symbol_pre_retm[s][single_chara][single2_chara][validpre_pos:validaft_pos])
+            tmp_xtrainnp = np.vstack(xchara_trainlist)
+            tmp_xvalidnp = np.vstack(xchara_validlist)
+            # aft
+            ychara_ret_a_trainlist = []
+            ychara_ret_h_trainlist = []
+            ychara_ret_l_trainlist = []
+            ychara_stdup_trainlist = []
+            ychara_stddw_trainlist = []
+            ychara_drawup_trainlist = []
+            ychara_drawdw_trainlist = []
+            ychara_ret_a_validlist = []
+            ychara_ret_h_validlist = []
+            ychara_ret_l_validlist = []
+            ychara_stdup_validlist = []
+            ychara_stddw_validlist = []
+            ychara_drawup_validlist = []
+            ychara_drawdw_validlist = []
             ylen_slist = len(bband_list)
             for single_chara in range(ylen_slist):
-                ychara_base_list.append(train_bars.symbol_aft_reta[s][single_chara][data_range[0] - 1:data_range[1]])
-                ychara_base_list.append(
-                    train_bars.symbol_aft_half_std_up[s][single_chara][data_range[0] - 1:data_range[1]])
-                ychara_base_list.append(
-                    train_bars.symbol_aft_half_std_down[s][single_chara][data_range[0] - 1:data_range[1]])
-                ychara_much_list.append(train_bars.symbol_aft_drawup[s][single_chara][data_range[0] - 1:data_range[1]])
-                ychara_much_list.append(
-                    train_bars.symbol_aft_drawdown[s][single_chara][data_range[0] - 1:data_range[1]])
-                ychara_much_list.append(
-                    train_bars.symbol_aft_retp_high[s][single_chara][data_range[0] - 1:data_range[1]])
-                ychara_much_list.append(
-                    train_bars.symbol_aft_retp_low[s][single_chara][data_range[0] - 1:data_range[1]])
-            tmp_ynp_base = np.vstack(ychara_base_list)
-            tmp_ynp_much = np.vstack(ychara_much_list)
-            # 2. 删除无效行
-            delpresig = np.isnan(xchara_list[-1])
-            # print(delpresig[~delpresig])
-            delaftsig = np.isnan(ychara_base_list[-1])
-            # print(delaftsig[~delaftsig])
-            delpreaftsig = np.logical_or(delpresig, delaftsig)
-            tmp_xnp = np.transpose(tmp_xnp)
-            tmp_xnp = tmp_xnp[~delpreaftsig]
-            tmp_ynp_base = np.transpose(tmp_ynp_base)
-            tmp_ynp_base = tmp_ynp_base[~delpreaftsig]
-            tmp_ynp_much = np.transpose(tmp_ynp_much)
-            tmp_ynp_much = tmp_ynp_much[~delpreaftsig]
-            mult_charactx.append(tmp_xnp)
-            mult_characty_base.append(tmp_ynp_base)
-            mult_characty_much.append(tmp_ynp_much)
-        all_ynp_base = np.vstack(mult_characty_base)
-        all_ynp_much = np.vstack(mult_characty_much)
-        all_xnp = np.vstack(mult_charactx)
-        # 3. split
-        lenth = all_xnp.shape[0]
-        mult_trainx = all_xnp[0:int(lenth * split)]
-        mult_trainy_base = all_ynp_base[0:int(lenth * split)]
-        mult_trainy_much = all_ynp_much[0:int(lenth * split)]
-        mult_validx = all_xnp[int(lenth * split):]
-        mult_validy_base = all_ynp_base[int(lenth * split):]
-        mult_validy_much = all_ynp_much[int(lenth * split):]
+                ychara_ret_a_trainlist.append(train_bars.symbol_aft_reta[s][single_chara][trainpre_pos:trainaft_pos])
+                ychara_ret_h_trainlist.append(
+                    train_bars.symbol_aft_retp_high[s][single_chara][trainpre_pos:trainaft_pos])
+                ychara_ret_l_trainlist.append(
+                    train_bars.symbol_aft_retp_low[s][single_chara][trainpre_pos:trainaft_pos])
+                ychara_stdup_trainlist.append(
+                    train_bars.symbol_aft_half_std_up[s][single_chara][trainpre_pos:trainaft_pos])
+                ychara_stddw_trainlist.append(
+                    train_bars.symbol_aft_half_std_down[s][single_chara][trainpre_pos:trainaft_pos])
+                ychara_drawup_trainlist.append(train_bars.symbol_aft_drawup[s][single_chara][trainpre_pos:trainaft_pos])
+                ychara_drawdw_trainlist.append(
+                    train_bars.symbol_aft_drawdown[s][single_chara][trainpre_pos:trainaft_pos])
+                ychara_ret_a_validlist.append(train_bars.symbol_aft_reta[s][single_chara][validpre_pos:validaft_pos])
+                ychara_ret_h_validlist.append(
+                    train_bars.symbol_aft_retp_high[s][single_chara][validpre_pos:validaft_pos])
+                ychara_ret_l_validlist.append(
+                    train_bars.symbol_aft_retp_low[s][single_chara][validpre_pos:validaft_pos])
+                ychara_stdup_validlist.append(
+                    train_bars.symbol_aft_half_std_up[s][single_chara][validpre_pos:validaft_pos])
+                ychara_stddw_validlist.append(
+                    train_bars.symbol_aft_half_std_down[s][single_chara][validpre_pos:validaft_pos])
+                ychara_drawup_validlist.append(train_bars.symbol_aft_drawup[s][single_chara][validpre_pos:validaft_pos])
+                ychara_drawdw_validlist.append(
+                    train_bars.symbol_aft_drawdown[s][single_chara][validpre_pos:validaft_pos])
+            tmp_xtrainnp = np.transpose(tmp_xtrainnp)
+            tmp_xvalidnp = np.transpose(tmp_xvalidnp)
+            mult_charact_trainx.append(tmp_xtrainnp)
+            mult_charact_validx.append(tmp_xvalidnp)
+            tmp_ychara_ret_a_trainlist = np.transpose(np.vstack(ychara_ret_a_trainlist))
+            tmp_ychara_ret_h_trainlist = np.transpose(np.vstack(ychara_ret_h_trainlist))
+            tmp_ychara_ret_l_trainlist = np.transpose(np.vstack(ychara_ret_l_trainlist))
+            tmp_ychara_stdup_trainlist = np.transpose(np.vstack(ychara_stdup_trainlist))
+            tmp_ychara_stddw_trainlist = np.transpose(np.vstack(ychara_stddw_trainlist))
+            tmp_ychara_drawup_trainlist = np.transpose(np.vstack(ychara_drawup_trainlist))
+            tmp_ychara_drawdw_trainlist = np.transpose(np.vstack(ychara_drawdw_trainlist))
+            tmp_ychara_ret_a_validlist = np.transpose(np.vstack(ychara_ret_a_validlist))
+            tmp_ychara_ret_h_validlist = np.transpose(np.vstack(ychara_ret_h_validlist))
+            tmp_ychara_ret_l_validlist = np.transpose(np.vstack(ychara_ret_l_validlist))
+            tmp_ychara_stdup_validlist = np.transpose(np.vstack(ychara_stdup_validlist))
+            tmp_ychara_stddw_validlist = np.transpose(np.vstack(ychara_stddw_validlist))
+            tmp_ychara_drawup_validlist = np.transpose(np.vstack(ychara_drawup_validlist))
+            tmp_ychara_drawdw_validlist = np.transpose(np.vstack(ychara_drawdw_validlist))
+            mult_charact_trainy_ret_a.append(tmp_ychara_ret_a_trainlist)
+            mult_charact_trainy_ret_h.append(tmp_ychara_ret_h_trainlist)
+            mult_charact_trainy_ret_l.append(tmp_ychara_ret_l_trainlist)
+            mult_charact_trainy_stdup.append(tmp_ychara_stdup_trainlist)
+            mult_charact_trainy_stddw.append(tmp_ychara_stddw_trainlist)
+            mult_charact_trainy_drawup.append(tmp_ychara_drawup_trainlist)
+            mult_charact_trainy_drawdw.append(tmp_ychara_drawdw_trainlist)
+            mult_charact_validy_ret_a.append(tmp_ychara_ret_a_validlist)
+            mult_charact_validy_ret_h.append(tmp_ychara_ret_h_validlist)
+            mult_charact_validy_ret_l.append(tmp_ychara_ret_l_validlist)
+            mult_charact_validy_stdup.append(tmp_ychara_stdup_validlist)
+            mult_charact_validy_stddw.append(tmp_ychara_stddw_validlist)
+            mult_charact_validy_drawup.append(tmp_ychara_drawup_validlist)
+            mult_charact_validy_drawdw.append(tmp_ychara_drawdw_validlist)
+        all_xtrainnp = np.vstack(mult_charact_trainx)
+        all_xvalidnp = np.vstack(mult_charact_validx)
+        all_ytrainnp_ret_a = np.vstack(mult_charact_trainy_ret_a)
+        all_ytrainnp_ret_h = np.vstack(mult_charact_trainy_ret_h)
+        all_ytrainnp_ret_l = np.vstack(mult_charact_trainy_ret_l)
+        all_ytrainnp_stdup = np.vstack(mult_charact_trainy_stdup)
+        all_ytrainnp_stddw = np.vstack(mult_charact_trainy_stddw)
+        all_ytrainnp_drawup = np.vstack(mult_charact_trainy_drawup)
+        all_ytrainnp_drawdw = np.vstack(mult_charact_trainy_drawdw)
+        all_yvalidnp_ret_a = np.vstack(mult_charact_validy_ret_a)
+        all_yvalidnp_ret_h = np.vstack(mult_charact_validy_ret_h)
+        all_yvalidnp_ret_l = np.vstack(mult_charact_validy_ret_l)
+        all_yvalidnp_stdup = np.vstack(mult_charact_validy_stdup)
+        all_yvalidnp_stddw = np.vstack(mult_charact_validy_stddw)
+        all_yvalidnp_drawup = np.vstack(mult_charact_validy_drawup)
+        all_yvalidnp_drawdw = np.vstack(mult_charact_validy_drawdw)
         # 4. 处理nan inf
-        mult_trainx[:, :][np.isnan(mult_trainx[:, :])] = 0
-        mult_trainx[:, :][np.isinf(mult_trainx[:, :])] = 0
-        mult_trainy_much[:, :][np.isnan(mult_trainy_much[:, :])] = 0
-        mult_trainy_much[:, :][np.isinf(mult_trainy_much[:, :])] = 0
-        mult_trainy_base[:, :][np.isnan(mult_trainy_base[:, :])] = 0
-        mult_trainy_base[:, :][np.isinf(mult_trainy_base[:, :])] = 0
-        mult_validx[:, :][np.isnan(mult_validx[:, :])] = 0
-        mult_validx[:, :][np.isinf(mult_validx[:, :])] = 0
-        mult_validy_much[:, :][np.isnan(mult_validy_much[:, :])] = 0
-        mult_validy_much[:, :][np.isinf(mult_validy_much[:, :])] = 0
-        mult_validy_base[:, :][np.isnan(mult_validy_base[:, :])] = 0
-        mult_validy_base[:, :][np.isinf(mult_validy_base[:, :])] = 0
-        return mult_trainx, mult_trainy_base, mult_trainy_much, mult_validx, mult_validy_base, mult_validy_much
+        all_xtrainnp[:, :][np.isnan(all_xtrainnp[:, :])] = 0
+        all_xtrainnp[:, :][np.isinf(all_xtrainnp[:, :])] = 0
+        all_xvalidnp[:, :][np.isnan(all_xvalidnp[:, :])] = 0
+        all_xvalidnp[:, :][np.isinf(all_xvalidnp[:, :])] = 0
+        all_ytrainnp_ret_a = np.array(all_ytrainnp_ret_a.tolist())
+        all_ytrainnp_ret_a[:, :][np.isnan(all_ytrainnp_ret_a[:, :])] = 0
+        all_ytrainnp_ret_a[:, :][np.isinf(all_ytrainnp_ret_a[:, :])] = 0
+        all_ytrainnp_ret_h = np.array(all_ytrainnp_ret_h.tolist())
+        all_ytrainnp_ret_h[:, :][np.isnan(all_ytrainnp_ret_h[:, :])] = 0
+        all_ytrainnp_ret_h[:, :][np.isinf(all_ytrainnp_ret_h[:, :])] = 0
+        all_ytrainnp_ret_l = np.array(all_ytrainnp_ret_l.tolist())
+        all_ytrainnp_ret_l[:, :][np.isnan(all_ytrainnp_ret_l[:, :])] = 0
+        all_ytrainnp_ret_l[:, :][np.isinf(all_ytrainnp_ret_l[:, :])] = 0
+        all_ytrainnp_stdup = np.array(all_ytrainnp_stdup.tolist())
+        all_ytrainnp_stdup[:, :][np.isnan(all_ytrainnp_stdup[:, :])] = 0
+        all_ytrainnp_stdup[:, :][np.isinf(all_ytrainnp_stdup[:, :])] = 0
+        all_ytrainnp_stddw = np.array(all_ytrainnp_stddw.tolist())
+        all_ytrainnp_stddw[:, :][np.isnan(all_ytrainnp_stddw[:, :])] = 0
+        all_ytrainnp_stddw[:, :][np.isinf(all_ytrainnp_stddw[:, :])] = 0
+        all_ytrainnp_drawup = np.array(all_ytrainnp_drawup.tolist())
+        all_ytrainnp_drawup[:, :][np.isnan(all_ytrainnp_drawup[:, :])] = 0
+        all_ytrainnp_drawup[:, :][np.isinf(all_ytrainnp_drawup[:, :])] = 0
+        all_ytrainnp_drawdw = np.array(all_ytrainnp_drawdw.tolist())
+        all_ytrainnp_drawdw[:, :][np.isnan(all_ytrainnp_drawdw[:, :])] = 0
+        all_ytrainnp_drawdw[:, :][np.isinf(all_ytrainnp_drawdw[:, :])] = 0
+        all_yvalidnp_ret_a = np.array(all_yvalidnp_ret_a.tolist())
+        all_yvalidnp_ret_a[:, :][np.isnan(all_yvalidnp_ret_a[:, :])] = 0
+        all_yvalidnp_ret_a[:, :][np.isinf(all_yvalidnp_ret_a[:, :])] = 0
+        all_yvalidnp_ret_h = np.array(all_yvalidnp_ret_h.tolist())
+        all_yvalidnp_ret_h[:, :][np.isnan(all_yvalidnp_ret_h[:, :])] = 0
+        all_yvalidnp_ret_h[:, :][np.isinf(all_yvalidnp_ret_h[:, :])] = 0
+        all_yvalidnp_ret_l = np.array(all_yvalidnp_ret_l.tolist())
+        all_yvalidnp_ret_l[:, :][np.isnan(all_yvalidnp_ret_l[:, :])] = 0
+        all_yvalidnp_ret_l[:, :][np.isinf(all_yvalidnp_ret_l[:, :])] = 0
+        all_yvalidnp_stdup = np.array(all_yvalidnp_stdup.tolist())
+        all_yvalidnp_stdup[:, :][np.isnan(all_yvalidnp_stdup[:, :])] = 0
+        all_yvalidnp_stdup[:, :][np.isinf(all_yvalidnp_stdup[:, :])] = 0
+        all_yvalidnp_stddw = np.array(all_yvalidnp_stddw.tolist())
+        all_yvalidnp_stddw[:, :][np.isnan(all_yvalidnp_stddw[:, :])] = 0
+        all_yvalidnp_stddw[:, :][np.isinf(all_yvalidnp_stddw[:, :])] = 0
+        all_yvalidnp_drawup = np.array(all_yvalidnp_drawup.tolist())
+        all_yvalidnp_drawup[:, :][np.isnan(all_yvalidnp_drawup[:, :])] = 0
+        all_yvalidnp_drawup[:, :][np.isinf(all_yvalidnp_drawup[:, :])] = 0
+        all_yvalidnp_drawdw = np.array(all_yvalidnp_drawdw.tolist())
+        all_yvalidnp_drawdw[:, :][np.isnan(all_yvalidnp_drawdw[:, :])] = 0
+        all_yvalidnp_drawdw[:, :][np.isinf(all_yvalidnp_drawdw[:, :])] = 0
+        return all_xtrainnp, all_ytrainnp_ret_a, all_ytrainnp_ret_h, all_ytrainnp_ret_l, \
+               all_ytrainnp_stdup, all_ytrainnp_stddw, all_ytrainnp_drawup, all_ytrainnp_drawdw, \
+               all_xvalidnp, all_yvalidnp_ret_a, all_yvalidnp_ret_h, all_yvalidnp_ret_l, \
+               all_yvalidnp_stdup, all_yvalidnp_stddw, all_yvalidnp_drawup, all_yvalidnp_drawdw
 
     def _prepare_newtrain_data(self, train_bars, ave_list, bband_list, data_range, split=0.8):
         mult_charact_trainx = []
@@ -635,6 +748,73 @@ class MlaStrategy(strategy.BacktestingStrategy):
         num_epochs = self.trainconfig["epoch"]
         globalstep = modelcrnn.batch_train(inputs_t, targets_base_t, targets_much_t, inputs_v, targets_base_v,
                                            targets_much_v, batch_size, num_epochs)
+
+    def train_probability_everysignals(self, train_bars, ave_list, bband_list, date_range, split=0.8, args=None):
+        """训练"""
+        # 1. 输入参数
+        self._prepare_model_para(args)
+        # 2. 生产数据 随机打乱，分成batch
+        data_buff_dir = "everynpy_" + "_".join([str(i1) for i1 in bband_list])
+        full_data_buff_dir = os.path.join(data_path, data_buff_dir)
+        makesurepath(full_data_buff_dir)
+        if os.path.isfile(os.path.join(full_data_buff_dir, "drawdw_v.npy")):
+            print("loadingdata")
+            inputs_t = np.load(os.path.join(full_data_buff_dir, "inputs_t.npy"))
+            reta_t = np.load(os.path.join(full_data_buff_dir, "reta_t.npy"))
+            reth_t = np.load(os.path.join(full_data_buff_dir, "reth_t.npy"))
+            retl_t = np.load(os.path.join(full_data_buff_dir, "retl_t.npy"))
+            stdup_t = np.load(os.path.join(full_data_buff_dir, "stdup_t.npy"))
+            stddw_t = np.load(os.path.join(full_data_buff_dir, "stddw_t.npy"))
+            drawup_t = np.load(os.path.join(full_data_buff_dir, "drawup_t.npy"))
+            drawdw_t = np.load(os.path.join(full_data_buff_dir, "drawdw_t.npy"))
+            inputs_v = np.load(os.path.join(full_data_buff_dir, "inputs_v.npy"))
+            reta_v = np.load(os.path.join(full_data_buff_dir, "reta_v.npy"))
+            reth_v = np.load(os.path.join(full_data_buff_dir, "reth_v.npy"))
+            retl_v = np.load(os.path.join(full_data_buff_dir, "retl_v.npy"))
+            stdup_v = np.load(os.path.join(full_data_buff_dir, "stdup_v.npy"))
+            stddw_v = np.load(os.path.join(full_data_buff_dir, "stddw_v.npy"))
+            drawup_v = np.load(os.path.join(full_data_buff_dir, "drawup_v.npy"))
+            drawdw_v = np.load(os.path.join(full_data_buff_dir, "drawdw_v.npy"))
+        else:
+            # 2. 加载衍生前值
+            train_bars.generate_b_derivative()
+            # 2. 加载衍生后值
+            train_bars.generate_a_derivative()
+            inputs_t, reta_t, reth_t, retl_t, stdup_t, stddw_t, drawup_t, drawdw_t, inputs_v, reta_v, reth_v, retl_v, \
+            stdup_v, stddw_v, drawup_v, drawdw_v = self._prepare_every_train_data(train_bars, ave_list, bband_list,
+                                                                                  date_range, split)
+            np.save(os.path.join(full_data_buff_dir, "inputs_t"), inputs_t)
+            np.save(os.path.join(full_data_buff_dir, "reta_t"), reta_t)
+            np.save(os.path.join(full_data_buff_dir, "reth_t"), reth_t)
+            np.save(os.path.join(full_data_buff_dir, "retl_t"), retl_t)
+            np.save(os.path.join(full_data_buff_dir, "stdup_t"), stdup_t)
+            np.save(os.path.join(full_data_buff_dir, "stddw_t"), stddw_t)
+            np.save(os.path.join(full_data_buff_dir, "drawup_t"), drawup_t)
+            np.save(os.path.join(full_data_buff_dir, "drawdw_t"), drawdw_t)
+            np.save(os.path.join(full_data_buff_dir, "inputs_v"), inputs_v)
+            np.save(os.path.join(full_data_buff_dir, "reta_v"), reta_v)
+            np.save(os.path.join(full_data_buff_dir, "reth_v"), reth_v)
+            np.save(os.path.join(full_data_buff_dir, "retl_v"), retl_v)
+            np.save(os.path.join(full_data_buff_dir, "stdup_v"), stdup_v)
+            np.save(os.path.join(full_data_buff_dir, "stddw_v"), stddw_v)
+            np.save(os.path.join(full_data_buff_dir, "drawup_v"), drawup_v)
+            np.save(os.path.join(full_data_buff_dir, "drawdw_v"), drawdw_v)
+        # 3. 训练
+        print(inputs_t.shape, reta_t.shape, reth_t.shape, retl_t.shape,
+              stdup_t.shape, stddw_t.shape, drawup_t.shape, drawdw_t.shape,
+              inputs_v.shape, reta_v.shape, reth_v.shape, retl_v.shape,
+              stdup_v.shape, stddw_v.shape, drawup_v.shape, drawdw_v.shape)
+        print("start-training")
+        self.trainconfig["tailname"] += data_buff_dir
+        # self.trainconfig["inputdim"] = inputs_t.shape[1]
+        # self.trainconfig["outretdim"], self.trainconfig["outstddim"] = targets_base_t.shape[1], targets_much_t.shape[1]
+        modelcrnn = CRNNevery(ave_list, bband_list, config=self.trainconfig)
+        modelcrnn.buildModel()
+        batch_size = self.trainconfig["batchsize"]
+        num_epochs = self.trainconfig["epoch"]
+        globalstep = modelcrnn.batch_train(inputs_t, reta_t, reth_t, retl_t, stdup_t, stddw_t, drawup_t, drawdw_t,
+                                           inputs_v, reta_v, reth_v, retl_v, stdup_v, stddw_v, drawup_v, drawdw_v,
+                                           batch_size, num_epochs)
 
     def predict_probability_signals(self, predict_bars_json, ave_list, bband_list, date_range, args=None):
         """预测"""

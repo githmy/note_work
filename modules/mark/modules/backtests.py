@@ -73,8 +73,10 @@ class LoadBacktest(object):
         date_range = [1, None]
         split = 0.8  # 先截range 再split
         # 3. 训练
-        self._strategy.train_probability_signals(train_bars, self.ave_list, self.bband_list, date_range, split=split,
+        self._strategy.train_probability_everysignals(train_bars, self.ave_list, self.bband_list, date_range, split=split,
                                                  args=None)
+        # self._strategy.train_probability_signals(train_bars, self.ave_list, self.bband_list, date_range, split=split,
+        #                                          args=None)
 
     # 回测，根据不同事件执行不同的方法
     def _run_backtest(self):
