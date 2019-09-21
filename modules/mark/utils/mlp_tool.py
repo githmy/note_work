@@ -27,15 +27,15 @@ data_path_res = os.path.join(data_pa, "res")
 
 
 class PlotTool(object):
-    def plot_line(self, ts, titie_str):
+    def plot_line(self, ts, titie_list):
         plt.figure()
         plt.grid()
         listlen = len(ts)
         colorbar = ["red", "yellow", "blue", "black"] * int(math.ceil(listlen / 4))
         for id1 in range(listlen):
-            plt.plot(ts[id1][0], ts[id1][1], color=colorbar[id1], label='Original_{}'.format(id1))
+            plt.plot(ts[id1][0], ts[id1][1], color=colorbar[id1], label='{}'.format(titie_list[id1]))
         plt.legend(loc='best')
-        plt.title(titie_str)
+        plt.title("展示图")
         plt.show()
 
     def plot_dim3(self, ts, titie_str, range_low=-10, range_high=11, range_eff=0.01, mount_low=-10, mount_high=11,

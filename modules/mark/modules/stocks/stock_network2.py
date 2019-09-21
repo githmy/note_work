@@ -528,7 +528,8 @@ class CRNNevery(AbstractModeltensor):
                 losslist = [0]
                 for batch_num in range(inputs_t.shape[0] // batch_size + 1):
                     # 获取数据
-                    r_inputs_t, r_reta_t, r_reth_t, r_retl_t, r_stdup_t, r_stddw_t, r_drawup_t, r_drawdw_t = next(dataiter)
+                    r_inputs_t, r_reta_t, r_reth_t, r_retl_t, r_stdup_t, r_stddw_t, r_drawup_t, r_drawdw_t = next(
+                        dataiter)
                     feed_dict_t = {
                         self.input_p: r_inputs_t,
                         self.reta: r_reta_t,
@@ -551,11 +552,11 @@ class CRNNevery(AbstractModeltensor):
                     result = sess.run(self.merged, feed_dict_t)
                     if batch_num % 20 == 0:
                         writer.add_summary(result, global_n)
-                        self.saver.save(sess, os.path.join(model_path, 'model_%s' % self.config["tailname"],
+                        self.saver.save(sess, os.path.join(model_path, 'modelevery_%s' % self.config["tailname"],
                                                            self.config["modelfile"]), global_step=global_n)
-                        print("epocht {}, step {}, time: {} s, loss_reta {}, loss_reth {}, loss_retl {}, "
+                        print("epocht {}, batch_num {}, step {}, time: {} s, loss_reta {}, loss_reth {}, loss_retl {}, "
                               "loss_stdup {}, loss_stddw {}, loss_drawup {}, loss_drawdw {}".format(
-                            epoch, global_n, time.time() - starte, *losslist_t))
+                            epoch, batch_num, global_n, time.time() - starte, *losslist_t))
                 # valid part
                 feed_dict_v = {
                     self.input_p: inputs_v,
@@ -589,13 +590,16 @@ class CRNNevery(AbstractModeltensor):
         return None
 
     def predict(self, inputs):
-        # self.base_dim, self.much_dim = base_dim, much_dim
         config = tf.ConfigProto()
         config.gpu_options.allow_growth = True
         model_dir = os.path.join(model_path, "modelevery_%s" % self.config["tailname"])
+        print("loading model...")
         latest_ckpt = tf.train.latest_checkpoint(model_dir)
         with tf.Session(config=config) as sess:
-            self.saver.restore(sess, latest_ckpt)
+            if os.path.isfile("{}.index".format(latest_ckpt)):
+                self.saver.restore(sess, latest_ckpt)
+            else:
+                print("没有找到模型")
             feed_dict = {
                 self.input_p: inputs,
             }
