@@ -20,7 +20,7 @@
     "retrain": 1,
     "globalstep": 0,
     "dropout": 0.8,
-    "modelname": "cnn_dense_more",
+    "modelname": "cnn_dense_less",
     "normal": 1e-4,
     "sub_fix": "5",
     "file": "learn_file"
