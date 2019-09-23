@@ -848,7 +848,6 @@ class MlaStrategy(strategy.BacktestingStrategy):
         # 3. 预测结果
         pred_list_json = {}
         for symbol in predict_bars.symbol_list:
-            # inputs_t = self._prepare_predict_data(predict_bars_json[symbol], ave_list, date_range)
             inputs_t = self._prepare_every_predict_data(predict_bars, symbol, ave_list, date_range)
             pred_list_json[symbol] = modelcrnn.predict(inputs_t)
         return pred_list_json

@@ -60,13 +60,12 @@ class LoadBacktest(object):
         # self.symbol_pre_retm
 
         # self.symbol_aft_reta
-        # self.symbol_aft_half_std_up
-        # self.symbol_aft_half_std_down
-
-        # self.symbol_aft_drawup
-        # self.symbol_aft_drawdown
         # self.symbol_aft_retp_high
         # self.symbol_aft_retp_low
+        # self.symbol_aft_half_std_up
+        # self.symbol_aft_half_std_down
+        # self.symbol_aft_drawup
+        # self.symbol_aft_drawdown
         # 1. 训练数据, 输入原始规范训练数据，待时间截断
         # todo: 1. 测试接口更新数据 2. 选出合理的bband 3. 用bband组合再次训练 预测
         train_bars = LoadCSVHandler(queue.Queue(), data_path, self.symbol_list, self.ave_list, self.bband_list)
@@ -75,8 +74,6 @@ class LoadBacktest(object):
         # 3. 训练
         self._strategy.train_probability_everysignals(train_bars, self.ave_list, self.bband_list, date_range,
                                                       split=split, args=None)
-        # self._strategy.train_probability_signals(train_bars, self.ave_list, self.bband_list, date_range, split=split,
-        #                                          args=None)
 
     # 回测，根据不同事件执行不同的方法
     def _run_backtest(self):
@@ -90,24 +87,18 @@ class LoadBacktest(object):
         predict_bars_json = {}
         pred_list_json = {}
         date_range = [550, None]
-        # date_range = [500, None]
+        # date_range = [0, None]
         predict_bars = LoadCSVHandler(queue.Queue(), data_path, self.symbol_list, self.ave_list, self.bband_list)
         predict_bars.generate_b_derivative()
-        # for i1 in self.symbol_list:
-        #     # 1. 预测概率
-        #     predict_bars = LoadCSVHandler(queue.Queue(), data_path, [i1], self.ave_list, self.bband_list)
-        #     predict_bars.generate_b_derivative()
-        #     predict_bars_json[i1] = predict_bars
         # 2. 预测投资比例
         print("data full lenth: {}".format(len(predict_bars.symbol_ori_data[self.symbol_list[0]]["close"].index)))
         pred_list_json = self._strategy.predict_probability_signals(predict_bars, self.ave_list, self.bband_list,
                                                                     date_range, args=None)
         print("data used lenth: {}".format(len(pred_list_json[self.symbol_list[0]][0])))
+        print(pred_list_json)
         # 3. 投资回测结果
         all_holdings, annual_ratio = self._portfolio.components_res_every_predict(predict_bars, pred_list_json,
                                                                                   para_config, date_range)
-        # all_holdings, annual_ratio = self._portfolio.components_res_base_predict(predict_bars_json, pred_list_json,
-        #                                                                          para_config)
         # 4. 绘制收益过程
         show_list = []
         show_x = [i1["datetime"] for i1 in all_holdings]
