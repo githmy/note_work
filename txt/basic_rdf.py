@@ -247,27 +247,46 @@ def rdf_build():
 
     """
     图 函数
-    degree(G[, nbunch, weight])：返回单个节点或nbunch节点的度数视图。
-    degree_histogram(G)：返回每个度值的频率列表。
-    density(G)：返回图的密度。
-    info(G[, n])：打印图G或节点n的简短信息摘要。
-    create_empty_copy(G[, with_data])：返回图G删除所有的边的拷贝。
-    is_directed(G)：如果图是有向的，返回true。
-    add_star(G_to_add_to, nodes_for_star, **attr)：在图形G_to_add_to上添加一个星形。
-    add_path(G_to_add_to, nodes_for_path, **attr)：在图G_to_add_to中添加一条路径。
-    add_cycle(G_to_add_to, nodes_for_cycle, **attr)：向图形G_to_add_to添加一个循环。
+    nx.degree(G[, nbunch, weight])：返回单个节点或nbunch节点的度数视图。
+    nx.degree_histogram(G)  # 返回每个度值的频率列表。（从1至最大度的出现频次）
+    nx.density(G)：返回图的密度。
+    # 节点度中心系数。通过节点的度表示节点在图中的重要性，默认情况下会进行归一化，其值表达为节点度d(u)除以n-1（其中n-1就是归一化使用的常量）。这里由于可能存在循环，所以该值可能大于1.
+    nx.degree_centrality(G) 
+    # {1: 0.5, 2: 0.5, 3: 0.75, 4: 0.5, 5: 0.25}
+    # 节点距离中心系数。通过距离来表示节点在图中的重要性，一般是指节点到其他节点的平均路径的倒数，这里还乘以了n-1。该值越大表示节点到其他节点的距离越近，即中心性越高。
+    nx.closeness_centrality(G)  
+    # {1: 0.5714285714285714, 2: 0.5714285714285714, 3: 0.80000000000000004, 4: 0.66666666666666663, 5: 0.44444444444444442}
+    # 节点介数中心系数。在无向图中，该值表示为节点作占最短路径的个数除以((n-1)(n-2)/2)；在有向图中，该值表达为节点作占最短路径个数除以((n-1)(n-2))。
+    nx.betweenness_centrality(G)  
+    # {1: 0.0, 2: 0.0, 3: 0.66666666666666663, 4: 0.5, 5: 0.0}
+    nx.triangles(G)
+    # {1: 1, 2: 1, 3: 1, 4: 0, 5: 0}
+    # 图或网络的传递性。即图或网络中，认识同一个节点的两个节点也可能认识双方，计算公式为3*图中三角形的个数/三元组个数（该三元组个数是有公共顶点的边对数，这样就好数了）。
+    nx.transitivity(G)
+    # 0.5
+    # 图或网络中节点的聚类系数。计算公式为：节点u的两个邻居节点间的边数除以((d(u)(d(u)-1)/2)
+    nx.clustering(G)
+    # {1: 1.0, 2: 1.0, 3: 0.33333333333333331, 4: 0.0, 5: 0.0}
+    nx.info(G[, n])：打印图G或节点n的简短信息摘要。
+    nx.create_empty_copy(G[, with_data])：返回图G删除所有的边的拷贝。
+    nx.is_directed(G)：如果图是有向的，返回true。
+    nx.add_star(G_to_add_to, nodes_for_star, **attr)：在图形G_to_add_to上添加一个星形。
+    nx.add_path(G_to_add_to, nodes_for_path, **attr)：在图G_to_add_to中添加一条路径。
+    nx.add_cycle(G_to_add_to, nodes_for_cycle, **attr)：向图形G_to_add_to添加一个循环。
     
     节点 函数
-    nodes(G)：在图节点上返回一个迭代器。
-    number_of_nodes(G)：返回图中节点的数量。
-    all_neighbors(graph, node)：返回图中节点的所有邻居。
-    non_neighbors(graph, node)：返回图中没有邻居的节点。
-    common_neighbors(G, u, v)：返回图中两个节点的公共邻居。
+    nx.nodes(G)：在图节点上返回一个迭代器。
+    nx.number_of_nodes(G)：返回图中节点的数量。
+    nx.all_neighbors(graph, node)：返回图中节点的所有邻居。
+    nx.non_neighbors(graph, node)：返回图中没有邻居的节点。
+    nx.common_neighbors(G, u, v)：返回图中两个节点的公共邻居。
     
     边 函数
-    edges(G[, nbunch])：返回与nbunch中的节点相关的边的视图。
-    number_of_edges(G)：返回图中边的数目。
-    non_edges(graph)：返回图中不存在的边。
+    nx.edges(G[, nbunch])：返回与nbunch中的节点相关的边的视图。只找相关的主体端边
+    nx.number_of_edges(G)：返回图中边的数目。
+    nx.non_edges(graph)：返回图中不存在的边。
+    G.add_path([10,11,12])  #再来一个一字长蛇型网络，节点分别是10,11,12
+    nx.has_path(G,source,target)
     """
 
 
@@ -298,9 +317,7 @@ def 最短路径():
     pylab.title('Self_Define Net', fontsize=15)
     pylab.show()
 
-    '''
-    Shortest Path with dijkstra_path
-    '''
+    '''Shortest Path with dijkstra_path'''
     print('dijkstra方法寻找最短路径：')
     path = nx.dijkstra_path(G, source=0, target=7)
     print('节点0到7的路径：', path)
@@ -407,4 +424,5 @@ def GCN_format():
 if __name__ == '__main__':
     # http://scikit-learn.org/stable/auto_examples/
     # http://scikit-learn.org/stable/auto_examples/applications/plot_stock_market.html
-    iris_demo()
+    最大联通子图及联通子图规模排序()
+    # iris_demo()

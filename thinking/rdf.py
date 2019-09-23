@@ -175,8 +175,26 @@ def test_networkx():
     G0 = nx.MultiDiGraph()  # 创建多重有向图
     filename = os.path.join(project_path, "graph.xlsx")
     pdobj = pd.read_excel(filename, sheet_name='Sheet1', header=0, encoding="utf8")
-    G = nx.from_pandas_edgelist(pdobj[["subject", "object"]], "subject", "object", create_using=G0)
+    G = nx.from_pandas_edgelist(pdobj[["subject", "relation", "object"]], "subject", "object", edge_attr="relation",
+                                create_using=G0)
     nx.draw(G, with_labels=True, font_weight='bold')
+    # # 二阶节点
+    # setall = set()
+    # for i1 in nx.all_neighbors(G, "主1"):
+    #     tmposet = set([i1])
+    #     tmprset = set(nx.all_neighbors(G, i1))
+    #     setall |= tmprset | tmposet
+    # print(nx.info(G, "主1"))
+    # 某节点某类属性的边
+    alledge = nx.get_edge_attributes(G, name="relation")
+    for i1 in alledge:
+        if alledge[i1] == "系8":
+            print(i1)
+    for i1 in nx.all_neighbors(G, "主1"):
+        res = nx.edges(G, i1)
+        # res = nx.common_neighbors(G, "主1", "主2")
+        # print(2)
+        # print(res)
     plt.axis('on')
     plt.xticks([])
     plt.yticks([])

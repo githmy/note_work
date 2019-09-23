@@ -198,31 +198,33 @@ class OutPutResult(object):
             if tmpobj["ExampleId"] not in file_base_obj:
                 file_base_obj[tmpobj["ExampleId"]] = [tmpobj["SpentTime"], tmpobj["PointCode"], 0.0]
             file_base_obj[tmpobj["ExampleId"]][0] += tmpobj["SpentTime"]
+        # todo: 取数规则待更改
         if examination_obj[2]["execiseinfo"] is None:
             curve_dim_obj = None
             score_p_curve = None
         else:
             for tmpobj in examination_obj[2]["execiseinfo"]:
-                if tmpobj["spentTime"] is None:
-                    tmpobj["spentTime"] = 0
-                if tmpobj["mainReviewPoints"][0] not in point_base_obj[1]:
-                    point_base_obj[1][tmpobj["mainReviewPoints"][0]] = [0, 0.0, 0.0]
-                point_base_obj[1][tmpobj["mainReviewPoints"][0]][0] += tmpobj["spentTime"]
-                point_base_obj[1][tmpobj["mainReviewPoints"][0]][1] += tmpobj["actualScore"]
-                point_base_obj[1][tmpobj["mainReviewPoints"][0]][2] += tmpobj["score"]
-                way_base_obj["execiseinfo"][0] += tmpobj["spentTime"]
-                if tmpobj["question"] not in file_base_obj:
-                    file_base_obj[tmpobj["question"]] = [tmpobj["spentTime"], tmpobj["mainReviewPoints"][0], 0.0]
-                file_base_obj[tmpobj["question"]][0] += tmpobj["spentTime"]
-                if tmpobj["qCategory"] == "K":
-                    curve_dim_obj[1] += tmpobj["actualScore"]
-                    curve_dim_obj[2] += tmpobj["score"]
-                elif tmpobj["qCategory"] == "S":
-                    curve_dim_obj[3] += tmpobj["actualScore"]
-                    curve_dim_obj[4] += tmpobj["score"]
-                elif tmpobj["qCategory"] == "L":
-                    curve_dim_obj[5] += tmpobj["actualScore"]
-                    curve_dim_obj[6] += tmpobj["score"]
+                if tmpobj["mode"] == "A":
+                    if tmpobj["spentTime"] is None:
+                        tmpobj["spentTime"] = 0
+                    if tmpobj["mainReviewPoints"][0] not in point_base_obj[1]:
+                        point_base_obj[1][tmpobj["mainReviewPoints"][0]] = [0, 0.0, 0.0]
+                    point_base_obj[1][tmpobj["mainReviewPoints"][0]][0] += tmpobj["spentTime"]
+                    point_base_obj[1][tmpobj["mainReviewPoints"][0]][1] += tmpobj["actualScore"]
+                    point_base_obj[1][tmpobj["mainReviewPoints"][0]][2] += tmpobj["score"]
+                    way_base_obj["execiseinfo"][0] += tmpobj["spentTime"]
+                    if tmpobj["question"] not in file_base_obj:
+                        file_base_obj[tmpobj["question"]] = [tmpobj["spentTime"], tmpobj["mainReviewPoints"][0], 0.0]
+                    file_base_obj[tmpobj["question"]][0] += tmpobj["spentTime"]
+                    if tmpobj["qCategory"] == "K":
+                        curve_dim_obj[1] += tmpobj["actualScore"]
+                        curve_dim_obj[2] += tmpobj["score"]
+                    elif tmpobj["qCategory"] == "S":
+                        curve_dim_obj[3] += tmpobj["actualScore"]
+                        curve_dim_obj[4] += tmpobj["score"]
+                    elif tmpobj["qCategory"] == "L":
+                        curve_dim_obj[5] += tmpobj["actualScore"]
+                        curve_dim_obj[6] += tmpobj["score"]
             score_p_curve[1] = curve_dim_obj[1] + curve_dim_obj[3] + curve_dim_obj[5]
             score_p_curve[2] = curve_dim_obj[2] + curve_dim_obj[4] + curve_dim_obj[6]
         return {"point_base_obj": point_base_obj, "way_base_obj": way_base_obj, "file_base_obj": file_base_obj,
@@ -287,6 +289,35 @@ class OutPutResult(object):
         # 统计准确率保持在95%以上，否则要减小素质群体的分类
         # 8. 输入：不同素质群体，不同时间(规范化学期开始为时间0)综合降维知识点的掌握情况，输出：不同素质群体，2个维度的曲线的拟合参数方差。
         pass
+
+    def get_point_time_score(self, examination_data):
+        # 9. 输入：学生素质，曲线基本参数，起始学习时间，知识点评测，返回最合理的预测：当前学生表现的象限能力，输出发展曲线 及标准差。
+        point_time_score = []
+        for tmpobj in examination_data:
+            oneline = copy.deepcopy(tmpobj)
+            print(oneline)
+            one_point_time_score = {}
+
+            oneline["data"] = []
+            for i1 in tmpobj["data"]:
+                tt = i1["score_p_curve"]
+                if tt is not None:
+                    oneline["data"].append([tt[0], 100 * (tt[1] / tt[2]) if tt[2] != 0 else 0.0])
+            multline = copy.deepcopy(tmpobj)
+            multline["data"] = []
+            for i1 in tmpobj["data"]:
+                tt = i1["curve_dim_obj"]
+                if tt is not None:
+                    if tt[6] == 0:
+                        tt[6] = 1e10
+                    if tt[2] == 0:
+                        tt[2] = 1e10
+                    if tt[4] == 0:
+                        tt[4] = 1e10
+                    multline["data"].append([tt[0], (tt[1] + tt[3]) / (tt[2] + tt[4]), tt[5] / tt[6]])
+            point_time_score.append(one_point_time_score)
+        exit()
+        return point_time_score
 
     def get_score_curve_data(self, examination_data):
         # 9. 输入：学生素质，曲线基本参数，起始学习时间，知识点评测，返回最合理的预测：当前学生表现的象限能力，输出发展曲线 及标准差。
@@ -421,7 +452,7 @@ class OutPutResult(object):
         quality_points = [self.gene_quality(i1["data"]) for i1 in score_dim2_curves]
         if len(np.array(quality_points).shape) == 1:
             return "学生测验次数太少，无法预测。"
-        sqls = """select x,y from rpg_model_info WHERE subjectid="{}" AND sectionid="{}" AND edition="{}" GROUP BY x,y;""".format(
+        sqls = """select x,y from rpt_model_info WHERE subjectid="{}" AND sectionid="{}" AND edition="{}" GROUP BY x,y;""".format(
             subjectid, sectionid, edition)
         res = self.insmysql.exec_sql(sqls)
         # 2. 获取相近参数
@@ -433,7 +464,7 @@ class OutPutResult(object):
             if mindis > tmpdis:
                 targetid = id1
                 mindis = tmpdis
-        sqls = """select `type`,a,b,`c`,normalpara from rpg_model_info WHERE x={} AND y={} AND subjectid="{}" AND sectionid="{}" AND edition="{}";""".format(
+        sqls = """select `type`,a,b,`c`,normalpara from rpt_model_info WHERE x={} AND y={} AND subjectid="{}" AND sectionid="{}" AND edition="{}";""".format(
             modelcoord[targetid][0], modelcoord[targetid][1], subjectid, sectionid, edition)
         res = self.insmysql.exec_sql(sqls)
         paras = res
@@ -450,7 +481,6 @@ class OutPutResult(object):
             return a * x ** 2 + b * x + c
 
         def adjust_x(y, a, b, c):
-            # print(y, a, b, c)
             return (-b + (b ** 2 - 4 * a * (c - y)) ** 0.5) / (2 * a)
 
         def get_curve_data(realdata, paras):
@@ -762,8 +792,21 @@ def recommand_back_interface(subjectid="M", sectionid="J", gradeid=1, termid=1, 
     return datas
 
 
-def update_weigh_interface(subjectid="M", sectionid="J", timestart="2019-01-01 00:00:00", timeend="2019-09-17 00:00:00",
-                           edition="沪教版"):
+def weigh_back_interface(subjectid="M", sectionid="J", gradeid=1, termid=1, timestart="2019-01-01 00:00:00",
+                         timeend="2019-09-17 00:00:00", edition="沪教版"):
+    # 0. 获取素质集合
+    insdata = GetData()
+    studentid = None
+    coursedetailkeys = insdata.get_course_subject_stage_info(studentid, subjectid, sectionid, edition, timestart,
+                                                             timeend)
+    course_res_info = insdata.get_course_result_info(coursedetailkeys)
+    # 2. 数据预处理
+    insres = OutPutResult()
+    # 2.1 输入：学生的表现详情。输出：不同维度的曲线列表（知识点 方式 文件 多维得分 得分）
+    # print(course_res_info)
+    examination_data = insres.get_learn_info_multistudents(course_res_info)
+    # 2.2 输入：不同维度的曲线列表（知识点 方式 文件 多维得分 得分）输出：按用户测评时间 分值维度 分值线
+    score_dim1_curves, score_dim2_curves = insres.get_point_time_score(examination_data)
     # 1. 知识点难度 = 学习时长/考试该点的正确率
     # bus_point_info 的 增autolevel
     # 2. 学习方式优先权重 = 随堂得分/该环节学习时长
@@ -834,7 +877,7 @@ def model_back_interface(subjectid="M", sectionid="J", gradeid=1, termid=1, time
         #     [[0, 4.2], [7, 11.5]],
         #     [[0, 0], [3, 2.5]],
         # ]
-        # 3. 输出对应数据的拟合曲线
+        # # 3. 输出对应数据的拟合曲线
         # all_data = [
         #     [[0, 4.5], [2, 7.5]],
         #     [[0, 3.5], [3, 7.5], [6, 13.5]],
@@ -865,10 +908,10 @@ def model_back_interface(subjectid="M", sectionid="J", gradeid=1, termid=1, time
     # 3. 参数保存
     res = 0
     if len(modeldata) != 0:
-        res = insdata.insmysql.exec_sql("TRUNCATE rpg_model_info;")
+        res = insdata.insmysql.exec_sql("TRUNCATE rpt_model_info;")
         for i1 in modeldata:
             sqls = """
-            INSERT INTO rpg_model_info (x, y,`type`,edition,`subjectid`,`sectionid`,gradeid, termid, modelname,a,b,`c`,normalpara) VALUES({},{},{},"{}","{}","{}",{},{},"{}",{},{},{},{});
+            INSERT INTO rpt_model_info (x, y,`type`,edition,`subjectid`,`sectionid`,gradeid, termid, modelname,a,b,`c`,normalpara) VALUES({},{},{},"{}","{}","{}",{},{},"{}",{},{},{},{});
             """.format(i1[0][0], i1[0][1], i1[1], edition, subjectid, sectionid, gradeid, termid, i1[2], i1[3][0],
                        i1[3][1], i1[3][2], i1[-1])
             res = insdata.insmysql.exec_sql(sqls)
@@ -882,7 +925,8 @@ if __name__ == '__main__':
     logger.info("")
     # recommand_back_interface()
     # model_back_interface()
-    trend_back_interface()
+    weigh_back_interface()
+    # trend_back_interface()
     # main()
     logger.info("")
     logger.info("bye bye".center(30, " ").center(100, "*"))
