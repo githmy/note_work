@@ -68,14 +68,13 @@ class LoadBacktest(object):
         # self.symbol_aft_retp_high
         # self.symbol_aft_retp_low
         # 1. 训练数据, 输入原始规范训练数据，待时间截断
-        # todo: 1. 测试接口更新数据 2. 每个模型，时间段回测
+        # todo: 1. 测试接口更新数据 2. 选出合理的bband 3. 用bband组合再次训练 预测
         train_bars = LoadCSVHandler(queue.Queue(), data_path, self.symbol_list, self.ave_list, self.bband_list)
         date_range = [1, None]
         split = 0.8  # 先截range 再split
         # 3. 训练
         self._strategy.train_probability_everysignals(train_bars, self.ave_list, self.bband_list, date_range,
-                                                      split=split,
-                                                      args=None)
+                                                      split=split, args=None)
         # self._strategy.train_probability_signals(train_bars, self.ave_list, self.bband_list, date_range, split=split,
         #                                          args=None)
 
@@ -91,6 +90,7 @@ class LoadBacktest(object):
         predict_bars_json = {}
         pred_list_json = {}
         date_range = [550, None]
+        # date_range = [500, None]
         predict_bars = LoadCSVHandler(queue.Queue(), data_path, self.symbol_list, self.ave_list, self.bband_list)
         predict_bars.generate_b_derivative()
         # for i1 in self.symbol_list:
@@ -105,7 +105,7 @@ class LoadBacktest(object):
         print("data used lenth: {}".format(len(pred_list_json[self.symbol_list[0]][0])))
         # 3. 投资回测结果
         all_holdings, annual_ratio = self._portfolio.components_res_every_predict(predict_bars, pred_list_json,
-                                                                                  para_config)
+                                                                                  para_config, date_range)
         # all_holdings, annual_ratio = self._portfolio.components_res_base_predict(predict_bars_json, pred_list_json,
         #                                                                          para_config)
         # 4. 绘制收益过程
@@ -157,6 +157,9 @@ class LoadBacktest(object):
         # 3. 虚拟价格的操作空间
         fake_gain, fake_f_ratio, fake_mount = self._portfolio.components_res_fake_predict(predict_bars, pred_list_json,
                                                                                           fake_ori, para_config)
+        print(fake_gain)
+        print(fake_f_ratio)
+        print(fake_mount)
         # 4. 绘制收益过程
         insplt = PlotTool()
         for symbol in self.symbol_list:

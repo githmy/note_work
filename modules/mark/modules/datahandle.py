@@ -406,7 +406,8 @@ class LoadCSVHandler(object):
         # 二维数组，第一维均线 第二维 涨幅
         symfack_pre_retp = {}
         symfack_pre_retm = {}
-        for s in self.symbol_list_with_benchmark:
+        for id1, s in enumerate(self.symbol_list_with_benchmark):
+            print(id1, s)
             symfack_pre_avep[s] = []
             symfack_pre_avem[s] = []
             symfack_pre_half_std_up[s] = []

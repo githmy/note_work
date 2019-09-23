@@ -40,7 +40,7 @@ class PlotTool(object):
 
     def plot_dim3(self, ts, titie_str, range_low=-10, range_high=11, range_eff=0.01, mount_low=-10, mount_high=11,
                   mount_eff=0.01):
-        plt.ion()
+        # plt.ion()
         listlen = len(ts)
         dimx = range_high - range_low
         dimy = mount_high - mount_low

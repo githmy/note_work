@@ -374,7 +374,6 @@ class MlaStrategy(strategy.BacktestingStrategy):
                                                                               validpre_pos, validaft_pos))
         for s in symbol_list:
             # 1. 加载标签数据
-            print(s)
             xchara_trainlist = []
             xchara_validlist = []
             xlen_slist = len(ave_list)
@@ -860,14 +859,16 @@ class MlaStrategy(strategy.BacktestingStrategy):
         self._prepare_model_para(args)
         # 2. 生产数据
         self.trainconfig["dropout"] = 1.0
-        data_buff_dir = "npy_" + "_".join([str(i1) for i1 in bband_list])
+        data_buff_dir = "everynpy_" + "_".join([str(i1) for i1 in bband_list])
         self.trainconfig["tailname"] += data_buff_dir
-        modelcrnn = CRNN(ave_list, bband_list, config=self.trainconfig)
+        modelcrnn = CRNNevery(ave_list, bband_list, config=self.trainconfig)
         modelcrnn.buildModel()
         # 3. 预测结果
         pred_list_json = {}
+        print("generate_lastspace: ")
         fake_data, fake_ori = predict_bars.generate_lastspace(**showconfig)
-        for symbol in self.symbol_list:
+        for symbol in predict_bars.symbol_list:
+            print("fake: ", symbol)
             inputs_t = self._prepare_fake_pred_data(fake_data[symbol], ave_list)
             pred_list_json[symbol] = modelcrnn.predict(inputs_t)
         return pred_list_json, fake_ori
