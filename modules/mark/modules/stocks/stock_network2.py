@@ -343,12 +343,12 @@ class CRNNevery(AbstractModeltensor):
 
     def _cnn_dense_less_model(self):
         # 部分1，预测值
-        dense1 = tf.layers.dense(inputs=self.input_p, units=128, activation=tf.nn.relu, name="layer_dense1")
+        dense1 = tf.layers.dense(inputs=self.input_p, units=128, activation=tf.nn.elu, name="layer_dense1")
         concat1 = tf.concat([self.input_p, dense1], 1, name='concat1')
         denseo1 = tf.nn.dropout(concat1, keep_prob=self.keep_prob_ph)
-        dense2 = tf.layers.dense(inputs=denseo1, units=512, activation=tf.nn.relu, name="layer_dense2")
+        dense2 = tf.layers.dense(inputs=denseo1, units=512, activation=tf.nn.elu, name="layer_dense2")
         denseo2 = tf.nn.dropout(dense2, keep_prob=self.keep_prob_ph)
-        dense4 = tf.layers.dense(inputs=denseo2, units=128, activation=tf.nn.relu, name="layer_dense4")
+        dense4 = tf.layers.dense(inputs=denseo2, units=128, activation=tf.nn.elu, name="layer_dense4")
         denseo4 = tf.nn.dropout(dense4, keep_prob=self.keep_prob_ph)
         y_reta = tf.layers.dense(inputs=denseo4, units=self.out_dim, activation=None, name="y_reta")
         y_reth = tf.layers.dense(inputs=denseo4, units=self.out_dim, activation=None, name="y_reth")
@@ -393,16 +393,16 @@ class CRNNevery(AbstractModeltensor):
 
     def _cnn_dense_model(self):
         # 部分1，预测值
-        dense1 = tf.layers.dense(inputs=self.input_p, units=128, activation=tf.nn.relu, name="layer_dense1")
+        dense1 = tf.layers.dense(inputs=self.input_p, units=128, activation=tf.nn.elu, name="layer_dense1")
         concat1 = tf.concat([self.input_p, dense1], 1, name='concat1')
         denseo1 = tf.nn.dropout(concat1, keep_prob=self.keep_prob_ph)
         # tf.summary.histogram('layer_dense1', dense1)  # 记录标量的变化
-        dense2 = tf.layers.dense(inputs=denseo1, units=512, activation=tf.nn.relu, name="layer_dense2")
+        dense2 = tf.layers.dense(inputs=denseo1, units=512, activation=tf.nn.elu, name="layer_dense2")
         concat2 = tf.concat([self.input_p, dense1, dense2], 1, name='concat2')
         denseo2 = tf.nn.dropout(concat2, keep_prob=self.keep_prob_ph)
-        dense3 = tf.layers.dense(inputs=denseo2, units=256, activation=tf.nn.relu, name="layer_dense3")
+        dense3 = tf.layers.dense(inputs=denseo2, units=256, activation=tf.nn.elu, name="layer_dense3")
         denseo3 = tf.nn.dropout(dense3, keep_prob=self.keep_prob_ph)
-        dense4 = tf.layers.dense(inputs=denseo3, units=128, activation=tf.nn.relu, name="layer_dense4")
+        dense4 = tf.layers.dense(inputs=denseo3, units=128, activation=tf.nn.elu, name="layer_dense4")
         denseo4 = tf.nn.dropout(dense4, keep_prob=self.keep_prob_ph)
         # tf.summary.histogram('layer_dense2', dense2)  # 记录标量的变化
         y_reta = tf.layers.dense(inputs=denseo4, units=self.out_dim, activation=None, name="y_reta")
@@ -447,17 +447,17 @@ class CRNNevery(AbstractModeltensor):
 
     def _cnn_dense_more_model(self):
         # 部分1，预测值
-        dense1 = tf.layers.dense(inputs=self.input_p, units=128, activation=tf.nn.relu, name="layer_dense1")
+        dense1 = tf.layers.dense(inputs=self.input_p, units=128, activation=tf.nn.elu, name="layer_dense1")
         concat1 = tf.concat([self.input_p, dense1], 1, name='concat1')
         denseo1 = tf.nn.dropout(concat1, keep_prob=self.keep_prob_ph)
         # tf.summary.histogram('layer_dense1', dense1)  # 记录标量的变化
-        dense2 = tf.layers.dense(inputs=denseo1, units=512, activation=tf.nn.relu, name="layer_dense2")
+        dense2 = tf.layers.dense(inputs=denseo1, units=512, activation=tf.nn.elu, name="layer_dense2")
         concat2 = tf.concat([self.input_p, dense1, dense2], 1, name='concat2')
         denseo2 = tf.nn.dropout(concat2, keep_prob=self.keep_prob_ph)
-        dense3 = tf.layers.dense(inputs=denseo2, units=256, activation=tf.nn.relu, name="layer_dense3")
+        dense3 = tf.layers.dense(inputs=denseo2, units=256, activation=tf.nn.elu, name="layer_dense3")
         concat3 = tf.concat([self.input_p, dense1, dense2, dense3], 1, name='concat3')
         denseo3 = tf.nn.dropout(concat3, keep_prob=self.keep_prob_ph)
-        dense4 = tf.layers.dense(inputs=denseo3, units=128, activation=tf.nn.relu, name="layer_dense4")
+        dense4 = tf.layers.dense(inputs=denseo3, units=128, activation=tf.nn.elu, name="layer_dense4")
         denseo4 = tf.nn.dropout(dense4, keep_prob=self.keep_prob_ph)
         # tf.summary.histogram('layer_dense2', dense2)  # 记录标量的变化
         y_reta = tf.layers.dense(inputs=denseo4, units=self.out_dim, activation=None, name="y_reta")
