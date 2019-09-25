@@ -1,16 +1,212 @@
 import networkx as nx
 import matplotlib.pyplot as plt
 import matplotlib
+import neonx
 
+# networkx 2 neo4j
+# ! pip install neonx
 matplotlib.rcParams['font.sans-serif'] = ['SimHei']
 matplotlib.rcParams['font.family'] = 'sans-serif'
+import neo4j
+
+
+def test_neo4j(tx):
+    "start n=node(*)  match (n)-[r:observer]-()  delete n,r match (o:org{name: 'juxinli'}) match (n)-[r:observer]-()  delete o,r"
+    tx.run("match (n) detach delete n")
+    driver = neo4j.GraphDatabase.driver("bolt://localhost:7687", auth=("neo4j", "neo4j"))
+
+    def add_friend(tx, name, friend_name):
+        tx.run("MERGE (a:Person {name: $name}) "
+               "MERGE (a)-[:KNOWS]->(friend:Person {name: $friend_name})",
+               name=name, friend_name=friend_name)
+
+    def print_friends(tx, name):
+        for record in tx.run("MATCH (a:Person)-[:KNOWS]->(friend) WHERE a.name = $name "
+                             "RETURN friend.name ORDER BY friend.name", name=name):
+            print(record["friend.name"])
+
+    def add_obj(tx, name):
+        tx.run("MERGE (a:obj {name: $name}) ",
+               name=name)
+
+    def add_relation(tx, subject, relation, object, domain=None):
+        tx.run("MERGE (a:obj {name: $subject_name}) "
+               "MERGE (a)-[r:%s {domain:$domain_name}]->(b:obj {name: $object_name})" % (relation),
+               subject_name=subject, object_name=object, domain_name=domain)
+        # tx.run("MERGE (a:obj {name: $subject_name}) "
+        #        "MERGE (a)-[r:%s]->(b:obj {name: $object_name})" % relation,
+        #        subject_name=subject, object_name=object)
+
+    def delete_all(tx):
+        "start n=node(*)  match (n)-[r:observer]-()  delete n,r match (o:org{name: 'juxinli'}) match (n)-[r:observer]-()  delete o,r"
+        tx.run("match (n) detach delete n")
+
+    with driver.session() as session:
+        session.write_transaction(add_friend, "Arthur", "Guinevere")
+        session.write_transaction(add_friend, "Arthur", "Lancelot")
+        session.write_transaction(add_friend, "Arthur", "Merlin")
+        session.read_transaction(print_friends, "Arthur")
+        session.write_transaction(add_obj, "ab")
+        # 1. 清空原有
+        session.write_transaction(delete_all)
+
+
+def test_networkx(fall_list=["数的整除", "比和比例"]):
+    G0 = nx.MultiDiGraph()  # 创建多重有向图
+    filename = os.path.join(project_path, "graph_work.xlsx")
+    pdobj = pd.read_excel(filename, sheet_name='Sheet1', header=0, encoding="utf8")
+    filename = os.path.join(project_path, "property.xlsx")
+    properpobj = pd.read_excel(filename, sheet_name='Sheet1', header=0, encoding="utf8")
+    pdobj[["subject", "relation", "object"]] = pdobj[pdobj["domain"] == "六年级数学上学期"][["subject", "relation", "object"]]
+    G = nx.from_pandas_edgelist(pdobj[["subject", "relation", "object"]], "subject", "object", edge_attr="relation",
+                                create_using=G0)
+    # nx.draw(G, with_labels=True, font_weight='bold')
+    # # 二阶节点
+    # setall = set()
+    # for i1 in nx.all_neighbors(G, "主1"):
+    #     tmposet = set([i1])
+    #     tmprset = set(nx.all_neighbors(G, i1))
+    #     setall |= tmprset | tmposet
+    # print(nx.info(G, "主1"))
+    # # 某节点某类属性的边
+    # alledge = nx.get_edge_attributes(G, name="relation")
+    # for i1 in alledge:
+    #     if alledge[i1] == "系8":
+    #         print(i1)
+    # for i1 in nx.all_neighbors(G, "主1"):
+    #     res = nx.edges(G, i1)
+    #     # res = nx.common_neighbors(G, "主1", "主2")
+    #     # print(2)
+    #     # print(res)
+    # nx.draw(G, pos=nx.random_layout(G), node_color='b', edge_color='r', with_labels=True, font_size=18, node_size=20)
+    # lists = [("无理数", "实数", 500), ('有理数', "实数", 3.0)]
+    # G.add_weighted_edges_from(lists)
+    # node
+    properpobj.loc[properpobj["property"] == "非知识点", "value"] = '#ff0000'
+    properpobj.loc[properpobj["property"] != "非知识点", "value"] = '#0000ff'
+    properjson = properpobj[["object", "value"]].to_json(orient='records', force_ascii=False)
+    val_map = {i1["object"]: i1["value"] for i1 in json.loads(properjson)}
+    node_colors = [val_map.get(node, "#000000") for node in G.nodes()]
+    # edge
+    pdobj.loc[pdobj["relation"] == "在教材的", "value"] = '#ff0000'
+    pdobj.loc[pdobj["relation"] == "是成员", "value"] = '#00ff00'
+    pdobj.loc[pdobj["relation"] == "是基础", "value"] = '#0000ff'
+
+    def map_colors(a, b):
+        res = pdobj[(pdobj["subject"] == a) & (pdobj["object"] == b)]
+        return res["value"].values[0]
+
+    edge_colors = [map_colors(a, b) for a, b in G.edges()]
+
+    # width
+    short_path = nx.dijkstra_path(G, source=fall_list[0], target=fall_list[1])
+    print('节点 {} 到 {} 的路径：'.format(*fall_list), short_path)
+
+    def map_wide(a, b):
+        if a in short_path and b in short_path:
+            return 4
+        else:
+            return 2
+
+    wide_list = [map_wide(a, b) for a, b in G.edges()]
+
+    # 节点大小
+    def map_size(a):
+        if a in short_path:
+            return 600
+        else:
+            return 300
+
+    size_list = [map_size(node) for node in G.nodes()]
+    pos = nx.shell_layout(G)
+    # pos = nx.random_layout(G)
+    # pos = nx.kamada_kawai_layout(G)
+    # pos = nx.circular_layout(G)
+    nx.draw(G, pos, node_color=node_colors, edge_color=edge_colors, width=wide_list, node_size=size_list, font_size=10,
+            with_labels=True)
+    plt.axis('on')
+    plt.xticks([])
+    plt.yticks([])
+    plt.show()
+
+
+def networkx2neo4j():
+    import neonx
+    # create a Networkx graph
+    # LINKS_TO is the relatioship name between the nodes
+    data = neonx.get_geoff(graph, "LINKS_TO")
+    import json
+    import datetime
+
+    class DateEncoder(json.JSONEncoder):
+        def default(self, o):
+            if isinstance(o, datetime.date):
+                return o.strftime('%Y-%m-%d')
+            return json.JSONEncoder.default(self, o)
+
+    data = neonx.get_geoff(graph, "LINKS_TO", DateEncoder())
+    results = neonx.write_to_neo("http://localhost:7474/db/data/", graph, 'LINKS_TO')
+    results = neonx.write_to_neo("http://localhost:7474/db/data/", graph, 'LINKS_TO', 'Person')
 
 
 def 绘图方式():
+    G = nx.MultiDiGraph()  # 创建多重有向图
     nx.draw(g)
+    list = [('a', 'b', 5.0), ('b', 'c', 3.0), ('a', 'c', 1.0)]
+    G.add_weighted_edges_from([(list)])
+    val_map = {'主1': '#ff0000',
+               '主2': '#ff00ff',
+               '主3': '#00ff00'}
+    # - circular_layout：节点在一个圆环上均匀分布
+    # - random_layout：节点随机分布
+    # - shell_layout：节点在同心圆上分布
+    # - spring_layout： 用Fruchterman - Reingold算法排列节点
+    # - spectral_layout：根据图的拉普拉斯特征向量排列节
+    pos = nx.random_layout(G)
+    pos = nx.kamada_kawai_layout(G)
+    pos = nx.circular_layout(G)
+    pos = nx.shell_layout(G)
+    pos = nx.spring_layout(G)
+    pos = nx.shell_layout(G)
+
+    # - node_size: 指定节点的尺寸大小(默认是300，单位未知，就是上图中那么大的点)
+    # - node_color: 指定节点的颜色 (默认是红色，可以用字符串简单标识颜色，例如'r'为红色，'b'为绿色等，具体可查看手册)，用“数据字典”赋值的时候必须对字典取值（.values()）后再赋值
+    # - node_shape: 节点的形状（默认是圆形，用字符串'o'标识，具体可查看手册）
+    # - alpha: 透明度 (默认是1.0，不透明，0为完全透明)
+    # - width: 边的宽度 (默认为1.0)
+    # - edge_color: 边的颜色(默认为黑色)
+    # - style: 边的样式(默认为实现，可选： solid|dashed|dotted,dashdot)
+    # - with_labels: 节点是否带标签（默认为True）
+    # - font_size: 节点标签字体大小 (默认为12)
+    # - font_color: 节点标签字体颜色（默认为黑色）
+    # nx.draw(G, pos, node_color=values, edge_color='r', with_labels=True, font_size=18, node_size=300)
+    def map_colors(a, b):
+        res = pdobj[(pdobj["subject"] == a) & (pdobj["object"] == b)]
+        return res["value"].values[0]
+
+    node_colors = [val_map.get(node, "#000000") for node in G.nodes()]
+    edge_colors = [map_colors(a, b) for a, b in G.edges()]
+    # 画图
+    wide_list = [map_wide(a, b) for a, b in G.edges()]
+    nx.draw(G, pos, node_color=node_colors, edge_color=edge_colors, width=wide_list, with_labels=True, font_size=18,
+            node_size=300)
+
     nx.draw_random(g)  # 点随机分布
     nx.draw_circular(g)  # 点的分布形成一个环
     nx.draw_spectral(g)
+    #
+    partition = community.best_partition(User)
+    size = float(len(set(partition.values())))
+    pos = nx.spectral_layout(G)
+    count = 0.
+    for com in set(partition.values()):
+        count = count + 1.
+        list_nodes = [nodes for nodes in partition.keys()
+                      if partition[nodes] == com]
+        nx.draw_networkx_nodes(G, pos, list_nodes, node_size=50,
+                               node_color=str(count / size))
+    nx.draw_networkx_edge_labels(H, pos, edge_labels=labels)
+    nx.draw_networkx_edges(User, pos, with_labels=True, alpha=0.5)
 
 
 def 构建方式():
@@ -400,8 +596,10 @@ def 最大联通子图及联通子图规模排序():
         print(c)  # 看看返回来的是什么？结果是{0,1,2,3}
         print(type(c))  # 类型是set
         print(len(c))  # 长度分别是4和3（因为reverse=True，降序排列）
-    largest_components = max(nx.connected_components(G), key=len)  # 高效找出最大的联通成分，其实就是sorted里面的No.1
-    print(largest_components)  # 找出最大联通成分，返回是一个set{0,1,2,3}
+    # 高效找出最大的联通成分，其实就是sorted里面的No.1
+    largest_components = max(nx.connected_components(G), key=len)
+    # 找出最大联通成分，返回是一个set{0,1,2,3}
+    print(largest_components)
     print(len(largest_components))  # 4
 
 
@@ -413,8 +611,10 @@ def GCN_format():
     #       (1, 2)	1
     #       (1, 652)	1
     adj = nx.adjacency_matrix(nx.from_dict_of_lists(graph))
+    # 生成的是二进制文件
+    graph_filename1 = "a.bb"
+    nx.write_adjlist(G1, graph_filename1)
     print(adj)
-
     """
     输出        紧邻对称矩阵 + I 的标准化   D个特征     卷积通道F
     Z[N,F] = RULE (A[N,N] * X[N,D] * W[D,F]) 

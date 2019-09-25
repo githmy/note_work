@@ -17,6 +17,24 @@ def matrix_format():
     coords = np.vstack((mx.row, mx.col)).transpose()
     print(features)
 
+    from scipy.sparse import csr_matrix
+
+    arr = np.array([[0, 1, 0, 2, 0], [1, 1, 0, 2, 0], [2, 0, 5, 0, 0]])
+    b = csr_matrix(arr)
+    tmpdata = b.tocoo()
+    # 获取行
+    print(tmpdata.row)
+    # 获取列
+    print(tmpdata.col)
+    # 获取值
+    print(tmpdata.data)
+    print(b.shape)  # (3, 5)
+    print(b.nnz) #非零个数, 7
+    print(b.data)  # 非零值, [1 2 1 1 2 2 5]
+    print(b.indices)  # #稀疏矩阵非0元素对应的列索引值所组成数组, [1 3 0 1 3 0 2]
+    print(b.indptr)  # 第一个元素0，之后每个元素表示稀疏矩阵中每行元素(非零元素)个数累计结果, [0 2 5 7]
+    print(b.toarray())  # [[0,1,0,2,0],[1,1,0,2,0],[2,0,5,0,0]]
+
 
 import numpy as np
 import matplotlib.pyplot as plt

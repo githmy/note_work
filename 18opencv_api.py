@@ -2,6 +2,12 @@ import cv2
 import numpy as np
 
 
+def dim2_code():
+    from MyQR import myqr  # 注意大小写
+    # myqr.run(words="http://test.htmanage.com/Account/Login")
+    myqr.run(words='http://test.htmanage.com/Account/Login', picture='a.png', colorized=True)
+
+
 def audio_demo():
     import pyaudio
     import wave
@@ -142,6 +148,7 @@ def movie_py():
     result.write_videofile("myHolidays_edited.webm", fps=25)  # Many options...
     # 合并
     video = concatenate_videoclips(unit_videos)
+
 
 def vispy_demo():
     from moviepy.editor import VideoClip
