@@ -70,8 +70,12 @@ def list_deal():
     # 逆序列
     listB.reverse()
     # # 元素的序号
-    # your_list.index('your_item')
-    # your_list.sort(cmp=None, key=None, reverse=False)
+    your_list.index('your_item')
+    your_list.sort(cmp=None, key=None, reverse=False)
+    # 删除元素
+    # your_list.remove('your_item')
+    # your_list.pop(-1)
+    # del (your_list[0])
     # 交集
     retA = [i for i in listA if i in listB]
     retB = list(set(listA).intersection(set(listB)))

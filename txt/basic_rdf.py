@@ -2,6 +2,7 @@ import networkx as nx
 import matplotlib.pyplot as plt
 import matplotlib
 import neonx
+import pandas as pd
 
 # networkx 2 neo4j
 # ! pip install neonx
@@ -619,6 +620,35 @@ def GCN_format():
     输出        紧邻对称矩阵 + I 的标准化   D个特征     卷积通道F
     Z[N,F] = RULE (A[N,N] * X[N,D] * W[D,F]) 
     """
+
+
+def 三元组提取():
+    # https://github.com/blmoistawinde/hello_world.git
+    from harvesttext.harvesttext import HarvestText
+    doc = """
+    """
+    ht = HarvestText()
+    # 分句
+    sentences = ht.cut_sentences(doc)
+    entity_type_dict = {}
+    for i, sent in enumerate(sentences):
+        # 命名实体
+        entity_type_dict0 = ht.named_entity_recognition(sent)
+        for entity0, type0 in entity_type_dict0.items():
+            entity_type_dict[entity0] = type0
+    for entity in list(entity_type_dict.keys())[:10]:
+        print(entity, entity_type_dict[entity])
+        """
+        中国 地名
+        鸦片战争 其他专名"""
+    # 实体添加字典
+    ht.add_entities(entity_type_dict=entity_type_dict)
+    inv_index = ht.build_index(sentences)
+    # 实体计数
+    counts = ht.get_entity_counts(sentences, inv_index)
+    print(pd.Series(counts).sort_values(ascending=False).head())
+    # 三元组提取
+    ht.triple_extraction(sent.strip())
 
 
 if __name__ == '__main__':

@@ -223,6 +223,7 @@ def main(paralist):
                 # "bband_list": [19],
                 # "bband_list": [37],
                 "bband_list": [1, 5, 19],
+                # "bband_list": [5, 19],
                 # "bband_list": [5, 19, 37],
                 "ret_list": [1, 3, 5, 7, 17, 20, 23, 130, 140, 150],
             },

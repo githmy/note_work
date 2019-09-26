@@ -19,6 +19,8 @@ from py2neo import Graph, Node, Relationship
 import networkx as nx
 import matplotlib.pyplot as plt
 import matplotlib
+import copy
+import itertools
 
 matplotlib.rcParams['font.sans-serif'] = ['SimHei']
 matplotlib.rcParams['font.family'] = 'sans-serif'
@@ -109,16 +111,30 @@ def main():
     ins = RDF(config)
     entityname = "单项式"
     find_list = ins.find_entity_property(entityname)
-    print(find_list)
-    print(pd.DataFrame(find_list))
+    # print(find_list)
+    # print(pd.DataFrame(find_list))
     test_obj = [
         {"sentence": "一个月内，小明体重增加 $2kg$，小华体重减少 $1kg$，小强体重无变化，写出他们这个月的体重增长值"},
         {
             "sentence": "$2001$ 年下列国家的商品进出口总额比上年的变化情况是：\ 美国减少 $6.4\%$，德国增长 $1.3\%$，\ 法国减少 $2.4\%$，英国减少 $3.5\%$，\ 意大利增长 $0.2\%$，中国增长 $7.5\%$ ，\ 写出这些国家 $2001$ 年商品进出口总额的增长率"},
         {"sentence": "高出海平面记为正 ，低于海平面记为负 ，若地图上 $A$ ，$B$ 两地的高度分别标记为 $4600$ 米和 $-200$ 米 ，你能说出它们的含义吗"},
     ]
+    from harvesttext.harvesttext import HarvestText
+
+    doc = test_obj[0]["sentence"]
+    ht = HarvestText()
+    sentences = ht.cut_sentences(doc)
+    print(sentences)
+    inv_index = ht.build_index(sentences)
+    # 实体计数
+    counts = ht.get_entity_counts(sentences, inv_index)
+    print(pd.Series(counts).sort_values(ascending=False).head())
+    # 三元组提取
+    res = ht.triple_extraction(sentences[0].strip())
+    print(res)
+
     discrete_list = ins.sentences2triples(test_obj)
-    print(discrete_list)
+    # print(discrete_list)
 
 
 def test_neo4j(domain_list=["六年级数学上学期"], point_json={}):
@@ -155,6 +171,7 @@ class Node_tool(object):
         self.ori_graph = None
         self._get_data(filename, domain_list)
         self._get_adjacency()
+        self.get_local_nodes()
 
     def _get_data(self, filename, domain_list):
         self.pdobj = pd.read_excel(filename, sheet_name='Sheet1', header=0, encoding="utf8")
@@ -179,7 +196,7 @@ class Node_tool(object):
                         return tmpnodeid
         return None
 
-    def get_local_root_nodes(self):
+    def get_local_nodes(self):
         # 1. 基本数据生成
         tmpdata = self.adj.tocoo()
         self.row_list = tmpdata.row
@@ -192,37 +209,29 @@ class Node_tool(object):
         # 点的个数
         self.node_propety = [map_prop[i1] for i1 in self.ori_graph.nodes]
         # 2. 起止点 章节
-        local_root_nodes = []
-        local_last_nodes = []
+        self.local_root_nodes = []
+        self.local_last_nodes = []
         # 只有起点不在终点列表里，就是局域起点
         for i1 in self.row_list:
             if i1 not in self.col_list:
-                local_root_nodes.append(i1)
-        lastchapter_list = []
+                self.local_root_nodes.append(i1)
+        # lastchapter_list = []
         for i1 in self.col_list:
             if i1 not in self.row_list:
-                local_last_nodes.append(i1)
-                chapernode = self._get_point_chaper(i1)
-                if chapernode is None:
-                    raise Exception("知识点不应该没有章")
-                else:
-                    lastchapter_list.append(chapernode)
-        lastchapter_list = list(set(lastchapter_list))
-
-        print(local_root_nodes)
-        print(local_last_nodes)
-        # 局域起点中下一级节点的上一级，就是局域起点
-        # 1. 选出非知识点带有发展关系的节点 | last_nodt
-        # 2. 倒退非知识点的最上层，选里面的localroot.
+                self.local_last_nodes.append(i1)
+                # chapernode = self._get_point_chaper(i1)
+                # if chapernode is None:
+                #     raise Exception("知识点不应该没有章")
+                # else:
+                #     lastchapter_list.append(chapernode)
+        # lastchapter_list = list(set(lastchapter_list))
+        print(self.local_root_nodes)
+        print(self.local_last_nodes)
         print(self.ori_graph.nodes)
-        return local_root_nodes
-
-    def get_global_root_nodes(self):
-        local_root_nodes = self.get_local_root_nodes()
-        nodelist = []
-        return nodelist
 
     def get_node_order_list(self, point):
+        local_root_nodes = self.get_global_root_nodes()
+
         # 每个错点一幅图
         # for i1 in points_list:
         #     local_root_nodes = self.get_global_root_nodes()
@@ -233,11 +242,82 @@ class Node_tool(object):
         # 1. 得出错点的章节json
         # 2. 遍历虚拟展开领路径+原有路径
         # 3. 生成所有 错点->局域根路径。
+        # 0 n01个起点 n02个终点 n03个错误点
+        step_net_list = []
+        wait_nodes = copy.deepcopy(points_list)
+        dealed_nodes = []
+        while len(wait_nodes) > 0:
+            insig = 0
+            # 遍历待处理点 找到的最短路径
+            buf_wait_nodes = copy.deepcopy(wait_nodes)
+            for wait_node in buf_wait_nodes:
+                buf_step_net_list = copy.deepcopy(step_net_list)
+                for stepid, stepinfo in enumerate(buf_step_net_list):
+                    if wait_node in stepinfo[1]:
+                        # 3. （拆枝）如存在于已有的路径列表 删除待处理列表的该项 拆分路径(新增点最多这可能拆一条路径)
+                        wait_nodes.remove(wait_node)
+                        dealed_nodes.append(wait_node)
+                        step_net_list[stepid][0] = [stepinfo[0][0], wait_node]
+                        step_net_list[stepid][1] = stepinfo[1][:stepinfo[0][1].index(wait_node)]
+                        step_net_list.append(
+                            [[wait_node, stepinfo[0][1]], stepinfo[1][stepinfo[0][1].index(wait_node):]])
+                        break
+            if 0 == insig:
+                buf_wait_nodes = copy.deepcopy(wait_nodes)
+                for wait_node in buf_wait_nodes:
+                    # 1. （侧枝）尝试加入已处理有路径，成功一个就做拆分循环
+                    deal_wait_node_sig = 0
+                    tmpdeal_nodes = copy.deepcopy(dealed_nodes)
+                    for tmpnode in tmpdeal_nodes:
+                        # 遍历每一个已处理节点的路径
+                        try:
+                            sourcenode = tmpnode
+                            targetnode = wait_node
+                            path_t = nx.dijkstra_path(self.ori_graph, source=sourcenode, target=targetnode)
+                            # 如果新增path中的非起止点包含 已处理点，舍弃这条路径
+                            strippath = copy.deepcopy(path_t)
+                            del strippath[-1]
+                            del strippath[0]
+                            usepath_sig = 1
+                            for mid_node in strippath:
+                                if mid_node in dealed_nodes:
+                                    usepath_sig = 0
+                                    break
+                            if 1 == usepath_sig:
+                                step_net_list.append([[sourcenode, targetnode], path_t])
+                                dealed_nodes.append(tmpnode)
+                                deal_wait_node_sig = 1
+                        except Exception as e:
+                            pass
+                        try:
+                            sourcenode = wait_node
+                            targetnode = tmpnode
+                            path_t = nx.dijkstra_path(self.ori_graph, source=sourcenode, target=targetnode)
+                            # 如果新增path中的非起止点包含 已处理点，舍弃这条路径
+                            strippath = copy.deepcopy(path_t)
+                            del strippath[-1]
+                            del strippath[0]
+                            usepath_sig = 1
+                            for mid_node in strippath:
+                                if mid_node in dealed_nodes:
+                                    usepath_sig = 0
+                                    break
+                            if 1 == usepath_sig:
+                                step_net_list.append([[sourcenode, targetnode], path_t])
+                                dealed_nodes.append(tmpnode)
+                                deal_wait_node_sig = 1
+                        except Exception as e:
+                            pass
+                    # 2. （新树）不存在则遍历已有的节点求最短路径
+                    if deal_wait_node_sig == 1:
+                        # 3. 判断成功跳出
+                        break
+                    else:
+                        dealed_nodes.append(wait_node)
+                        wait_nodes.remove(wait_node)
+                        # linked_nodes = list(set(list(itertools.chain(*[i1[0] for i1 in step_net_list]))))
         # 4. 遍历每一条错点路径，删除存在路径中的，遍历未存在的。直到不存在可归并的。
-        step_lists = []
-        for i1 in points_list:
-            step_lists.append(self.get_node_order_list(i1))
-        return step_lists
+        return step_net_list
 
     def show_origin_graph(self):
         self.properpobj.loc[self.properpobj["property"] == "非知识点", "color"] = '#ff0000'
@@ -290,9 +370,10 @@ def test_networkx(domain_list=["六年级数学上学期"]):
     # 分析domain_list范围的知识点路径
     filename = os.path.join(project_path, "graph_work.xlsx")
     insnode = Node_tool(filename, domain_list)
-    # insnode.show_origin_graph()
+    # 展示原始图
+    insnode.show_origin_graph()
+    # 生成错点关系 [[[错基1, 错展1],[path1]],[[错基2, 错展2],[path2]]]
     path_list = insnode.get_nodes_order_list(points_list=["分数的加减混合运算"])
-    path_list = insnode.get_global_root_nodes()
     # nx.draw(G, with_labels=True, font_weight='bold')
     # # 二阶节点
     # setall = set()
@@ -322,10 +403,10 @@ if __name__ == '__main__':
     logger.info("welcome to Delphis".center(30, " ").center(100, "*"))
     logger.info("".center(100, "*"))
     logger.info("")
-    test_networkx()
-    exit(0)
-    test_neo4j()
-    # main()
+    # test_networkx()
+    # exit(0)
+    # test_neo4j()
+    main()
     logger.info("")
     logger.info("bye bye".center(30, " ").center(100, "*"))
     logger.info("".center(100, "*"))
