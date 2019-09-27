@@ -231,7 +231,7 @@ def main(paralist):
                 "symbol_list": ["000002_D"],
                 "ave_list": [1, 3, 5, 11, 19, 37, 67],
                 # "bband_list": [1],
-                # "bband_list": [5],
+                "bband_list": [5],
                 # "bband_list": [19],
                 # "bband_list": [37],
                 # "bband_list": [1, 5, 19],

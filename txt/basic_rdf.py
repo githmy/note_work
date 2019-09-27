@@ -517,10 +517,27 @@ def 最短路径():
     '''Shortest Path with dijkstra_path'''
     print('dijkstra方法寻找最短路径：')
     path = nx.dijkstra_path(G, source=0, target=7)
+    # [0, 3, 6, 7]
     print('节点0到7的路径：', path)
     print('dijkstra方法寻找最短距离：')
     distance = nx.dijkstra_path_length(G, source=0, target=7)
     print('节点0到7的距离为：', distance)
+
+    print('节点0到7的路径：', path)
+    path = nx.multi_source_dijkstra_path(G, {0, 7, 3})
+    # {0: [0], 7: [7], 1: [0, 1], 2: [0, 2], 3: [0, 3], 4: [0, 1, 4], 6: [0, 3, 6], 5: [0, 2, 5]}
+    # {0: [0], 4: [4], 7: [7], 1: [0, 1], 2: [0, 2], 3: [0, 3], 6: [0, 3, 6], 5: [0, 2, 5]}
+    # {0: [0], 3: [3], 7: [7], 1: [0, 1], 2: [0, 2], 6: [3, 6], 4: [0, 1, 4], 5: [0, 2, 5]}
+    print('节点0到7的路径：', path)
+    print('dijkstra方法寻找最短距离：')
+    distance = nx.dijkstra_path_length(G, source=0, target=7)
+    print('节点0到7的距离为：', distance)
+
+    path = nx.dijkstra_path(G, source=7, target=0)
+    print('节点7到0的路径：', path)
+    print('dijkstra方法寻找最短距离：')
+    distance = nx.dijkstra_path_length(G, source=7, target=0)
+    print('节点7到0的距离为：', distance)
 
 
 def 最小生成树():
