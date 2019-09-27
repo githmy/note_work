@@ -79,13 +79,23 @@ class Acount(object):
                     self.initial_capital, self.heartbeat, self.start_predict,
                     self.csv_dir, self.symbol_list, self.ave_list, self.bband_list, self.ret_list,
                     CSVAppendDataHandler, SimulatedExecutionHandler, Portfolio, MultiCrossStrategy)
-            elif self.data_type == "模拟":  # 已有数据，直观统计
+            elif self.data_type == "symbol_train_type":  # 已有数据，直观统计
                 backtest = LoadBacktest(
                     self.initial_capital, self.heartbeat, self.start_predict,
-                    # self.csv_dir, self.symbol_list, self.ave_list, self.bband_list,
-                    self.csv_dir, self._get_train_list(), self.ave_list, self.bband_list,
-                    # self.csv_dir, choice_list(), self.ave_list, self.bband_list,
+                    self.csv_dir, self.symbol_list, self.ave_list, self.bband_list,
                     LoadCSVHandler, SimulatedExecutionHandler, Portfolio, MlaStrategy)
+            elif self.data_type == "general_train_type":  # 已有数据，直观统计
+                backtest = LoadBacktest(
+                    self.initial_capital, self.heartbeat, self.start_predict,
+                    self.csv_dir, self._get_train_list(), self.ave_list, self.bband_list,
+                    LoadCSVHandler, SimulatedExecutionHandler, Portfolio, MlaStrategy,
+                    split=0.8, newdata=0, date_range=[1, None])
+            elif self.data_type == "plate_train_type":  # 已有数据，直观统计
+                backtest = LoadBacktest(
+                    self.initial_capital, self.heartbeat, self.start_predict,
+                    self.csv_dir, choice_list(), self.ave_list, self.bband_list,
+                    LoadCSVHandler, SimulatedExecutionHandler, Portfolio, MlaStrategy,
+                    split=1.0, newdata=1, date_range=[-152, None])
             elif self.data_type == "网络":  # 已有数据，统计强化学习
                 backtest = LoadBacktest(
                     self.initial_capital, self.heartbeat, self.start_predict,
@@ -208,9 +218,11 @@ def main(paralist):
             },
             "data_ori": {
                 # "func_type": "lastday",
-                "func_type": "train",
-                # "func_type": "backtest",
-                "data_type": "模拟",
+                # "func_type": "train",
+                "func_type": "backtest",
+                # "data_type": "symbol_train_type",
+                "data_type": "general_train_type",
+                # "data_type": "plate_train_type",
                 # "data_type": "网络",
                 # "data_type": "实盘",
                 "csv_dir": data_path,
@@ -222,9 +234,9 @@ def main(paralist):
                 # "bband_list": [5],
                 # "bband_list": [19],
                 # "bband_list": [37],
-                "bband_list": [1, 5, 19],
+                # "bband_list": [1, 5, 19],
                 # "bband_list": [5, 19],
-                # "bband_list": [5, 19, 37],
+                "bband_list": [5, 19, 37],
                 "ret_list": [1, 3, 5, 7, 17, 20, 23, 130, 140, 150],
             },
             "stratgey": {

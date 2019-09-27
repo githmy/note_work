@@ -14,7 +14,8 @@ from modules.datahandle import LoadCSVHandler
 class LoadBacktest(object):
     def __init__(self, initial_capital, heartbeat, start_date,
                  csv_dir, symbol_list, ave_list, bband_list,
-                 data_handler_cls, execution_handler_cls, portfolio_cls, strategy_cls):
+                 data_handler_cls, execution_handler_cls, portfolio_cls, strategy_cls,
+                 split=0.8, newdata=0, date_range=[1, None]):
         self.initial_capital = initial_capital
         self.heartbeat = heartbeat
         self.start_date = start_date
@@ -34,6 +35,8 @@ class LoadBacktest(object):
         self.orders = 0
         self.fills = 0
         self.num_strats = 1
+        self.newdata = newdata
+        self.split = split
         self._generate_trading_instances()
         print(self.symbol_list)
         print(len(self.symbol_list))
@@ -69,11 +72,11 @@ class LoadBacktest(object):
         # 1. 训练数据, 输入原始规范训练数据，待时间截断
         # todo: 1. 测试接口更新数据 2. 选出合理的bband 3. 用bband组合再次训练 预测
         train_bars = LoadCSVHandler(queue.Queue(), data_path, self.symbol_list, self.ave_list, self.bband_list)
-        date_range = [1, None]
-        split = 0.8  # 先截range 再split
+        # date_range = [1, None]
+        # split = 0.8  # 先截range 再split
         # 3. 训练
         self._strategy.train_probability_everysignals(train_bars, self.ave_list, self.bband_list, date_range,
-                                                      split=split, args=None)
+                                                      split=self.split, newdata=self.newdata, args=None)
 
     # 回测，根据不同事件执行不同的方法
     def _run_backtest(self):
@@ -292,4 +295,4 @@ class Backtest(object):
         回测 输出组合的 性能
         """
         self._run_backtest()
-        self._output_performance()
+        # self._output_performance()
