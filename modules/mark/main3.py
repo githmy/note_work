@@ -8,6 +8,7 @@ from modules.strategys import MovingAverageCrossStrategy, MultiCrossStrategy, Ml
 from modules.executions import SimulatedExecutionHandler
 from modules.backtests import Backtest, LoadBacktest
 from utils.log_tool import *
+import pyttsx3
 import tushare as ts
 
 
@@ -46,7 +47,6 @@ class Acount(object):
         self.symbol_list = config["data_ori"]["symbol_list"]
         self.ave_list = config["data_ori"]["ave_list"]
         self.bband_list = config["data_ori"]["bband_list"]
-        self.ret_list = config["data_ori"]["ret_list"]
         self.stratgey_name = config["stratgey"]["stratgey_name"]
         self.portfolio_name = config["portfolio"]["portfolio_name"]
         # 生成标准参数
@@ -72,12 +72,12 @@ class Acount(object):
             if self.data_type == "实盘demo":  # 已有数据，动态模拟, 原始例子
                 backtest = Backtest(
                     self.initial_capital, self.heartbeat, self.start_predict,
-                    self.csv_dir, self.symbol_list, self.ave_list, self.bband_list, self.ret_list,
+                    self.csv_dir, self.symbol_list, self.ave_list, self.bband_list,
                     CSVDataHandler, SimulatedExecutionHandler, Portfolio, MovingAverageCrossStrategy)
             elif self.data_type == "实盘":  # 已有数据，动态模拟, 未完善
                 backtest = Backtest(
                     self.initial_capital, self.heartbeat, self.start_predict,
-                    self.csv_dir, self.symbol_list, self.ave_list, self.bband_list, self.ret_list,
+                    self.csv_dir, self.symbol_list, self.ave_list, self.bband_list,
                     CSVAppendDataHandler, SimulatedExecutionHandler, Portfolio, MultiCrossStrategy)
             elif self.data_type == "symbol_train_type":  # 已有数据，直观统计
                 backtest = LoadBacktest(
@@ -166,7 +166,6 @@ def main(paralist):
                 # "symbol_list": ["SAPower"],
                 "ave_list": [1, 3, 5, 7, 17, 20, 23, 130, 140, 150],
                 "bband_list": [5, 19, 37],
-                "ret_list": [1, 3, 5, 7, 17, 20, 23, 130, 140, 150],
             },
             "stratgey": {
                 "stratgey_name": "cross_break",
@@ -195,7 +194,6 @@ def main(paralist):
                 "symbol_list": ["SAPower"],
                 "ave_list": [1, 3, 5, 11, 19, 37, 67],
                 "bband_list": [5, 19, 37],
-                "ret_list": [1, 3, 5, 7, 17, 20, 23, 130, 140, 150],
             },
             "stratgey": {
                 "stratgey_name": "cross_break",
@@ -220,8 +218,8 @@ def main(paralist):
                 # "func_type": "lastday",
                 # "func_type": "train",
                 "func_type": "backtest",
-                # "data_type": "symbol_train_type",
-                "data_type": "general_train_type",
+                "data_type": "symbol_train_type",
+                # "data_type": "general_train_type",
                 # "data_type": "plate_train_type",
                 # "data_type": "网络",
                 # "data_type": "实盘",
@@ -231,13 +229,12 @@ def main(paralist):
                 "symbol_list": ["000002_D"],
                 "ave_list": [1, 3, 5, 11, 19, 37, 67],
                 # "bband_list": [1],
-                "bband_list": [5],
+                # "bband_list": [5],
                 # "bband_list": [19],
                 # "bband_list": [37],
-                # "bband_list": [1, 5, 19],
+                "bband_list": [1, 5, 19],
                 # "bband_list": [5, 19],
-                "bband_list": [5, 19, 37],
-                "ret_list": [1, 3, 5, 7, 17, 20, 23, 130, 140, 150],
+                # "bband_list": [5, 19, 37],
             },
             "stratgey": {
                 "stratgey_name": "cross_break",
@@ -253,11 +250,19 @@ def main(paralist):
 
 
 if __name__ == "__main__":
+    engine = pyttsx3.init()
     logger.info("".center(100, "*"))
     logger.info("welcome to surfing".center(30, " ").center(100, "*"))
+    engine.setProperty('rate', int(engine.getProperty('rate') * 0.5))
+    engine.setProperty('volume', engine.getProperty('volume') * 1.0)
+    engine.say("welcome to surfing!")
+    engine.runAndWait()
     logger.info("".center(100, "*"))
     logger.info("")
     main(sys.argv[1:])
     logger.info("")
+    engine.say("任务完成。")
+    engine.say("bye bye!")
+    engine.runAndWait()
     logger.info("bye bye".center(30, " ").center(100, "*"))
     logger.info("".center(100, "*"))

@@ -136,7 +136,7 @@ class LoadBacktest(object):
     def simulate_trading(self):
         """回测 输出组合的 性能"""
         self._run_backtest()
-        self._output_performance()
+        # self._output_performance()
 
     # 模拟回测最后一天的不同情况
     def simulate_lastday(self, para_config, showconfig):
