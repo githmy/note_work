@@ -37,6 +37,7 @@ class LoadBacktest(object):
         self.num_strats = 1
         self.newdata = newdata
         self.split = split
+        self.date_range = date_range
         self._generate_trading_instances()
         print(self.symbol_list)
         print(len(self.symbol_list))
@@ -75,8 +76,8 @@ class LoadBacktest(object):
         # date_range = [1, None]
         # split = 0.8  # 先截range 再split
         # 3. 训练
-        self._strategy.train_probability_everysignals(train_bars, self.ave_list, self.bband_list, date_range,
-                                                      split=self.split, newdata=self.newdata, args=None)
+        self._strategy.train_probability_everysignals(train_bars, self.ave_list, self.bband_list, self.date_range,
+                                                      newdata=self.newdata, split=self.split, args=None)
 
     # 回测，根据不同事件执行不同的方法
     def _run_backtest(self):
