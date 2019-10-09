@@ -45,6 +45,62 @@ class TSstockScrap:
         tt = ts.get_terminated()
         # 暂停上市股票列表
         tt = ts.get_suspended()
+        # 当天实时状态
+        tt = ts.get_realtime_quotes(['688388'])
+        # 当天实时状态
+        tt = ts.get_today_all()
+
+    # 某些实时数据
+    def scrap_some_current_n_store(self, symbol_list):
+        # 1.股票基本信息
+        for i in symbol_list:
+            tmp_path = os.path.join(self.data_path, "{}.csv".format(i))
+            if os.path.isfile(tmp_path):
+                df1 = pd.read_csv(tmp_path, header=0, encoding="utf-8", dtype=str)
+            else:
+                df1 = None
+            df2 = ts.get_realtime_quotes([i.replace("_D", "")])[["date", "open", "high", "low", "price", "volume"]]
+            df2 = df2.rename(columns={"price": "close"})
+            df2["volume"] = np.str(np.float(df2["volume"]) / 100)
+            df2.reset_index(level=0, inplace=True)  # （the first）index 改为 column
+            df1 = pd.concat([df1, df2], join='outer', axis=0)
+            df1.drop_duplicates(['date'], keep="last", inplace=True)
+            df1.set_index('date', inplace=True)
+            df1.sort_index(axis=0, ascending=True, inplace=True)
+            droplist = ["index"]
+            df1.drop(droplist, axis=1, inplace=True)
+            if os.path.isfile(tmp_path):
+                os.remove(tmp_path)
+            df1.to_csv(tmp_path, encoding='utf-8')
+
+    # 某些数据
+    def scrap_some_n_store(self, startdate, symbol_list):
+        # 1.股票基本信息
+        # 1.1 更新信息
+        filePath = 'stock_info.csv'
+        tmp_path = os.path.join(self.data_path, filePath)
+        if os.path.isfile(tmp_path):
+            df1 = pd.read_csv(tmp_path, header=0, encoding="utf-8", dtype=str)
+        else:
+            df1 = None
+        df2 = ts.get_stock_basics()  # 获取5分钟k线数据
+        df2.reset_index(level=0, inplace=True)  # （the first）index 改为 column
+        df1 = pd.concat([df1, df2], join='outer', axis=0)
+        df1.drop_duplicates(['code'], inplace=True)
+        df1.set_index('code', inplace=True)
+        df1.sort_index(axis=0, ascending=True, inplace=True)
+        if os.path.isfile(tmp_path):
+            os.remove(tmp_path)
+        df1.to_csv(tmp_path, encoding='utf-8')
+        # 1.2 去除多余列
+        df1.reset_index(level=0, inplace=True)  # （the first）index 改为 column
+        droplist = ["name", "industry", "area", "pe", "outstanding", "totals", "totalAssets", "liquidAssets",
+                    "fixedAssets", "reserved", "reservedPerShare", "esp", "bvps", "pb", "timeToMarket", "undp",
+                    "perundp", "rev", "profit", "gpr", "npr", "holders"]
+        df1.drop(droplist, axis=1, inplace=True)
+        print("startdate: ", startdate)
+        for i in symbol_list:
+            self.single_n_store(i.replace("_D", ""), startdate)
 
     # 常规数据
     def scrap_all_n_store(self, startdate):
@@ -177,9 +233,10 @@ class TSstockScrap:
             else:
                 df1 = None
             df2 = func(code, ktype=stype, start=startdate)  # 获取5分钟k线数据
+            # print(df2)
             df2.reset_index(level=0, inplace=True)  # （the first）index 改为 column
             df1 = pd.concat([df1, df2], join='outer', axis=0)
-            df1.drop_duplicates(['date'], inplace=True)
+            df1.drop_duplicates(['date'], keep='last', inplace=True)
             df1.set_index('date', inplace=True)
             df1.sort_index(axis=0, ascending=True, inplace=True)
             # df1.reset_index()  # （all）index 改为 column
@@ -237,7 +294,7 @@ class TSstockScrap:
         df1.sort_index(axis=0, ascending=True, inplace=True)
         df1.reset_index(level=0, inplace=True)  # （the first）index 改为 column
         # df1.reset_index()  # （all）index 改为 column
-        df1.drop_duplicates(['date'], inplace=True)
+        df1.drop_duplicates(['date'], keep='last', inplace=True)
         df1.set_index('date', inplace=True)
         # df.drop(df.index[[0]], axis=0, inplace=True)
         # df.sort_values(by=['date'])
