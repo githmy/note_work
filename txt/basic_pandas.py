@@ -118,6 +118,7 @@ stock.set_index("date", inplace=True)
 s = 0
 comb_index = symbol_data[s].index
 comb_index = comb_index.union(symbol_data[s + 1].index)
+symbol_ori_data[s].reindex(index=comb_index, method='pad')
 
 # 列设为索引
 # orderl_pd.set_index(i, inplace=True)
