@@ -232,9 +232,10 @@ def main(paralist):
                 # "bband_list": [5],
                 # "bband_list": [19],
                 # "bband_list": [37],
-                "bband_list": [1, 5],
+                # "bband_list": [1, 5],
                 # "bband_list": [5, 19],
                 # "bband_list": [1, 5, 19],
+                "bband_list": [1, 5, 19, 37],
                 # "bband_list": [5, 19, 37],
             },
             "stratgey": {
