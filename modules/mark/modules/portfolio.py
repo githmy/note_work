@@ -592,8 +592,6 @@ class Portfolio(object):
                         all_positions[id1][i2] = targ_mount
             # 4. 加载 今日 头寸
             for i2 in predict_bars.symbol_list:
-                print(predict_bars.symbol_ori_data[i2]["close"])
-                print(price_cid)
                 price_c = predict_bars.symbol_ori_data[i2]["close"][price_cid]
                 print(i2, price_c)
                 mount_pre = all_positions[id1 - 1][i2]
@@ -725,4 +723,5 @@ class Portfolio(object):
             gain.append(inst.kari_fix_normal_g(p, q, fw, fl, system_risk, wm))
             # print(list(zip(p, q, fw, fl, wm, gain[-1])))
         # print(gain)
+        # todo: gain 开始，最后一个为常数
         return upprb, downprb, f_ratio, gain

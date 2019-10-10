@@ -236,7 +236,7 @@ def main(paralist):
                 # "func_type": "train",
                 "func_type": "backtest",
                 "data_type": "symbol_train_type",
-                "date_range": [-10, None],
+                "date_range": [-5, None],
                 # "func_type": "lastday",
                 # "data_type": "网络获取数据",
                 "start_predict": "2019-09-29 00:00:00",
