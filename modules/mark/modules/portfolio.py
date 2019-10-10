@@ -8,6 +8,7 @@ from modules.event import FillEvent, OrderEvent
 from modules.performance import create_sharpe_ratio, create_drawdowns
 from modules.stocks.finance_tool import TradeTool
 import math
+import heapq
 import copy
 
 
@@ -322,7 +323,7 @@ class Portfolio(object):
         all_holdings, annual_ratio = self.simu_gains_history(para_config, predict_bars_json, target_list, f_ratio_json)
         return all_holdings, annual_ratio
 
-    def components_res_every_predict(self, predict_bars, pred_list_json, para_config, date_range):
+    def components_res_every_predict(self, predict_bars, pred_list_json, para_config, date_range, oper_num=3):
         # 1. 参数初始化
         f_ratio_json = {}
         gain_json = {}
@@ -335,13 +336,18 @@ class Portfolio(object):
             f_ratio_json[symbols] = f_ratio
             gain_json[symbols] = gain
         # 3. 目标操作列表, 代号：均线考察日
-        # target_list = self.get_target_list(predict_bars.symbol_list, gain_json)
-        target_list = self.get_target_every_list(predict_bars.symbol_list, gain_json)
+        print("gain_json")
+        print(gain_json)
+        # 选操作目标
+        target_idlist, target_vallist = self.get_target_every_list(predict_bars.symbol_list, gain_json,
+                                                                   oper_num=oper_num)
+        print("target_idlist")
+        print(target_idlist)
         # 2. 统计值
-        # all_holdings, annual_ratio = self.simu_gains_history(para_config, predict_bars, target_list, f_ratio_json)
-        all_holdings, annual_ratio = self.simu_gains_every_history(para_config, predict_bars, target_list, f_ratio_json,
-                                                                   date_range)
-        return all_holdings, annual_ratio
+        all_holdings, all_positions, all_ratios = self.simu_gains_every_history(para_config, predict_bars,
+                                                                                target_idlist,
+                                                                                f_ratio_json, date_range)
+        return all_holdings, all_positions, all_ratios
 
     def components_res_fake_predict(self, predict_bars, pred_list_json, fake_ori, para_config):
         # 1. 参数初始化
@@ -362,32 +368,43 @@ class Portfolio(object):
             mount_json[symbols] = np.array(tmp_mount)
         return gain_json, f_ratio_json, mount_json
 
-    def calcu_fee(self, commission, stamp_in, stamp_out, mount_in, mount_out, price_c, hand_unit):
-        costs = commission + (stamp_in * mount_in + stamp_out * mount_out) * price_c * hand_unit
+    def calcu_fee(self, commission, commission_rate, stamp_in, stamp_out, mount_in, mount_out, price_c, hand_unit):
+        bigcost = price_c * hand_unit * (mount_in + mount_out) * commission_rate
+        basicost = commission if bigcost < commission else bigcost
+        costs = basicost + (stamp_in * mount_in + stamp_out * mount_out) * price_c * hand_unit
         return costs
 
-    def get_target_every_list(self, symbol_list, gain_json):
+    def get_target_every_list(self, symbol_list, gain_json, oper_num=3):
         target_list = []
-        # datalenth = predict_bars_json[self.symbol_list[0]].symbol_ori_data[self.symbol_list[0]].shape[0]
+        target_idlist = []
+        target_vallist = []
         datalenth = len(gain_json[self.symbol_list[0]][0])
-        for i1 in range(1, datalenth + 1):
+        target_use_num = min([len(symbol_list), oper_num])
+        for i1 in range(0, datalenth):
             max_bbandid = []
             max_list = []
             for s in symbol_list:
-                # print(gain_json[s][0])
-                rank_list = [i2[i1 - 1] if not np.isnan(i2[i1 - 1]) else 0.0 for i2 in gain_json[s]]
+                # 不同均线筛选
+                rank_list = [i2[i1] if not np.isnan(i2[i1]) else 0.0 for i2 in gain_json[s]]
                 tmp_vlaue = max(rank_list)
                 max_bbandid.append(rank_list.index(tmp_vlaue))
                 max_list.append(tmp_vlaue)
-            day_max_val = max(max_list)
-            if day_max_val > 0.0:
-                symblname = symbol_list[max_list.index(day_max_val)]
-            else:
-                symblname = "没有"
-            target_list.append({
-                symblname: max_bbandid[max_list.index(day_max_val)],
-            })
-        return target_list
+            element_indexs = np.argsort(-np.array(max_list), axis=0)  # 对a按每行中元素从小到大排序, 列表加-号，即降序
+            tmpvalobj = {}
+            tmpidobj = {}
+            for id2, i2 in enumerate(element_indexs):
+                if id2 > target_use_num:
+                    break
+                day_max_val = max_list[i2]
+                if day_max_val > 1.005:
+                    symblname = symbol_list[i2]
+                else:
+                    symblname = "没有"
+                tmpvalobj[symblname] = day_max_val
+                tmpidobj[symblname] = max_bbandid[i2]
+            target_idlist.append(tmpidobj)
+            target_vallist.append(tmpvalobj)
+        return target_idlist, target_vallist
 
     def get_target_list(self, symbol_list, gain_json):
         target_list = []
@@ -473,12 +490,14 @@ class Portfolio(object):
                 for key1 in key_list:
                     # 在列表中加仓
                     f_ratio_c = f_ratio_json[key1][i1[key1]][id1]
-                    print("目标 为 {},且 mount_c !=0 : {}, f_ratio才是 {}".format(key1, mount_c, f_ratio_c))
+                    print("目标 为 {},且 mount_c !=0 : {}, price_now 为 {}, f_ratio才是 {}".format(key1, mount_c, price_c,
+                                                                                            f_ratio_c))
                     if f_ratio_c > 0:
                         mount_add = mount_c - mount_pre
                         if mount_add > 0:
                             print("仓位 增加")
-                            fees = self.calcu_fee(para_config["commission"], para_config["stamp_tax_in"],
+                            fees = self.calcu_fee(para_config["commission"], para_config["commission_rate"],
+                                                  para_config["stamp_tax_in"],
                                                   para_config["stamp_tax_out"], mount_add, 0, price_c,
                                                   para_config["hand_unit"])
                             all_holdings[id1]["commission"] += fees
@@ -486,7 +505,8 @@ class Portfolio(object):
                             all_holdings[id1]["total"] -= fees
                         elif mount_add < 0:
                             print("仓位 减仓")
-                            fees = self.calcu_fee(para_config["commission"], para_config["stamp_tax_in"],
+                            fees = self.calcu_fee(para_config["commission"], para_config["commission_rate"],
+                                                  para_config["stamp_tax_in"],
                                                   para_config["stamp_tax_out"], 0, -mount_add, price_c,
                                                   para_config["hand_unit"])
                             all_holdings[id1]["commission"] += fees
@@ -496,19 +516,26 @@ class Portfolio(object):
                             print("仓位 不变")
                             all_holdings[id1]["cash"] -= mount_c * para_config["hand_unit"] * price_c
                             # all_holdings[id1]["total"] = all_holdings[id1]["total"]
-            print(all_holdings[id1], all_positions[id1], price_c)
+            print(all_holdings[id1], all_positions[id1])
         annual_ratio = math.pow(all_holdings[-1]["total"] / para_config["initial_capital"], 252 / datalenth)
-        print("annual_ratio: 1d {}, 1y {}, 2y {}, 4y {}, 8y {}".format(math.pow(annual_ratio, 1 / 252), annual_ratio,
-                                                                       math.pow(annual_ratio, 2),
-                                                                       math.pow(annual_ratio, 4),
-                                                                       math.pow(annual_ratio, 8)))
-        return all_holdings, annual_ratio
+        print("annual_ratio: 1d {}, 1w {}, 1m {}, 1y {}, 2y {}, 4y {}, 8y {}, 10y {}"
+              "".format(math.pow(annual_ratio, 1 / 252),
+                        math.pow(annual_ratio, 5 / 252),
+                        math.pow(annual_ratio, 22 / 252),
+                        annual_ratio,
+                        math.pow(annual_ratio, 2),
+                        math.pow(annual_ratio, 4),
+                        math.pow(annual_ratio, 8),
+                        math.pow(annual_ratio, 10)))
+        return all_holdings, all_positions, all_ratios
 
     def simu_gains_every_history(self, para_config, predict_bars, target_list, f_ratio_json, date_range):
         all_holdings = []
         all_positions = []
         all_ratios = []
         datalenth = len(f_ratio_json[predict_bars.symbol_list[0]][0])
+        barlenth = len(predict_bars.symbol_ori_data[predict_bars.symbol_list[0]]["close"])
+        date_from = date_range[0] if date_range[0] >= 0 else barlenth + date_range[0]
         for i1 in range(0, datalenth):
             d = {}
             d['datetime'] = i1
@@ -522,11 +549,16 @@ class Portfolio(object):
             all_ratios.append(u)
         for id1, i1 in enumerate(target_list):
             key_list = list(i1.keys())
+            try:
+                key_list.remove("没有")
+            except Exception as e:
+                pass
+            key_lenth = len(key_list)
             print("id1:", id1, i1, key_list)
             if id1 == 0:
                 continue
             # 1. 更新今日的资产 临时用cash存放
-            price_cid = date_range[0] + all_holdings[id1]["datetime"]
+            price_cid = date_from + all_holdings[id1]["datetime"]
             all_holdings[id1]["cash"] = all_holdings[id1 - 1]["cash"]
             for i2 in predict_bars.symbol_list:
                 price_c = predict_bars.symbol_ori_data[i2]["close"][price_cid]
@@ -544,8 +576,9 @@ class Portfolio(object):
             all_holdings[id1]["total"] = all_holdings[id1]["cash"]
             # 根据比例，仓位计算
             for i2 in predict_bars.symbol_list:
+                # price_c 为 nan 时不应该成为 标的
                 price_c = predict_bars.symbol_ori_data[i2]["close"][price_cid]
-                # 数据结构 暂不支持多标的综合操作
+                # 数据结构 已支持多标的综合操作
                 for key1 in key_list:
                     if i2 == key1:
                         if key1 in predict_bars.symbol_list:
@@ -553,49 +586,72 @@ class Portfolio(object):
                         else:
                             f_ratio_c = 0
                         # 在列表中加仓
-                        all_ratios[id1][i2] = f_ratio_c
-                        targ_captail = f_ratio_c * all_holdings[id1]["total"]
+                        all_ratios[id1][i2] = float(f_ratio_c)
+                        targ_captail = f_ratio_c * all_holdings[id1]["total"] / key_lenth
                         targ_mount = targ_captail / para_config["hand_unit"] // price_c
                         all_positions[id1][i2] = targ_mount
             # 4. 加载 今日 头寸
             for i2 in predict_bars.symbol_list:
-                for key1 in key_list:
-                    if i2 == key1:
-                        price_c = predict_bars.symbol_ori_data[i2]["close"][price_cid]
-                        mount_pre = all_positions[id1 - 1][i2]
-                        mount_c = all_positions[id1][i2]
-                        # 在列表中加仓
-                        f_ratio_c = f_ratio_json[key1][i1[key1]][id1]
-                        print("目标 为 {},且 mount_c !=0 : {}, f_ratio才是 {}".format(key1, mount_c, f_ratio_c))
-                        if f_ratio_c > 0:
-                            mount_add = mount_c - mount_pre
-                            if mount_add > 0:
-                                print("仓位 增加")
-                                fees = self.calcu_fee(para_config["commission"], para_config["stamp_tax_in"],
-                                                      para_config["stamp_tax_out"], mount_add, 0, price_c,
-                                                      para_config["hand_unit"])
-                                all_holdings[id1]["commission"] += fees
-                                all_holdings[id1]["cash"] -= mount_c * para_config["hand_unit"] * price_c + fees
-                                all_holdings[id1]["total"] -= fees
-                            elif mount_add < 0:
-                                print("仓位 减仓")
-                                fees = self.calcu_fee(para_config["commission"], para_config["stamp_tax_in"],
-                                                      para_config["stamp_tax_out"], 0, -mount_add, price_c,
-                                                      para_config["hand_unit"])
-                                all_holdings[id1]["commission"] += fees
-                                all_holdings[id1]["cash"] -= mount_c * para_config["hand_unit"] * price_c + fees
-                                all_holdings[id1]["total"] -= fees
-                            else:
-                                print("仓位 不变")
-                                all_holdings[id1]["cash"] -= mount_c * para_config["hand_unit"] * price_c
-            print(all_holdings[id1], all_positions[id1], all_ratios[id1])
+                print(predict_bars.symbol_ori_data[i2]["close"])
+                print(price_cid)
+                price_c = predict_bars.symbol_ori_data[i2]["close"][price_cid]
+                print(i2, price_c)
+                mount_pre = all_positions[id1 - 1][i2]
+                mount_c = all_positions[id1][i2]
+                if i2 not in key_list:
+                    if mount_pre == 0:
+                        # 不在目标列表 且 没有仓位继续循环
+                        continue
+                    else:
+                        # 不在目标列表 且 有仓位 清空 放弃筹码
+                        print("仓位 清空")
+                        fees = self.calcu_fee(para_config["commission"], para_config["commission_rate"],
+                                              para_config["stamp_tax_in"], para_config["stamp_tax_out"],
+                                              0, mount_pre, price_c, para_config["hand_unit"])
+                        all_holdings[id1]["commission"] += fees
+                        all_holdings[id1]["cash"] -= mount_c * para_config["hand_unit"] * price_c + fees
+                        all_holdings[id1]["total"] -= fees
+                else:
+                    # 在目标列表 增减到目标头寸
+                    f_ratio_c = f_ratio_json[i2][i1[i2]][id1]
+                    print("目标 为 {},且 mount_c !=0 : {}, price_now 为 {}, f_ratio才是 {}".format(i2, mount_c, price_c,
+                                                                                            f_ratio_c))
+                    if f_ratio_c > 0:
+                        mount_add = mount_c - mount_pre
+                        if mount_add > 0:
+                            print("仓位 增加")
+                            fees = self.calcu_fee(para_config["commission"], para_config["commission_rate"],
+                                                  para_config["stamp_tax_in"], para_config["stamp_tax_out"],
+                                                  mount_add, 0, price_c, para_config["hand_unit"])
+                            all_holdings[id1]["commission"] += fees
+                            all_holdings[id1]["cash"] -= mount_c * para_config["hand_unit"] * price_c + fees
+                            all_holdings[id1]["total"] -= fees
+                        elif mount_add < 0:
+                            print("仓位 减仓")
+                            fees = self.calcu_fee(para_config["commission"], para_config["commission_rate"],
+                                                  para_config["stamp_tax_in"], para_config["stamp_tax_out"],
+                                                  0, -mount_add, price_c, para_config["hand_unit"])
+                            all_holdings[id1]["commission"] += fees
+                            all_holdings[id1]["cash"] -= mount_c * para_config["hand_unit"] * price_c + fees
+                            all_holdings[id1]["total"] -= fees
+                        else:
+                            print("仓位 不变")
+                            all_holdings[id1]["cash"] -= mount_c * para_config["hand_unit"] * price_c
+            print(all_holdings[id1],
+                  ["{}:{}".format(i2, all_positions[id1][i2]) for i2 in all_positions[id1] if
+                   all_positions[id1][i2] != 0],
+                  ["{}:{}".format(i2, all_ratios[id1][i2]) for i2 in all_ratios[id1] if all_positions[id1][i2] != 0])
         annual_ratio = math.pow(all_holdings[-1]["total"] / para_config["initial_capital"], 252 / datalenth)
-        print("annual_ratio: 1d {}, 1y {}, 2y {}, 4y {}, 8y {}".format(math.pow(annual_ratio, 1 / 252),
-                                                                       annual_ratio,
-                                                                       math.pow(annual_ratio, 2),
-                                                                       math.pow(annual_ratio, 4),
-                                                                       math.pow(annual_ratio, 8)))
-        return all_holdings, annual_ratio
+        print("annual_ratio: 1d {}, 1w {}, 1m {}, 1y {}, 2y {}, 4y {}, 8y {}, 10y {}"
+              "".format(math.pow(annual_ratio, 1 / 252),
+                        math.pow(annual_ratio, 5 / 252),
+                        math.pow(annual_ratio, 22 / 252),
+                        annual_ratio,
+                        math.pow(annual_ratio, 2),
+                        math.pow(annual_ratio, 4),
+                        math.pow(annual_ratio, 8),
+                        math.pow(annual_ratio, 10)))
+        return all_holdings, all_positions, all_ratios
 
     # 基于预测结果 盈利测试
 

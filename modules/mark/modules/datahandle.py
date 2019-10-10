@@ -307,15 +307,26 @@ class LoadCSVHandler(object):
         startdate = "2000-01-01 00:00:00"
         dclass.scrap_all_n_store(startdate)
 
+    def get_some_net_csv2files(self, startdate="2000-01-01 00:00:00"):
+        dclass = TSstockScrap(data_path)
+        dclass.scrap_some_n_store(startdate, self.symbol_list)
+
+    def get_some_current_net_csv2files(self):
+        dclass = TSstockScrap(data_path)
+        dclass.scrap_some_current_n_store(self.symbol_list)
+
     def _open_convert_csv_files(self):
         comb_index = None
         for s in self.symbol_list_with_benchmark:
             # # 加载csv文件,date,OHLC,Volume
-            self.symbol_ori_data[s] = pd.read_csv(
-                os.path.join(self.csv_dir, '%s.csv' % s), header=0, index_col=0, parse_dates=False).sort_index()
+            filename = os.path.join(self.csv_dir, '%s.csv' % s)
+            if not os.path.isfile(filename):
+                dclass = TSstockScrap(data_path)
+                startdate = "2000-01-01 00:00:00"
+                dclass.single_n_store(s.replace("_D", ""), startdate)
+            self.symbol_ori_data[s] = pd.read_csv(filename, header=0, index_col=0, parse_dates=False).sort_index()
+            # todo: 需要 按时间合并
             self.symbol_ori_data[s] = self.symbol_ori_data[s][['open', 'high', 'low', 'close', 'volume']]
-            # self.symbol_ori_data[s] = pd.read_csv(
-            #     os.path.join(self.csv_dir, '%s.csv' % s), header=0, index_col=None, parse_dates=False).sort_index()
             # self.symbol_ori_data[s] = self.symbol_ori_data[s][['date', 'open', 'high', 'low', 'close', 'volume']]
             # Combine the index to pad forward values
             if comb_index is None:
@@ -324,11 +335,15 @@ class LoadCSVHandler(object):
                 # 这里要赋值，否则comb_index还是原来的index
                 comb_index = comb_index.union(self.symbol_ori_data[s].index)
                 # 设置latest symbol_data 为 None
-        # Reindex the dataframes
-        for s in self.symbol_list_with_benchmark:
+
             # pad方式，就是用前一天的数据再填充这一天的丢失，对于资本市场这是合理的，比如这段时间停牌。那就是按停牌前一天的价格数据来计算。
             self.symbol_ori_data[s] = self.symbol_ori_data[s].reindex(index=comb_index, method='pad')
             self.symbol_ori_data[s].reset_index(level=0, inplace=True)
+            # # Reindex the dataframes
+            # for s in self.symbol_list_with_benchmark:
+            #     # pad方式，就是用前一天的数据再填充这一天的丢失，对于资本市场这是合理的，比如这段时间停牌。那就是按停牌前一天的价格数据来计算。
+            #     self.symbol_ori_data[s] = self.symbol_ori_data[s].reindex(index=comb_index, method='pad')
+            #     self.symbol_ori_data[s].reset_index(level=0, inplace=True)
 
     # 加载衍生前值
     def generate_b_derivative(self):

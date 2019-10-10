@@ -1,6 +1,7 @@
 import sys, os
 import datetime
 import json
+import itertools
 from modules.portfolio import Portfolio
 from modules.event import *
 from modules.datahandle import CSVDataHandler, CSVAppendDataHandler, LoadCSVHandler
@@ -12,14 +13,19 @@ import pyttsx3
 import tushare as ts
 
 
-def choice_list():
+def choice_list(plate_list):
     # 行业分类
     tt = ts.get_industry_classified()
     infos = tt['code'].groupby([tt['c_name']]).apply(list)
     industjson = json.loads(infos.to_json(orient='index', force_ascii=False))
     # 中小板分类
     tt = ts.get_sme_classified()
-    smartlist = list(set(tt["code"]).intersection(set(industjson["电子信息"])))
+    allsmartlist = []
+    for plate1 in plate_list:
+        allsmartlist.append(list(set(tt["code"]).intersection(set(industjson[plate1]))))
+    # allsmartlist = list(set(itertools.chain(*allsmartlist)))
+    allsmartlist = [i1 + "_D" for i1 in set(itertools.chain(*allsmartlist))]
+    # smartlist = list(set(tt["code"]).intersection(set(industjson["电子信息"])))
     # # 概念分类
     # tt = ts.get_concept_classified()
     # infos = tt['code'].groupby([tt['c_name']]).apply(to_list)
@@ -28,7 +34,7 @@ def choice_list():
     # nearbreaklist = list(set(smartlist).intersection(set(conceptjson["智能机器"])))
     # print(conceptjson["智能机器"])
     # print(nearbreaklist)
-    return smartlist
+    return allsmartlist
 
 
 class Acount(object):
@@ -38,17 +44,25 @@ class Acount(object):
         self.test_type = config["back_test"]["test_type"]
         self.start_train = config["back_test"]["start_train"]
         self.end_train = config["back_test"]["end_train"]
-        self.start_predict = config["back_test"]["start_predict"]
         self.end_predict = config["back_test"]["end_predict"]
         self.initial_capital = config["back_test"]["initial_capital"]
         self.heartbeat = config["back_test"]["heartbeat"]
+        self.start_predict = config["data_ori"]["start_predict"]
+        self.date_range = config["data_ori"]["date_range"]
         self.data_type = config["data_ori"]["data_type"]
+        self.bband_list = config["data_ori"]["bband_list"]
+        self.split = config["data_ori"]["split"]
+        self.newdata = config["data_ori"]["newdata"]
         self.csv_dir = config["data_ori"]["csv_dir"]
+        self.plate_list = config["data_ori"]["plate_list"]
         self.symbol_list = config["data_ori"]["symbol_list"]
+        self.oper_num = config["data_ori"]["oper_num"]
         self.ave_list = config["data_ori"]["ave_list"]
         self.bband_list = config["data_ori"]["bband_list"]
         self.stratgey_name = config["stratgey"]["stratgey_name"]
         self.portfolio_name = config["portfolio"]["portfolio_name"]
+        self.email_list = config["assist_option"]["email_list"]
+        self.para_config = config["para_config"]
         # 生成标准参数
         self._gene_stand_paras()
 
@@ -83,24 +97,27 @@ class Acount(object):
                 backtest = LoadBacktest(
                     self.initial_capital, self.heartbeat, self.start_predict,
                     self.csv_dir, self.symbol_list, self.ave_list, self.bband_list,
-                    LoadCSVHandler, SimulatedExecutionHandler, Portfolio, MlaStrategy)
+                    LoadCSVHandler, SimulatedExecutionHandler, Portfolio, MlaStrategy,
+                    split=0.8, newdata=1, date_range=self.date_range, oper_num=self.oper_num, assistant=self.email_list)
             elif self.data_type == "general_train_type":  # 已有数据，直观统计
                 backtest = LoadBacktest(
                     self.initial_capital, self.heartbeat, self.start_predict,
                     self.csv_dir, self._get_train_list(), self.ave_list, self.bband_list,
                     LoadCSVHandler, SimulatedExecutionHandler, Portfolio, MlaStrategy,
-                    split=0.8, newdata=0, date_range=[1, None])
+                    split=0.8, newdata=0, date_range=self.date_range, oper_num=self.oper_num, assistant=self.email_list)
             elif self.data_type == "plate_train_type":  # 已有数据，直观统计
                 backtest = LoadBacktest(
                     self.initial_capital, self.heartbeat, self.start_predict,
-                    self.csv_dir, choice_list(), self.ave_list, self.bband_list,
+                    self.csv_dir, choice_list(self.plate_list), self.ave_list, self.bband_list,
                     LoadCSVHandler, SimulatedExecutionHandler, Portfolio, MlaStrategy,
-                    split=1.0, newdata=1, date_range=[-152, None])
-            elif self.data_type == "网络":  # 已有数据，统计强化学习
+                    split=0.8, newdata=1, date_range=self.date_range, oper_num=self.oper_num, assistant=self.email_list)
+            elif self.data_type == "网络获取数据":  # 已有数据，统计强化学习
                 backtest = LoadBacktest(
                     self.initial_capital, self.heartbeat, self.start_predict,
                     None, self._get_train_list(), self.ave_list, self.bband_list,
-                    LoadCSVHandler, SimulatedExecutionHandler, Portfolio, MlaStrategy)
+                    LoadCSVHandler, SimulatedExecutionHandler, Portfolio, MlaStrategy,
+                    split=0.8, newdata=1, date_range=self.date_range, oper_num=self.oper_num, assistant=self.email_list)
+                return None
             else:
                 raise Exception("error data_type 只允许：实盘demo, 实盘, 模拟, 网络")
         else:
@@ -109,15 +126,8 @@ class Acount(object):
         if self.func_type == "train":
             backtest.train()
         elif self.func_type == "backtest":
-            backtest.simulate_trading()
+            backtest.simulate_trading(self.para_config, startdate=self.start_predict)
         elif self.func_type == "lastday":
-            para_config = {
-                "hand_unit": 100,
-                "initial_capital": 10000.0,
-                "stamp_tax_in": 0.0002,
-                "stamp_tax_out": 0.0002,
-                "commission": 5,
-            }
             # fake_data显示设置
             showconfig = {
                 "range_low": -10,
@@ -140,7 +150,7 @@ class Acount(object):
             #     "mount_high": 2,
             #     "mount_eff": 0.5,
             # }
-            backtest.simulate_lastday(para_config, showconfig)
+            backtest.simulate_lastday(self.para_config, showconfig, startdate=self.start_predict)
         else:
             raise Exception("func_type 只能是 train, backtest, lastday")
 
@@ -163,7 +173,6 @@ def main(paralist):
                 "data_type": "实盘",
                 "csv_dir": data_path,
                 "symbol_list": ["SAPower", "DalianRP", "ChinaBank"],
-                # "symbol_list": ["SAPower"],
                 "ave_list": [1, 3, 5, 7, 17, 20, 23, 130, 140, 150],
                 "bband_list": [5, 19, 37],
             },
@@ -190,7 +199,6 @@ def main(paralist):
                 "data_type": "模拟",
                 # "data_type": "实盘",
                 "csv_dir": data_path,
-                # "symbol_list": ["SAPower", "DalianRP", "ChinaBank"],
                 "symbol_list": ["SAPower"],
                 "ave_list": [1, 3, 5, 11, 19, 37, 67],
                 "bband_list": [5, 19, 37],
@@ -209,33 +217,45 @@ def main(paralist):
                 "test_type": "模拟",
                 "start_train": datetime.datetime(1990, 1, 1, 0, 0, 0),
                 "end_train": datetime.datetime(1990, 1, 1, 0, 0, 0),
-                "start_predict": datetime.datetime(1990, 1, 1, 0, 0, 0),
                 "end_predict": datetime.datetime(1990, 1, 1, 0, 0, 0),
                 "heartbeat": 0.0,
                 "initial_capital": 10000.0,
             },
             "data_ori": {
-                # "func_type": "lastday",
-                "func_type": "train",
-                # "func_type": "backtest",
-                # "data_type": "symbol_train_type",
-                "data_type": "general_train_type",
+                # "func_type": "train",
+                # "data_type": "general_train_type",
+                # "date_range": [0, None],
+                "split": 0.8,
+                # 使用已下好的原生数据
+                "newdata": 1,
+                # "func_type": "train",
                 # "data_type": "plate_train_type",
-                # "data_type": "网络",
+                # "date_range": [0, None],
+                "plate_list": ["电子信息"],
+
+                # "func_type": "train",
+                "func_type": "backtest",
+                "data_type": "symbol_train_type",
+                "date_range": [-10, None],
+                # "func_type": "lastday",
+                # "data_type": "网络获取数据",
+                "start_predict": "2019-09-29 00:00:00",
+                # "start_predict": None,
+                # "date_range": [0, None],
                 # "data_type": "实盘",
                 "csv_dir": data_path,
-                # "symbol_list": ["SAPower", "DalianRP", "ChinaBank"],
-                # "symbol_list": ["000001_D", "000002_D"],
-                "symbol_list": ["000002_D"],
+                "symbol_list": ["000001_D", "000002_D"],
+                # "symbol_list": ["000002_D"],
+                "oper_num": 3,
                 "ave_list": [1, 3, 5, 11, 19, 37, 67],
                 # "bband_list": [1],
                 # "bband_list": [5],
                 # "bband_list": [19],
                 # "bband_list": [37],
-                # "bband_list": [1, 5],
+                "bband_list": [1, 5],
                 # "bband_list": [5, 19],
                 # "bband_list": [1, 5, 19],
-                "bband_list": [1, 5, 19, 37],
+                # "bband_list": [1, 5, 19, 37],
                 # "bband_list": [5, 19, 37],
             },
             "stratgey": {
@@ -244,6 +264,18 @@ def main(paralist):
             "portfolio": {
                 "portfolio_name": None
             },
+            "assist_option": {
+                # "email_list": ["a1593572007@126.com", "619041014@qq.com"],
+                "email_list": ["a1593572007@126.com"],
+            },
+            "para_config": {
+                "hand_unit": 100,
+                "initial_capital": 10000.0,
+                "stamp_tax_in": 0.0,
+                "stamp_tax_out": 0.001,
+                "commission": 5,
+                "commission_rate": 0.0003,
+            }
         }
 
     ]
@@ -251,11 +283,23 @@ def main(paralist):
     ins()
 
 
+def test():
+    code = "000001"
+    startdate = "2019-09-29 00:00:00"
+    df2 = ts.get_hist_data(code, ktype="D", start=startdate)
+    print(df2)
+    df2 = ts.get_realtime_quotes(["000001"])[["date", "open", "high", "low", "price", "volume"]]
+    df2 = df2.rename(columns={"price": "close"})
+    print(df2)
+    exit()
+
+
 if __name__ == "__main__":
+    # test()
     engine = pyttsx3.init()
     logger.info("".center(100, "*"))
     logger.info("welcome to surfing".center(30, " ").center(100, "*"))
-    engine.setProperty('rate', int(engine.getProperty('rate') * 0.5))
+    engine.setProperty('rate', int(engine.getProperty('rate') * 0.85))
     engine.setProperty('volume', engine.getProperty('volume') * 1.0)
     engine.say("welcome to surfing!")
     engine.runAndWait()
@@ -264,7 +308,7 @@ if __name__ == "__main__":
     main(sys.argv[1:])
     logger.info("")
     engine.say("任务完成。")
-    engine.say("bye bye!")
+    engine.say("bye!")
     engine.runAndWait()
-    logger.info("bye bye".center(30, " ").center(100, "*"))
+    logger.info("bye!".center(30, " ").center(100, "*"))
     logger.info("".center(100, "*"))

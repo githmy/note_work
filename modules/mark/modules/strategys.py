@@ -874,7 +874,11 @@ class MlaStrategy(strategy.BacktestingStrategy):
         pred_list_json = {}
         for symbol in predict_bars.symbol_list:
             inputs_t = self._prepare_every_predict_data(predict_bars, symbol, ave_list, date_range)
+            print("inputs_t")
+            print(inputs_t)
             pred_list_json[symbol] = modelcrnn.predict(inputs_t)
+            print("pred_list_json[symbol]")
+            print(pred_list_json[symbol])
         return pred_list_json
 
     def predict_fake_proba_signals(self, predict_bars, ave_list, bband_list, showconfig, args=None):

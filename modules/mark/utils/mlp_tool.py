@@ -30,10 +30,12 @@ class PlotTool(object):
     def plot_line(self, ts, titie_list):
         plt.figure()
         plt.grid()
-        listlen = len(ts)
-        colorbar = ["red", "yellow", "blue", "black"] * int(math.ceil(listlen / 4))
-        for id1 in range(listlen):
-            plt.plot(ts[id1][0], ts[id1][1], color=colorbar[id1], label='{}'.format(titie_list[id1]))
+        list_lesslen = len(ts) - 1
+        colorbar = ["cyan", "yellow", "green", "blue", "magenta", "black", "#808080"] * int(math.ceil(list_lesslen / 7))
+        for id0 in range(list_lesslen):
+            id1 = id0 + 1
+            plt.plot(ts[id1][0], ts[id1][1], color=colorbar[id0], label='{}'.format(titie_list[id1]))
+        plt.plot(ts[0][0], ts[0][1], color="red", label='{}'.format(titie_list[0]))
         plt.legend(loc='best')
         plt.title("展示图")
         plt.show()
