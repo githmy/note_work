@@ -699,7 +699,6 @@ class MlaStrategy(strategy.BacktestingStrategy):
         return all_xnp
 
     def _prepare_every_predict_data(self, predict_bars, symbol, ave_list, data_range):
-
         # 1. 加载标签数据
         xchara_list = []
         xlen_slist = len(ave_list)
@@ -875,10 +874,10 @@ class MlaStrategy(strategy.BacktestingStrategy):
         for symbol in predict_bars.symbol_list:
             inputs_t = self._prepare_every_predict_data(predict_bars, symbol, ave_list, date_range)
             print("inputs_t")
+            print(len(inputs_t))
+            print(len(inputs_t[0]))
             print(inputs_t)
             pred_list_json[symbol] = modelcrnn.predict(inputs_t)
-            print("pred_list_json[symbol]")
-            print(pred_list_json[symbol])
         return pred_list_json
 
     def predict_fake_proba_signals(self, predict_bars, ave_list, bband_list, showconfig, args=None):

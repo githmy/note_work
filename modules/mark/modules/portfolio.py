@@ -306,24 +306,6 @@ class Portfolio(object):
                 self.all_holdings[id1]["datetime"]])
             # return self.all_holdings
 
-    def components_res_base_predict(self, predict_bars_json, pred_list_json, policy_config):
-        # 1. 参数初始化
-        f_ratio_json = {}
-        gain_json = {}
-        for symbols in self.symbol_list:
-            predict_bars, pred_list = predict_bars_json[symbols], pred_list_json[symbols]
-            # 2. 计算各种概率和收益列表
-            upprb, downprb, f_ratio, gain = self.calculate_probability_signals(predict_bars, pred_list)
-            # f_ratio 必然大于零
-            f_ratio_json[symbols] = f_ratio
-            gain_json[symbols] = gain
-        # 3. 目标操作列表, 代号：均线考察日
-        target_list = self.get_target_list(predict_bars_json, gain_json)
-        # 2. 统计值
-        all_holdings, annual_ratio = self.simu_gains_history(policy_config, predict_bars_json, target_list,
-                                                             f_ratio_json)
-        return all_holdings, annual_ratio
-
     def components_res_every_predict(self, predict_bars, pred_list_json, policy_config, strategy_config, date_range):
         # 1. 参数初始化
         f_ratio_json = {}
@@ -337,15 +319,15 @@ class Portfolio(object):
             f_ratio_json[symbols] = f_ratio
             gain_json[symbols] = gain
         # 3. 目标操作列表, 代号：均线考察日
-        print("gain_json")
+        print("gain_json 已经按band换算成单日: symbols , band_n, n天")
         print(gain_json)
         # 选操作目标
         target_idlist, target_vallist = self.get_target_every_list(predict_bars.symbol_list, gain_json, strategy_config)
-        print("target_idlist")
+        print("target_idlist: n天，列表:手数")
         print(target_idlist)
         # 2. 统计值
-        all_holdings, all_positions, all_ratios = self.simu_gains_every_history(policy_config, predict_bars,
-                                                                                target_idlist,
+        all_holdings, all_positions, all_ratios = self.simu_gains_every_history(policy_config, strategy_config,
+                                                                                predict_bars, target_idlist,
                                                                                 f_ratio_json, date_range)
         return all_holdings, all_positions, all_ratios
 
@@ -357,7 +339,6 @@ class Portfolio(object):
         for symbols in self.symbol_list:
             pred_list = pred_list_json[symbols]
             # 2. 计算各种概率和收益列表
-            # upprb, downprb, f_ratio, gain = self.calculate_probability_signals(predict_bars, pred_list)
             upprb, downprb, f_ratio, gain = self.calculate_probability_every_signals(predict_bars.bband_list, pred_list)
             # f_ratio 必然大于零
             f_ratio_json[symbols] = f_ratio
@@ -396,7 +377,7 @@ class Portfolio(object):
                 if id2 > target_use_num:
                     break
                 day_max_val = max_list[i2]
-                if day_max_val > 1.005:
+                if day_max_val > strategy_config["thresh_low"] and day_max_val < strategy_config["thresh_high"]:
                     symblname = symbol_list[i2]
                 else:
                     symblname = "没有"
@@ -406,130 +387,8 @@ class Portfolio(object):
             target_vallist.append(tmpvalobj)
         return target_idlist, target_vallist
 
-    def get_target_list(self, symbol_list, gain_json):
-        target_list = []
-        # datalenth = predict_bars_json[self.symbol_list[0]].symbol_ori_data[self.symbol_list[0]].shape[0]
-        datalenth = len(gain_json[symbol_list[0]][0])
-        # print(gain_json)
-        for i1 in range(0, datalenth):
-            max_bbandid = []
-            max_list = []
-            for s in symbol_list:
-                # print(gain_json[s][0])
-                rank_list = [i2[i1] if not np.isnan(i2[i1]) else 0.0 for i2 in gain_json[s]]
-                tmp_vlaue = max(rank_list)
-                max_bbandid.append(rank_list.index(tmp_vlaue))
-                max_list.append(tmp_vlaue)
-            day_max_val = max(max_list)
-            if day_max_val > 0.0:
-                symblname = symbol_list[max_list.index(day_max_val)]
-            else:
-                symblname = "没有"
-            target_list.append({
-                symblname: max_bbandid[max_list.index(day_max_val)],
-            })
-        return target_list
-
-    def simu_gains_history(self, policy_config, predict_bars, target_list, f_ratio_json):
-        all_holdings = []
-        all_positions = []
-        all_ratios = []
-        datalenth = len(f_ratio_json[predict_bars.symbol_list[0]][0])
-        for i1 in range(1, datalenth + 1):
-            d = {}
-            d['datetime'] = i1
-            d['cash'] = policy_config["initial_capital"]
-            d['commission'] = 0.0
-            d['total'] = policy_config["initial_capital"]
-            all_holdings.append(d)
-            v = dict((k, v) for k, v in [(s, 0) for s in predict_bars.symbol_list])
-            all_positions.append(v)
-            u = dict((k, v) for k, v in [(s, 0.0) for s in predict_bars.symbol_list])
-            all_ratios.append(u)
-        for id1, i1 in enumerate(target_list):
-            key_list = list(i1.keys())
-            print("id1:", id1, i1, key_list)
-            if id1 == 0:
-                continue
-            # 1. 更新今日的资产 临时用cash存放
-            all_holdings[id1]["cash"] = all_holdings[id1 - 1]["cash"]
-            for i2 in predict_bars.symbol_list:
-                price_c = predict_bars.symbol_ori_data[i2]["close"][all_holdings[id1]["datetime"]]
-                mount_pre = all_positions[id1 - 1][i2]
-                # 清空折现
-                if mount_pre > 0:
-                    # 大于零时 平仓
-                    all_holdings[id1]["cash"] += mount_pre * policy_config["hand_unit"] * price_c
-                elif mount_pre < 0:
-                    # 小于零时 平仓
-                    all_holdings[id1]["cash"] += -mount_pre * policy_config["hand_unit"] * price_c
-                    # 今日清空
-                all_positions[id1][i2] = 0
-            # 2. 重赋总资产
-            all_holdings[id1]["total"] = all_holdings[id1]["cash"]
-            # 根据比例，仓位计算
-            for i2 in predict_bars.symbol_list:
-                price_c = predict_bars.symbol_ori_data[i2]["close"][all_holdings[id1]["datetime"]]
-                # 数据结构 暂不支持多标的综合操作
-                for key1 in key_list:
-                    if i2 == key1:
-                        if key1 in predict_bars.symbol_list:
-                            f_ratio_c = f_ratio_json[i2][i1[i2]][id1]
-                        else:
-                            f_ratio_c = 0
-                        # 在列表中加仓
-                        all_ratios[id1][i2] = f_ratio_c
-                        targ_captail = f_ratio_c * all_holdings[id1]["total"]
-                        targ_mount = targ_captail / policy_config["hand_unit"] // price_c
-                        all_positions[id1][i2] = targ_mount
-            # 4. 加载 今日 头寸
-            for i2 in predict_bars.symbol_list:
-                price_c = predict_bars.symbol_ori_data[i2]["close"][all_holdings[id1]["datetime"]]
-                mount_pre = all_positions[id1 - 1][i2]
-                mount_c = all_positions[id1][i2]
-                for key1 in key_list:
-                    # 在列表中加仓
-                    f_ratio_c = f_ratio_json[key1][i1[key1]][id1]
-                    print("目标 为 {},且 mount_c !=0 : {}, price_now 为 {}, f_ratio才是 {}".format(key1, mount_c, price_c,
-                                                                                            f_ratio_c))
-                    if f_ratio_c > 0:
-                        mount_add = mount_c - mount_pre
-                        if mount_add > 0:
-                            print("仓位 增加")
-                            fees = self.calcu_fee(policy_config["commission"], policy_config["commission_rate"],
-                                                  policy_config["stamp_tax_in"],
-                                                  policy_config["stamp_tax_out"], mount_add, 0, price_c,
-                                                  policy_config["hand_unit"])
-                            all_holdings[id1]["commission"] += fees
-                            all_holdings[id1]["cash"] -= mount_c * policy_config["hand_unit"] * price_c + fees
-                            all_holdings[id1]["total"] -= fees
-                        elif mount_add < 0:
-                            print("仓位 减仓")
-                            fees = self.calcu_fee(policy_config["commission"], policy_config["commission_rate"],
-                                                  policy_config["stamp_tax_in"],
-                                                  policy_config["stamp_tax_out"], 0, -mount_add, price_c,
-                                                  policy_config["hand_unit"])
-                            all_holdings[id1]["commission"] += fees
-                            all_holdings[id1]["cash"] -= mount_c * policy_config["hand_unit"] * price_c + fees
-                            all_holdings[id1]["total"] -= fees
-                        else:
-                            print("仓位 不变")
-                            all_holdings[id1]["cash"] -= mount_c * policy_config["hand_unit"] * price_c
-                            # all_holdings[id1]["total"] = all_holdings[id1]["total"]
-            print(all_holdings[id1], all_positions[id1])
-        annual_ratio = math.pow(all_holdings[-1]["total"] / policy_config["initial_capital"], 252 / datalenth)
-        print("annual_ratio: 1d {}, 1w {}, 1m {}, 1y {}, 2y {}, 4y {}, 8y {}, 10y {}"
-              "".format(math.pow(annual_ratio, 1 / 252),
-                        math.pow(annual_ratio, 5 / 252),
-                        math.pow(annual_ratio, 22 / 252),
-                        annual_ratio,
-                        math.pow(annual_ratio, 2),
-                        math.pow(annual_ratio, 4),
-                        math.pow(annual_ratio, 8),
-                        math.pow(annual_ratio, 10)))
-        return all_holdings, all_positions, all_ratios
-
-    def simu_gains_every_history(self, policy_config, predict_bars, target_list, f_ratio_json, date_range):
+    def simu_gains_every_history(self, policy_config, strategy_config, predict_bars, target_list, f_ratio_json,
+                                 date_range):
         all_holdings = []
         all_positions = []
         all_ratios = []
@@ -652,43 +511,6 @@ class Portfolio(object):
         return all_holdings, all_positions, all_ratios
 
     # 基于预测结果 盈利测试
-
-    def calculate_probability_signals(self, predict_bars, pred_list):
-        """kelly_formula"""
-        system_risk = 0.0001  # 系统归零概率
-        system_move = 1  # 上下概率平移系数
-        system_ram_vari = 1  # 振幅系数
-
-        upprb = []
-        downprb = []
-        f_ratio = []
-        gain = []
-        inst = TradeTool()
-        llenth = len(predict_bars.bband_list)
-        for id1, aven in enumerate(predict_bars.bband_list):
-            fixratio = system_ram_vari / aven
-            fw = pred_list[1][:, id1 * llenth + 2] - 1.0
-            fw = fw * fixratio
-            fl = 1.0 - pred_list[1][:, id1 * llenth + 3]
-            fl = fl * fixratio
-            upconst = np.exp(-(fw * system_move) ** 2 / pred_list[0][:, id1 * llenth + 1] ** 2)
-            downconst = np.exp(-(fl / system_move) ** 2 / pred_list[0][:, id1 * llenth + 2] ** 2)
-            # 加入系统风险后的极值一阶导数方程： y = a*f_ratio^2+b*f_ratio+c
-            p = (1 - system_risk) * upconst / (upconst + downconst)
-            q = (1 - system_risk) * downconst / (upconst + downconst)
-            wm = inst.kari_fix_normal_w(p, q, fw, fl, system_risk)
-            wm[:][wm[:] < 0] = 0
-            wm[:][fw[:] < 0] = 0
-            wm[:][fl[:] < 0] = 0
-            upprb.append(p)
-            downprb.append(q)
-            f_ratio.append(wm)
-            # print(p, q, fw, fl, system_risk, wm)
-            gain.append(inst.kari_fix_normal_g(p, q, fw, fl, system_risk, wm))
-            # print(list(zip(p, q, fw, fl, wm, gain[-1])))
-        # print(gain)
-        return upprb, downprb, f_ratio, gain
-
     def calculate_probability_every_signals(self, bband_list, pred_list):
         """kelly_formula"""
         system_risk = 0.0001  # 系统归零概率
@@ -722,6 +544,4 @@ class Portfolio(object):
             # print(p, q, fw, fl, system_risk, wm)
             gain.append(inst.kari_fix_normal_g(p, q, fw, fl, system_risk, wm))
             # print(list(zip(p, q, fw, fl, wm, gain[-1])))
-        # print(gain)
-        # todo: gain 开始，最后一个为常数
         return upprb, downprb, f_ratio, gain

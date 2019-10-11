@@ -286,7 +286,6 @@ class LoadCSVHandler(object):
         self.symbol_pre_retp = {}  # symbol_data，{symbol:DataFrame}
         self.symbol_pre_retm = {}  # symbol_data，{symbol:DataFrame}
 
-        # self.symbol_aft_retp = {}  # symbol_data，{symbol:DataFrame}
         self.symbol_aft_retp_high = {}  # symbol_data，{symbol:DataFrame}
         self.symbol_aft_retp_low = {}  # symbol_data，{symbol:DataFrame}
         self.symbol_aft_reta = {}
@@ -360,7 +359,6 @@ class LoadCSVHandler(object):
                 self.symbol_pre_avep[s].append(self.tool_ins.smaCal(self.symbol_ori_data[s]["close"], aven))
                 self.symbol_pre_avem[s].append(self.tool_ins.smaCal(self.symbol_ori_data[s]["volume"], aven))
                 # 方差
-                # tmpup, tmpdown = self.tool_ins.pre_up_down_std(self.symbol_ori_data[s]["close"], aven)
                 tmpup, tmpdown = self.tool_ins.general_pre_up_down_std(self.symbol_ori_data[s]["close"], aven)
                 self.symbol_pre_half_std_up[s].append(tmpup)
                 self.symbol_pre_half_std_down[s].append(tmpdown)
@@ -373,7 +371,6 @@ class LoadCSVHandler(object):
     def generate_a_derivative(self):
         for s in self.symbol_list_with_benchmark:
             print("generating {}".format(s))
-            # self.symbol_aft_retp[s] = []
             self.symbol_aft_retp_high[s] = []
             self.symbol_aft_retp_low[s] = []
             self.symbol_aft_reta[s] = []
@@ -385,11 +382,8 @@ class LoadCSVHandler(object):
                 # 未来n天的 最大涨跌幅
                 self.symbol_aft_retp_high[s].append(
                     self.tool_ins.general_max_highlow_ret_aft_n(self.symbol_ori_data[s], aven)[0])
-                # self.tool_ins.max_highlow_ret_aft_n(self.symbol_ori_data[s], aven)[0])
                 self.symbol_aft_retp_low[s].append(
                     self.tool_ins.general_max_highlow_ret_aft_n(self.symbol_ori_data[s], aven)[1])
-                # self.tool_ins.max_highlow_ret_aft_n(self.symbol_ori_data[s], aven)[1])
-                # tmpup, tmpdown = self.tool_ins.max_fallret_raiseret_aft_n(self.symbol_ori_data[s]["close"], aven)
                 tmpup, tmpdown = self.tool_ins.general_max_fallret_raiseret_aft_n(self.symbol_ori_data[s]["close"],
                                                                                   aven)
                 self.symbol_aft_drawup[s].append(tmpup)
@@ -397,12 +391,14 @@ class LoadCSVHandler(object):
                 # 涨幅
                 self.symbol_aft_reta[s].append(
                     self.tool_ins.rise_n(self.symbol_ori_data[s]["close"], aven).shift(-aven))
-                # 临时均线数据
-                # 方差 未来n天的 上下半std
-                tmpup, tmpdown = self.tool_ins.general_pre_up_down_std(self.symbol_ori_data[s]["close"], aven)
-                # tmpup, tmpdown = self.tool_ins.pre_up_down_std(self.symbol_ori_data[s]["close"], aven)
-                self.symbol_aft_half_std_up[s].append(tmpup.shift(-aven + 1))
-                self.symbol_aft_half_std_down[s].append(tmpdown.shift(-aven + 1))
+                # 临时均线数据,  方差 未来n天的 上下半std
+                self.symbol_aft_half_std_up[s].append(self.symbol_pre_half_std_up[s].shift(-aven))
+                self.symbol_aft_half_std_down[s].append(self.symbol_pre_half_std_down[s].shift(-aven))
+                # self.symbol_aft_half_std_up[s].append(self.symbol_pre_half_std_up[s].shift(-aven + 1))
+                # self.symbol_aft_half_std_down[s].append(self.symbol_pre_half_std_down[s].shift(-aven + 1))
+                # tmpup, tmpdown = self.tool_ins.general_pre_up_down_std(self.symbol_ori_data[s]["close"], aven)
+                # self.symbol_aft_half_std_up[s].append(tmpup.shift(-aven + 1))
+                # self.symbol_aft_half_std_down[s].append(tmpdown.shift(-aven + 1))
 
     # 生成最后一日的空间 前一日的[-0.1~0.1]
     def generate_lastspace(self, range_low=-10, range_high=11, range_eff=0.01, mount_low=-10, mount_high=11,

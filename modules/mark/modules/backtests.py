@@ -99,7 +99,8 @@ class LoadBacktest(object):
         pred_list_json = self._strategy.predict_probability_signals(predict_bars, self.ave_list, self.bband_list,
                                                                     self.date_range, args=None)
         print("data used lenth: {}".format(len(pred_list_json[self.symbol_list[0]][0])))
-        # print(pred_list_json)
+        print("pred_list_json: m个指标[y_reta, y_reth, y_retl, y_stdup, y_stddw, y_drawup, y_drawdw]，n天，ave_n")
+        print(pred_list_json)
         # 3. 投资回测结果 此处不需要指定date range 因为预测数据已经在此范围内
         all_holdings, all_positions, all_ratios = self._portfolio.components_res_every_predict(predict_bars,
                                                                                                pred_list_json,
@@ -143,7 +144,7 @@ class LoadBacktest(object):
         """回测 输出组合的 性能"""
         contents = self._run_backtest(policy_config, strategy_config, startdate=startdate)
         # self._output_performance()
-        return None
+        # 2. 发送邮件
         strs_list = []
         for i1 in contents:
             tmpjson = {}
@@ -151,7 +152,6 @@ class LoadBacktest(object):
                 if not (i1[i2] == 0 or i1[i2] == 0.0):
                     tmpjson[i2] = i1[i2]
             strs_list.append(json.dumps(tmpjson, indent=4, ensure_ascii=False))
-        # 发送邮件
         headstr = "策略信息"
         email_info(headstr, strs_list, addresses=self.email_list)
 
