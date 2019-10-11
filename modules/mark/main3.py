@@ -56,13 +56,17 @@ class Acount(object):
         self.csv_dir = config["data_ori"]["csv_dir"]
         self.plate_list = config["data_ori"]["plate_list"]
         self.symbol_list = config["data_ori"]["symbol_list"]
-        self.oper_num = config["data_ori"]["oper_num"]
+        self.exclude_list = config["data_ori"]["exclude_list"]
         self.ave_list = config["data_ori"]["ave_list"]
         self.bband_list = config["data_ori"]["bband_list"]
-        self.stratgey_name = config["stratgey"]["stratgey_name"]
+        self.strategy_config = config["strategy_config"]
         self.portfolio_name = config["portfolio"]["portfolio_name"]
         self.email_list = config["assist_option"]["email_list"]
-        self.para_config = config["para_config"]
+        self.policy_config = config["policy_config"]
+        try:
+            self.showconfig = config["showconfig"]
+        except Exception as e:
+            pass
         # 生成标准参数
         self._gene_stand_paras()
 
@@ -77,80 +81,69 @@ class Acount(object):
         # flist = flist[0:len(flist) // 2]
         return flist
 
-    def __call__(self, *args, **kwargs):
+    def _pattern_generate(self):
         # 1. 判断加载模型
         backtest = None
         if self.test_type == "实盘":
             pass
         elif self.test_type == "模拟":  # 已有数据模式
             if self.data_type == "实盘demo":  # 已有数据，动态模拟, 原始例子
+                self.symbol_list = [i1 for i1 in self.symbol_list if i1 not in self.exclude_list]
                 backtest = Backtest(
                     self.initial_capital, self.heartbeat, self.start_predict,
                     self.csv_dir, self.symbol_list, self.ave_list, self.bband_list,
                     CSVDataHandler, SimulatedExecutionHandler, Portfolio, MovingAverageCrossStrategy)
             elif self.data_type == "实盘":  # 已有数据，动态模拟, 未完善
+                self.symbol_list = [i1 for i1 in self.symbol_list if i1 not in self.exclude_list]
                 backtest = Backtest(
                     self.initial_capital, self.heartbeat, self.start_predict,
                     self.csv_dir, self.symbol_list, self.ave_list, self.bband_list,
                     CSVAppendDataHandler, SimulatedExecutionHandler, Portfolio, MultiCrossStrategy)
             elif self.data_type == "symbol_train_type":  # 已有数据，直观统计
+                self.symbol_list = [i1 for i1 in self.symbol_list if i1 not in self.exclude_list]
                 backtest = LoadBacktest(
                     self.initial_capital, self.heartbeat, self.start_predict,
                     self.csv_dir, self.symbol_list, self.ave_list, self.bband_list,
                     LoadCSVHandler, SimulatedExecutionHandler, Portfolio, MlaStrategy,
-                    split=0.8, newdata=1, date_range=self.date_range, oper_num=self.oper_num, assistant=self.email_list)
+                    split=0.8, newdata=1, date_range=self.date_range, assistant=self.email_list)
             elif self.data_type == "general_train_type":  # 已有数据，直观统计
+                self.symbol_list = [i1 for i1 in self._get_train_list() if i1 not in self.exclude_list]
                 backtest = LoadBacktest(
                     self.initial_capital, self.heartbeat, self.start_predict,
-                    self.csv_dir, self._get_train_list(), self.ave_list, self.bband_list,
+                    self.csv_dir, self.symbol_list, self.ave_list, self.bband_list,
                     LoadCSVHandler, SimulatedExecutionHandler, Portfolio, MlaStrategy,
-                    split=0.8, newdata=0, date_range=self.date_range, oper_num=self.oper_num, assistant=self.email_list)
+                    split=0.8, newdata=0, date_range=self.date_range, assistant=self.email_list)
             elif self.data_type == "plate_train_type":  # 已有数据，直观统计
+                self.symbol_list = [i1 for i1 in choice_list(self.plate_list) if i1 not in self.exclude_list]
                 backtest = LoadBacktest(
                     self.initial_capital, self.heartbeat, self.start_predict,
-                    self.csv_dir, choice_list(self.plate_list), self.ave_list, self.bband_list,
+                    self.csv_dir, self.symbol_list, self.ave_list, self.bband_list,
                     LoadCSVHandler, SimulatedExecutionHandler, Portfolio, MlaStrategy,
-                    split=0.8, newdata=1, date_range=self.date_range, oper_num=self.oper_num, assistant=self.email_list)
+                    split=0.8, newdata=1, date_range=self.date_range, assistant=self.email_list)
             elif self.data_type == "网络获取数据":  # 已有数据，统计强化学习
+                self.symbol_list = [i1 for i1 in self._get_train_list() if i1 not in self.exclude_list]
                 backtest = LoadBacktest(
                     self.initial_capital, self.heartbeat, self.start_predict,
-                    None, self._get_train_list(), self.ave_list, self.bband_list,
+                    None, self.symbol_list, self.ave_list, self.bband_list,
                     LoadCSVHandler, SimulatedExecutionHandler, Portfolio, MlaStrategy,
-                    split=0.8, newdata=1, date_range=self.date_range, oper_num=self.oper_num, assistant=self.email_list)
+                    split=0.8, newdata=1, date_range=self.date_range, assistant=self.email_list)
                 return None
             else:
                 raise Exception("error data_type 只允许：实盘demo, 实盘, 模拟, 网络")
         else:
             raise Exception("error test type.")
+        return backtest
+
+    def __call__(self, *args, **kwargs):
+        # 1. 判断加载模型
+        backtest = self._pattern_generate()
         # 2. 判断执行功能
         if self.func_type == "train":
             backtest.train()
         elif self.func_type == "backtest":
-            backtest.simulate_trading(self.para_config, startdate=self.start_predict)
+            backtest.simulate_trading(self.policy_config, self.strategy_config, startdate=self.start_predict)
         elif self.func_type == "lastday":
-            # fake_data显示设置
-            showconfig = {
-                "range_low": -10,
-                "range_high": 11,
-                # "range_low": -1,
-                # "range_high": 2,
-                "range_eff": 0.01,
-                # "mount_low": -4,
-                # "mount_high": 6,
-                # "mount_eff": 0.2,
-                "mount_low": -1,
-                "mount_high": 1,
-                "mount_eff": 0.2,
-            }
-            # showconfig = {
-            #     "range_low": -3,
-            #     "range_high": 4,
-            #     "range_eff": 0.01,
-            #     "mount_low": -1,
-            #     "mount_high": 2,
-            #     "mount_eff": 0.5,
-            # }
-            backtest.simulate_lastday(self.para_config, showconfig, startdate=self.start_predict)
+            backtest.simulate_lastday(self.policy_config, self.showconfig, startdate=self.start_predict)
         else:
             raise Exception("func_type 只能是 train, backtest, lastday")
 
@@ -246,7 +239,6 @@ def main(paralist):
                 "csv_dir": data_path,
                 "symbol_list": ["000001_D", "000002_D"],
                 # "symbol_list": ["000002_D"],
-                "oper_num": 3,
                 "ave_list": [1, 3, 5, 11, 19, 37, 67],
                 # "bband_list": [1],
                 # "bband_list": [5],
@@ -258,6 +250,8 @@ def main(paralist):
                 # "bband_list": [1, 5, 19],
                 # "bband_list": [1, 5, 19, 37],
                 # "bband_list": [5, 19, 37],
+                "exclude_list": [],
+
             },
             "stratgey": {
                 "stratgey_name": "cross_break",
@@ -269,16 +263,44 @@ def main(paralist):
                 # "email_list": ["a1593572007@126.com", "619041014@qq.com"],
                 "email_list": ["a1593572007@126.com"],
             },
-            "para_config": {
+            "policy_config": {
                 "hand_unit": 100,
                 "initial_capital": 10000.0,
                 "stamp_tax_in": 0.0,
                 "stamp_tax_out": 0.001,
                 "commission": 5,
                 "commission_rate": 0.0003,
-            }
+            },
+            "strategy_config": {
+                "oper_num": 3,
+                "thresh_low": 1.001,
+                "thresh_high": 1.1,
+                "move_low": 0.5,
+                "move_high": 0.5,
+            },
+            # fake_data显示设置
+            "showconfig": {
+                "range_low": -10,
+                "range_high": 11,
+                # "range_low": -1,
+                # "range_high": 2,
+                "range_eff": 0.01,
+                # "mount_low": -4,
+                # "mount_high": 6,
+                # "mount_eff": 0.2,
+                "mount_low": -1,
+                "mount_high": 1,
+                "mount_eff": 0.2,
+            },
+            # showconfig = {
+            #     "range_low": -3,
+            #     "range_high": 4,
+            #     "range_eff": 0.01,
+            #     "mount_low": -1,
+            #     "mount_high": 2,
+            #     "mount_eff": 0.5,
+            # }
         }
-
     ]
     ins = Acount(account_list[2])
     ins()

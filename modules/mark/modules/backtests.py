@@ -17,7 +17,7 @@ class LoadBacktest(object):
     def __init__(self, initial_capital, heartbeat, start_date,
                  csv_dir, symbol_list, ave_list, bband_list,
                  data_handler_cls, execution_handler_cls, portfolio_cls, strategy_cls,
-                 split=0.8, newdata=0, date_range=[1, None], oper_num=3, assistant=[]):
+                 split=0.8, newdata=0, date_range=[1, None], assistant=[]):
         self.initial_capital = initial_capital
         self.heartbeat = heartbeat
         self.start_date = start_date
@@ -26,7 +26,6 @@ class LoadBacktest(object):
         self.symbol_list = symbol_list
         self.ave_list = ave_list
         self.bband_list = bband_list
-        self.oper_num = oper_num
         self.email_list = assistant
         self.data_handler_cls = data_handler_cls
         self.execution_handler_cls = execution_handler_cls
@@ -83,7 +82,7 @@ class LoadBacktest(object):
                                                       newdata=self.newdata, split=self.split, args=None)
 
     # 回测，根据不同事件执行不同的方法
-    def _run_backtest(self, para_config, startdate="2000-01-01 00:00:00"):
+    def _run_backtest(self, policy_config, strategy_config, startdate="2000-01-01 00:00:00"):
         print("in backtest from")
         predict_bars_json = {}
         pred_list_json = {}
@@ -104,9 +103,9 @@ class LoadBacktest(object):
         # 3. 投资回测结果 此处不需要指定date range 因为预测数据已经在此范围内
         all_holdings, all_positions, all_ratios = self._portfolio.components_res_every_predict(predict_bars,
                                                                                                pred_list_json,
-                                                                                               para_config,
-                                                                                               self.date_range,
-                                                                                               oper_num=self.oper_num)
+                                                                                               policy_config,
+                                                                                               strategy_config,
+                                                                                               self.date_range)
         # 4. 绘制收益过程
         show_list = []
         show_x = [i1["datetime"] for i1 in all_holdings]
@@ -116,7 +115,7 @@ class LoadBacktest(object):
         titie_list = [titie_str, *predict_bars.symbol_list]
         for symbol in predict_bars.symbol_list:
             tmp_ori = predict_bars.symbol_ori_data[symbol]["close"].values[self.date_range[0]:self.date_range[1]]
-            tmp_y = tmp_ori * (para_config["initial_capital"] / tmp_ori[0])
+            tmp_y = tmp_ori * (policy_config["initial_capital"] / tmp_ori[0])
             show_list.append([show_x, tmp_y])
         insplt = PlotTool()
         insplt.plot_line(show_list, titie_list)
@@ -140,9 +139,9 @@ class LoadBacktest(object):
         print("Fills: %s" % self.fills)
 
     # 模拟回测并输出投资组合表现
-    def simulate_trading(self, para_config, startdate="2000-01-01 00:00:00"):
+    def simulate_trading(self, policy_config, strategy_config, startdate="2000-01-01 00:00:00"):
         """回测 输出组合的 性能"""
-        contents = self._run_backtest(para_config, startdate=startdate)
+        contents = self._run_backtest(policy_config, strategy_config, startdate=startdate)
         # self._output_performance()
         return None
         strs_list = []
@@ -157,7 +156,7 @@ class LoadBacktest(object):
         email_info(headstr, strs_list, addresses=self.email_list)
 
     # 模拟回测最后一天的不同情况
-    def simulate_lastday(self, para_config, showconfig, startdate="2000-01-01 00:00:00"):
+    def simulate_lastday(self, policy_config, showconfig, startdate="2000-01-01 00:00:00"):
         """回测 最后一天的不同情况"""
         pred_list_json = {}
         # 1. 预测概率
@@ -170,7 +169,7 @@ class LoadBacktest(object):
                                                                              self.bband_list, showconfig, args=None)
         # 3. 虚拟价格的操作空间
         fake_gain, fake_f_ratio, fake_mount = self._portfolio.components_res_fake_predict(predict_bars, pred_list_json,
-                                                                                          fake_ori, para_config)
+                                                                                          fake_ori, policy_config)
         print("fake_gain-", fake_gain)
         print("fake_f_ratio-", fake_f_ratio)
         print("fake_mount-", fake_mount)
