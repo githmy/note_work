@@ -105,28 +105,28 @@ class Acount(object):
                     self.initial_capital, self.heartbeat, self.start_predict,
                     self.csv_dir, self.symbol_list, self.ave_list, self.bband_list,
                     LoadCSVHandler, SimulatedExecutionHandler, Portfolio, MlaStrategy,
-                    split=0.8, newdata=1, date_range=self.date_range, assistant=self.email_list)
+                    split=0.8, newdata=self.newdata, date_range=self.date_range, assistant=self.email_list)
             elif self.data_type == "general_train_type":  # 已有数据，直观统计
                 self.symbol_list = [i1 for i1 in self._get_train_list() if i1 not in self.exclude_list]
                 backtest = LoadBacktest(
                     self.initial_capital, self.heartbeat, self.start_predict,
                     self.csv_dir, self.symbol_list, self.ave_list, self.bband_list,
                     LoadCSVHandler, SimulatedExecutionHandler, Portfolio, MlaStrategy,
-                    split=0.8, newdata=0, date_range=self.date_range, assistant=self.email_list)
+                    split=0.8, newdata=self.newdata, date_range=self.date_range, assistant=self.email_list)
             elif self.data_type == "plate_train_type":  # 已有数据，直观统计
                 self.symbol_list = [i1 for i1 in choice_list(self.plate_list) if i1 not in self.exclude_list]
                 backtest = LoadBacktest(
                     self.initial_capital, self.heartbeat, self.start_predict,
                     self.csv_dir, self.symbol_list, self.ave_list, self.bband_list,
                     LoadCSVHandler, SimulatedExecutionHandler, Portfolio, MlaStrategy,
-                    split=0.8, newdata=1, date_range=self.date_range, assistant=self.email_list)
+                    split=0.8, newdata=self.newdata, date_range=self.date_range, assistant=self.email_list)
             elif self.data_type == "网络获取数据":  # 已有数据，统计强化学习
                 self.symbol_list = [i1 for i1 in self._get_train_list() if i1 not in self.exclude_list]
                 backtest = LoadBacktest(
                     self.initial_capital, self.heartbeat, self.start_predict,
                     None, self.symbol_list, self.ave_list, self.bband_list,
                     LoadCSVHandler, SimulatedExecutionHandler, Portfolio, MlaStrategy,
-                    split=0.8, newdata=1, date_range=self.date_range, assistant=self.email_list)
+                    split=0.8, newdata=self.newdata, date_range=self.date_range, assistant=self.email_list)
                 return None
             else:
                 raise Exception("error data_type 只允许：实盘demo, 实盘, 模拟, 网络")
@@ -152,58 +152,6 @@ def main(paralist):
     logger.info(paralist)
     account_list = [
         {
-            "account": 1,
-            "back_test": {
-                "test_type": "实盘",
-                "start_train": "19900101",
-                "end_train": "19900101",
-                "start_predict": "19900101",
-                "end_predict": "19900101",
-                "heartbeat": 0.0,
-                "initial_capital": 10000.0,
-            },
-            "data_ori": {
-                "data_type": "实盘",
-                "csv_dir": data_path,
-                "symbol_list": ["SAPower", "DalianRP", "ChinaBank"],
-                "ave_list": [1, 3, 5, 7, 17, 20, 23, 130, 140, 150],
-                "bband_list": [5, 19, 37],
-            },
-            "stratgey": {
-                "stratgey_name": "cross_break",
-            },
-            "portfolio": {
-                "portfolio_name": None
-            },
-        },
-        {
-            "account": 2,
-            "desc": "非tushare,离线测试",
-            "back_test": {
-                "test_type": "模拟",
-                "start_train": datetime.datetime(1990, 1, 1, 0, 0, 0),
-                "end_train": datetime.datetime(1990, 1, 1, 0, 0, 0),
-                "start_predict": datetime.datetime(1990, 1, 1, 0, 0, 0),
-                "end_predict": datetime.datetime(1990, 1, 1, 0, 0, 0),
-                "heartbeat": 0.0,
-                "initial_capital": 10000.0,
-            },
-            "data_ori": {
-                "data_type": "模拟",
-                # "data_type": "实盘",
-                "csv_dir": data_path,
-                "symbol_list": ["SAPower"],
-                "ave_list": [1, 3, 5, 11, 19, 37, 67],
-                "bband_list": [5, 19, 37],
-            },
-            "stratgey": {
-                "stratgey_name": "cross_break",
-            },
-            "portfolio": {
-                "portfolio_name": None
-            },
-        },
-        {
             "account": 3,
             "desc": "tushare,离线测试",
             "back_test": {
@@ -215,28 +163,23 @@ def main(paralist):
                 "initial_capital": 10000.0,
             },
             "data_ori": {
-                # "func_type": "train",
-                # "data_type": "general_train_type",
-                # "date_range": [0, None],
                 "split": 0.8,
                 # 使用已下好的原生数据
                 "newdata": 1,
-                # "func_type": "train",
-                # "data_type": "plate_train_type",
-                # "date_range": [0, None],
-                "plate_list": ["电子信息"],
-
-                # "func_type": "train",
-                "func_type": "backtest",
-                "data_type": "symbol_train_type",
-                "date_range": [-5, None],
+                "func_type": "train",
+                # "func_type": "backtest",
                 # "func_type": "lastday",
-                # "data_type": "网络获取数据",
-                "start_predict": "2019-09-29 00:00:00",
+                "data_type": "网络获取数据",
+                # "data_type": "general_train_type",
+                # "data_type": "plate_train_type",
+                # "data_type": "symbol_train_type",
+                "date_range": [0, None],
+                # "date_range": [-5, None],
+                "start_predict": "2019-09-01 00:00:00",
                 # "start_predict": None,
-                # "date_range": [0, None],
                 # "data_type": "实盘",
                 "csv_dir": data_path,
+                "plate_list": ["电子信息"],
                 "symbol_list": ["000001_D", "000002_D"],
                 # "symbol_list": ["000002_D"],
                 "ave_list": [1, 3, 5, 11, 19, 37, 67],
@@ -250,8 +193,8 @@ def main(paralist):
                 # "bband_list": [1, 5, 19],
                 # "bband_list": [1, 5, 19, 37],
                 # "bband_list": [5, 19, 37],
+                # "exclude_list": ["000002_D"],
                 "exclude_list": [],
-
             },
             "stratgey": {
                 "stratgey_name": "cross_break",
@@ -303,7 +246,7 @@ def main(paralist):
             # }
         }
     ]
-    ins = Acount(account_list[2])
+    ins = Acount(account_list[0])
     ins()
 
 

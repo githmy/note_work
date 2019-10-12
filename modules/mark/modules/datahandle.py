@@ -378,7 +378,7 @@ class LoadCSVHandler(object):
             self.symbol_aft_half_std_down[s] = []
             self.symbol_aft_drawdown[s] = []
             self.symbol_aft_drawup[s] = []
-            for aven in self.bband_list:
+            for id2, aven in enumerate(self.bband_list):
                 # 未来n天的 最大涨跌幅
                 self.symbol_aft_retp_high[s].append(
                     self.tool_ins.general_max_highlow_ret_aft_n(self.symbol_ori_data[s], aven)[0])
@@ -392,10 +392,10 @@ class LoadCSVHandler(object):
                 self.symbol_aft_reta[s].append(
                     self.tool_ins.rise_n(self.symbol_ori_data[s]["close"], aven).shift(-aven))
                 # 临时均线数据,  方差 未来n天的 上下半std
-                self.symbol_aft_half_std_up[s].append(self.symbol_pre_half_std_up[s].shift(-aven))
-                self.symbol_aft_half_std_down[s].append(self.symbol_pre_half_std_down[s].shift(-aven))
-                # self.symbol_aft_half_std_up[s].append(self.symbol_pre_half_std_up[s].shift(-aven + 1))
-                # self.symbol_aft_half_std_down[s].append(self.symbol_pre_half_std_down[s].shift(-aven + 1))
+                self.symbol_aft_half_std_up[s].append(self.symbol_pre_half_std_up[s][id2].shift(-aven))
+                self.symbol_aft_half_std_down[s].append(self.symbol_pre_half_std_down[s][id2].shift(-aven))
+                # self.symbol_aft_half_std_up[s].append(self.symbol_pre_half_std_up[s][id2].shift(-aven + 1))
+                # self.symbol_aft_half_std_down[s].append(self.symbol_pre_half_std_down[s][id2].shift(-aven + 1))
                 # tmpup, tmpdown = self.tool_ins.general_pre_up_down_std(self.symbol_ori_data[s]["close"], aven)
                 # self.symbol_aft_half_std_up[s].append(tmpup.shift(-aven + 1))
                 # self.symbol_aft_half_std_down[s].append(tmpdown.shift(-aven + 1))
