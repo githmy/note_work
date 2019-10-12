@@ -138,7 +138,9 @@ class Acount(object):
         # 1. 判断加载模型
         backtest = self._pattern_generate()
         # 2. 判断执行功能
-        if self.func_type == "train":
+        if self.data_type == "网络获取数据":
+            return None
+        elif self.func_type == "train":
             backtest.train()
         elif self.func_type == "backtest":
             backtest.simulate_trading(self.policy_config, self.strategy_config, startdate=self.start_predict)
@@ -169,8 +171,8 @@ def main(paralist):
                 "func_type": "train",
                 # "func_type": "backtest",
                 # "func_type": "lastday",
-                "data_type": "网络获取数据",
-                # "data_type": "general_train_type",
+                # "data_type": "网络获取数据",
+                "data_type": "general_train_type",
                 # "data_type": "plate_train_type",
                 # "data_type": "symbol_train_type",
                 "date_range": [0, None],
