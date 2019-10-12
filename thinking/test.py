@@ -2,44 +2,6 @@ import networkx as nx
 import pylab
 import numpy as np
 
-import pandas as pd
-import os
-
-# pdobj = pd.read_csv("a.txt", header=None, encoding="utf8")
-# orilist = pdobj.iloc[:, 0].values
-orilist = ['pcL_586ef274065b7e9d71429683.mp4', 'pcL_586ef04b065b7e9d71429681.mp4', 'pcL_57d7079cba53a54020ced907.mp4',
-           'pcL_5b3dbcea6e9b222f824985ad.mp4', 'pcL_586eb825065b7e9d71429645.mp4', 'pcL_586f449c065b7e9d714296d1.mp4',
-           'pcL_586ebdfa065b7e9d71429649.mp4', 'pcL_586cf28c065b7e9d7142946a.mp4', 'pcL_586efb4e065b7e9d7142968d.mp4',
-           'pcL_57d7c413ba53a54020ced9d3.mp4', 'pcL_57d9aa30ba53a54020cedc0a.mp4', 'pcL_5c11dd97e8200039b3d454dc.mp4',
-           'pcL_5c11dbbae8200039b3d454d7.mp4', 'pcL_586ed8b8065b7e9d71429665.mp4', 'pcL_5b3dd82c6e9b222f824985b5.mp4',
-           'pcL_586d380b065b7e9d714294d6.mp4', 'pcL_5a795e8227e2c04e2d381620.mp4', 'pcL_586d11f6065b7e9d71429496.mp4',
-           'pcL_586d09dc065b7e9d7142948a.mp4', 'pcL_586d06e5065b7e9d71429486.mp4', 'pcL_5870936b065b7e9d714297ed.mp4',
-           'pcL_586d1587065b7e9d7142949c.mp4', 'pcL_5a090b047347fe08b2108690.mp4', 'pcL_586d0b24065b7e9d7142948c.mp4',
-           'pcL_586d73f9065b7e9d71429518.mp4', 'zasdtg5y5th.mp4', 'zasdfjkdjsffijdfpp.mp4', 'zasdtr4gr.mp4',
-           'zasfdasttt.mp4', 'zasdtg5y5th.mp4', 'zasdfjkdjsffijdfpp.mp4', 'zasdtr4gr.mp4', 'zasfdasttt.mp4',
-           'zasdtg5y5th.mp4', 'zasdfjkdjsffijdfpp.mp4', 'zasdtr4gr.mp4', 'zasfdasttt.mp4', 'zasdfjkdjsffijdfpp.mp4',
-           'zasdtg5y5th.mp4', 'zasfdasttt.mp4', 'zasdtr4gr.mp4', 'zasfdasttt.mp4', 'zasdtr4gr.mp4',
-           'zasdfjkdjsffijdfpp.mp4', 'zasdtg5y5th.mp4', 'zasdfjkdjsffijdfpp.mp4', 'zasdtg5y5th.mp4',
-           'zasdfjkdjsffijdfpp.mp4', 'zasdtg5y5th.mp4', 'zasfdasttt.mp4', 'zasdtr4gr.mp4']
-oklist = []
-f_dir = "/share/题目视频/下载/待检数学/"
-tansidr = "/share/题目视频/下载/tmp/trans"
-for root, dirs, files in os.walk(f_dir, topdown=True):
-    for ondir in dirs:
-        for fileed in os.listdir(os.path.join(f_dir, ondir)):
-            fileedN = fileed.replace("pcM_", "pcL_")
-            # fileedN = fileed.replace("pcL_", "pcM_")
-            if fileedN in orilist:
-                oklist.append(fileedN)
-                strss = "cp -f {} {}".format(os.path.join(f_dir, ondir, fileed), tansidr)
-                print(strss)
-                # os.system(strss)
-    break
-
-notlist = [i1 for i1 in orilist if i1 not in oklist]
-print(notlist)
-print(len(notlist))
-
 
 def test():
     # 自定义网络
@@ -87,6 +49,4 @@ def test():
 
 
 if __name__ == '__main__':
-    # print(set(['zasdtg5y5th.mp4', 'zasdfjkdjsffijdfpp.mp4', 'zasdtr4gr.mp4', 'zasfdasttt.mp4', 'zasdtg5y5th.mp4', 'zasdfjkdjsffijdfpp.mp4', 'zasdtr4gr.mp4', 'zasfdasttt.mp4', 'zasdtg5y5th.mp4', 'zasdfjkdjsffijdfpp.mp4', 'zasdtr4gr.mp4', 'zasfdasttt.mp4', 'zasdfjkdjsffijdfpp.mp4', 'zasdtg5y5th.mp4', 'zasfdasttt.mp4', 'zasdtr4gr.mp4', 'zasfdasttt.mp4', 'zasdtr4gr.mp4', 'zasdfjkdjsffijdfpp.mp4', 'zasdtg5y5th.mp4', 'zasdfjkdjsffijdfpp.mp4', 'zasdtg5y5th.mp4', 'zasdfjkdjsffijdfpp.mp4', 'zasdtg5y5th.mp4', 'zasfdasttt.mp4', 'zasdtr4gr.mp4']))
-    # exit()
     test()
