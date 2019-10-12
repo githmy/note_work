@@ -789,59 +789,51 @@ class MlaStrategy(strategy.BacktestingStrategy):
         data_buff_dir = "everynpy_" + "_".join([str(i1) for i1 in bband_list])
         full_data_buff_dir = os.path.join(data_path, data_buff_dir)
         makesurepath(full_data_buff_dir)
-        if 1 == newdata:
+        if os.path.isfile(os.path.join(full_data_buff_dir, "drawdw_v.npy")) and 1 != newdata:
+            print("loading old data")
+            inputs_t = np.load(os.path.join(full_data_buff_dir, "inputs_t.npy"))
+            reta_t = np.load(os.path.join(full_data_buff_dir, "reta_t.npy"))
+            reth_t = np.load(os.path.join(full_data_buff_dir, "reth_t.npy"))
+            retl_t = np.load(os.path.join(full_data_buff_dir, "retl_t.npy"))
+            stdup_t = np.load(os.path.join(full_data_buff_dir, "stdup_t.npy"))
+            stddw_t = np.load(os.path.join(full_data_buff_dir, "stddw_t.npy"))
+            drawup_t = np.load(os.path.join(full_data_buff_dir, "drawup_t.npy"))
+            drawdw_t = np.load(os.path.join(full_data_buff_dir, "drawdw_t.npy"))
+            inputs_v = np.load(os.path.join(full_data_buff_dir, "inputs_v.npy"))
+            reta_v = np.load(os.path.join(full_data_buff_dir, "reta_v.npy"))
+            reth_v = np.load(os.path.join(full_data_buff_dir, "reth_v.npy"))
+            retl_v = np.load(os.path.join(full_data_buff_dir, "retl_v.npy"))
+            stdup_v = np.load(os.path.join(full_data_buff_dir, "stdup_v.npy"))
+            stddw_v = np.load(os.path.join(full_data_buff_dir, "stddw_v.npy"))
+            drawup_v = np.load(os.path.join(full_data_buff_dir, "drawup_v.npy"))
+            drawdw_v = np.load(os.path.join(full_data_buff_dir, "drawdw_v.npy"))
+            # 打印尺寸
+            print_range(train_bars, bband_list, ave_list, date_range, split)
+        else:
             # 2. 加载衍生前值
+            print("gene new data")
             train_bars.generate_b_derivative()
             # 2. 加载衍生后值
             train_bars.generate_a_derivative()
             inputs_t, reta_t, reth_t, retl_t, stdup_t, stddw_t, drawup_t, drawdw_t, inputs_v, reta_v, reth_v, retl_v, \
             stdup_v, stddw_v, drawup_v, drawdw_v = self._prepare_every_train_data(train_bars, ave_list, bband_list,
                                                                                   date_range, split)
-        else:
-            if os.path.isfile(os.path.join(full_data_buff_dir, "drawdw_v.npy")):
-                print("loadingdata")
-                inputs_t = np.load(os.path.join(full_data_buff_dir, "inputs_t.npy"))
-                reta_t = np.load(os.path.join(full_data_buff_dir, "reta_t.npy"))
-                reth_t = np.load(os.path.join(full_data_buff_dir, "reth_t.npy"))
-                retl_t = np.load(os.path.join(full_data_buff_dir, "retl_t.npy"))
-                stdup_t = np.load(os.path.join(full_data_buff_dir, "stdup_t.npy"))
-                stddw_t = np.load(os.path.join(full_data_buff_dir, "stddw_t.npy"))
-                drawup_t = np.load(os.path.join(full_data_buff_dir, "drawup_t.npy"))
-                drawdw_t = np.load(os.path.join(full_data_buff_dir, "drawdw_t.npy"))
-                inputs_v = np.load(os.path.join(full_data_buff_dir, "inputs_v.npy"))
-                reta_v = np.load(os.path.join(full_data_buff_dir, "reta_v.npy"))
-                reth_v = np.load(os.path.join(full_data_buff_dir, "reth_v.npy"))
-                retl_v = np.load(os.path.join(full_data_buff_dir, "retl_v.npy"))
-                stdup_v = np.load(os.path.join(full_data_buff_dir, "stdup_v.npy"))
-                stddw_v = np.load(os.path.join(full_data_buff_dir, "stddw_v.npy"))
-                drawup_v = np.load(os.path.join(full_data_buff_dir, "drawup_v.npy"))
-                drawdw_v = np.load(os.path.join(full_data_buff_dir, "drawdw_v.npy"))
-                # 打印尺寸
-                print_range(train_bars, bband_list, ave_list, date_range, split)
-            else:
-                # 2. 加载衍生前值
-                train_bars.generate_b_derivative()
-                # 2. 加载衍生后值
-                train_bars.generate_a_derivative()
-                inputs_t, reta_t, reth_t, retl_t, stdup_t, stddw_t, drawup_t, drawdw_t, inputs_v, reta_v, reth_v, retl_v, \
-                stdup_v, stddw_v, drawup_v, drawdw_v = self._prepare_every_train_data(train_bars, ave_list, bband_list,
-                                                                                      date_range, split)
-                np.save(os.path.join(full_data_buff_dir, "inputs_t"), inputs_t)
-                np.save(os.path.join(full_data_buff_dir, "reta_t"), reta_t)
-                np.save(os.path.join(full_data_buff_dir, "reth_t"), reth_t)
-                np.save(os.path.join(full_data_buff_dir, "retl_t"), retl_t)
-                np.save(os.path.join(full_data_buff_dir, "stdup_t"), stdup_t)
-                np.save(os.path.join(full_data_buff_dir, "stddw_t"), stddw_t)
-                np.save(os.path.join(full_data_buff_dir, "drawup_t"), drawup_t)
-                np.save(os.path.join(full_data_buff_dir, "drawdw_t"), drawdw_t)
-                np.save(os.path.join(full_data_buff_dir, "inputs_v"), inputs_v)
-                np.save(os.path.join(full_data_buff_dir, "reta_v"), reta_v)
-                np.save(os.path.join(full_data_buff_dir, "reth_v"), reth_v)
-                np.save(os.path.join(full_data_buff_dir, "retl_v"), retl_v)
-                np.save(os.path.join(full_data_buff_dir, "stdup_v"), stdup_v)
-                np.save(os.path.join(full_data_buff_dir, "stddw_v"), stddw_v)
-                np.save(os.path.join(full_data_buff_dir, "drawup_v"), drawup_v)
-                np.save(os.path.join(full_data_buff_dir, "drawdw_v"), drawdw_v)
+            np.save(os.path.join(full_data_buff_dir, "inputs_t"), inputs_t)
+            np.save(os.path.join(full_data_buff_dir, "reta_t"), reta_t)
+            np.save(os.path.join(full_data_buff_dir, "reth_t"), reth_t)
+            np.save(os.path.join(full_data_buff_dir, "retl_t"), retl_t)
+            np.save(os.path.join(full_data_buff_dir, "stdup_t"), stdup_t)
+            np.save(os.path.join(full_data_buff_dir, "stddw_t"), stddw_t)
+            np.save(os.path.join(full_data_buff_dir, "drawup_t"), drawup_t)
+            np.save(os.path.join(full_data_buff_dir, "drawdw_t"), drawdw_t)
+            np.save(os.path.join(full_data_buff_dir, "inputs_v"), inputs_v)
+            np.save(os.path.join(full_data_buff_dir, "reta_v"), reta_v)
+            np.save(os.path.join(full_data_buff_dir, "reth_v"), reth_v)
+            np.save(os.path.join(full_data_buff_dir, "retl_v"), retl_v)
+            np.save(os.path.join(full_data_buff_dir, "stdup_v"), stdup_v)
+            np.save(os.path.join(full_data_buff_dir, "stddw_v"), stddw_v)
+            np.save(os.path.join(full_data_buff_dir, "drawup_v"), drawup_v)
+            np.save(os.path.join(full_data_buff_dir, "drawdw_v"), drawdw_v)
         # 3. 训练
         print(inputs_t.shape, reta_t.shape, reth_t.shape, retl_t.shape,
               stdup_t.shape, stddw_t.shape, drawup_t.shape, drawdw_t.shape,
