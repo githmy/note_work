@@ -323,7 +323,7 @@ class Portfolio(object):
         print(gain_json)
         # 选操作目标
         target_idlist, target_vallist = self.get_target_every_list(predict_bars.symbol_list, gain_json, strategy_config)
-        print("target_idlist: n天，列表:手数")
+        print("target_idlist: n天，列表:band_idex")
         print(target_idlist)
         # 2. 统计值
         all_holdings, all_positions, all_ratios = self.simu_gains_every_history(policy_config, strategy_config,
@@ -356,14 +356,17 @@ class Portfolio(object):
         return costs
 
     def get_target_every_list(self, symbol_list, gain_json, strategy_config):
+        # gain_json 已经按band换算成单日: symbols , band_n, n天
         target_list = []
         target_idlist = []
         target_vallist = []
         datalenth = len(gain_json[self.symbol_list[0]][0])
         target_use_num = min([len(symbol_list), strategy_config["oper_num"]])
         for i1 in range(0, datalenth):
+            # 1. 每日筛选
             max_bbandid = []
             max_list = []
+            # 2. 每个 symbol 选 最大的bband_n做 目标值
             for s in symbol_list:
                 # 不同均线筛选
                 rank_list = [i2[i1] if not np.isnan(i2[i1]) else 0.0 for i2 in gain_json[s]]
@@ -373,9 +376,11 @@ class Portfolio(object):
             element_indexs = np.argsort(-np.array(max_list), axis=0)  # 对a按每行中元素从小到大排序, 列表加-号，即降序
             tmpvalobj = {}
             tmpidobj = {}
+            # 截断 小于等于 symbel 列表
+            element_indexs = element_indexs[0:target_use_num]
             for id2, i2 in enumerate(element_indexs):
-                if id2 > target_use_num:
-                    break
+                # if id2 > target_use_num:
+                #     break
                 day_max_val = max_list[i2]
                 if day_max_val > strategy_config["thresh_low"] and day_max_val < strategy_config["thresh_high"]:
                     symblname = symbol_list[i2]
@@ -389,6 +394,9 @@ class Portfolio(object):
 
     def simu_gains_every_history(self, policy_config, strategy_config, predict_bars, target_list, f_ratio_json,
                                  date_range):
+        move_low = strategy_config["move_low"]
+        move_high = strategy_config["move_high"]
+        # todo: 2.symbol 的进出值
         all_holdings = []
         all_positions = []
         all_ratios = []
@@ -452,7 +460,7 @@ class Portfolio(object):
             # 4. 加载 今日 头寸
             for i2 in predict_bars.symbol_list:
                 price_c = predict_bars.symbol_ori_data[i2]["close"][price_cid]
-                print(i2, price_c)
+                # print(i2, price_c)
                 mount_pre = all_positions[id1 - 1][i2]
                 mount_c = all_positions[id1][i2]
                 if i2 not in key_list:

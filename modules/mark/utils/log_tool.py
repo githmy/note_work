@@ -3,7 +3,8 @@ import logging.handlers
 import logging
 from .path_tool import makesurepath
 
-cmd_path = os.getcwd()
+# cmd_path = os.getcwd()
+cmd_path = "."
 basic_path = os.path.join(cmd_path, "..", "..", "..", "data")
 project_path = os.path.join(basic_path, "mark")
 model_path = os.path.join(project_path, "models")

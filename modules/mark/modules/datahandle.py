@@ -68,9 +68,9 @@ class CSVDataHandler(DataHandler):
         self.symbol_ori_data = {}  # symbol_data，{symbol:DataFrame}
         self.latest_symbol_data = {}  # 最新的bar + 累计的旧值:{symbol:[bar1,bar2,barNew]}
         self.b_continue_backtest = True
-        self._open_convert_csv_files()
+        self.open_convert_csv_files()
 
-    def _open_convert_csv_files(self):
+    def open_convert_csv_files(self):
         comb_index = None
         for s in self.symbol_list_with_benchmark:
             # 加载csv文件,date,OHLC,Volume
@@ -168,7 +168,7 @@ class CSVDataHandler(DataHandler):
 
 
 class CSVAppendDataHandler(CSVDataHandler):
-    def _open_convert_csv_files(self):
+    def open_convert_csv_files(self):
         comb_index = None
         for s in self.symbol_list_with_benchmark:
             # 加载csv文件,date,OHLC,Volume
@@ -299,22 +299,22 @@ class LoadCSVHandler(object):
         if self.csv_dir is None:
             self._get_net_csv2files()
         else:
-            self._open_convert_csv_files()
+            self.open_convert_csv_files()
 
     def _get_net_csv2files(self):
         dclass = TSstockScrap(data_path)
         startdate = "2000-01-01 00:00:00"
         dclass.scrap_all_n_store(startdate)
 
-    def get_some_net_csv2files(self, startdate="2000-01-01 00:00:00"):
+    def get_some_net_csv2files(self, get_startdate="2000-01-01 00:00:00"):
         dclass = TSstockScrap(data_path)
-        dclass.scrap_some_n_store(startdate, self.symbol_list)
+        dclass.scrap_some_n_store(get_startdate, self.symbol_list)
 
     def get_some_current_net_csv2files(self):
         dclass = TSstockScrap(data_path)
         dclass.scrap_some_current_n_store(self.symbol_list)
 
-    def _open_convert_csv_files(self):
+    def open_convert_csv_files(self):
         comb_index = None
         for s in self.symbol_list_with_benchmark:
             # # 加载csv文件,date,OHLC,Volume

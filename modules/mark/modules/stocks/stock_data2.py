@@ -74,7 +74,7 @@ class TSstockScrap:
             df1.to_csv(tmp_path, encoding='utf-8')
 
     # 某些数据
-    def scrap_some_n_store(self, startdate, symbol_list):
+    def scrap_some_n_store(self, get_startdate, symbol_list):
         # 1.股票基本信息
         # 1.1 更新信息
         filePath = 'stock_info.csv'
@@ -98,9 +98,8 @@ class TSstockScrap:
                     "fixedAssets", "reserved", "reservedPerShare", "esp", "bvps", "pb", "timeToMarket", "undp",
                     "perundp", "rev", "profit", "gpr", "npr", "holders"]
         df1.drop(droplist, axis=1, inplace=True)
-        print("startdate: ", startdate)
         for i in symbol_list:
-            self.single_n_store(i.replace("_D", ""), startdate)
+            self.single_n_store(i.replace("_D", ""), get_startdate)
 
     # 常规数据
     def scrap_all_n_store(self, startdate):

@@ -663,7 +663,7 @@ class CRNNevery(AbstractModeltensor):
             if os.path.isfile("{}.index".format(latest_ckpt)):
                 self.saver.restore(sess, latest_ckpt)
             else:
-                print("没有找到模型")
+                raise Exception("没有找到模型:{}".format(latest_ckpt))
             feed_dict = {
                 self.input_p: inputs,
             }

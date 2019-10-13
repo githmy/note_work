@@ -44,10 +44,11 @@ class Acount(object):
         self.test_type = config["back_test"]["test_type"]
         self.start_train = config["back_test"]["start_train"]
         self.end_train = config["back_test"]["end_train"]
+        self.start_predict = config["back_test"]["start_predict"]
         self.end_predict = config["back_test"]["end_predict"]
         self.initial_capital = config["back_test"]["initial_capital"]
         self.heartbeat = config["back_test"]["heartbeat"]
-        self.start_predict = config["data_ori"]["start_predict"]
+        self.get_startdate = config["data_ori"]["get_startdate"]
         self.date_range = config["data_ori"]["date_range"]
         self.data_type = config["data_ori"]["data_type"]
         self.bband_list = config["data_ori"]["bband_list"]
@@ -63,6 +64,7 @@ class Acount(object):
         self.portfolio_name = config["portfolio"]["portfolio_name"]
         self.email_list = config["assist_option"]["email_list"]
         self.policy_config = config["policy_config"]
+        self.model_paras = config["model_paras"]
         try:
             self.showconfig = config["showconfig"]
         except Exception as e:
@@ -105,28 +107,32 @@ class Acount(object):
                     self.initial_capital, self.heartbeat, self.start_predict,
                     self.csv_dir, self.symbol_list, self.ave_list, self.bband_list,
                     LoadCSVHandler, SimulatedExecutionHandler, Portfolio, MlaStrategy,
-                    split=0.8, newdata=self.newdata, date_range=self.date_range, assistant=self.email_list)
+                    split=0.8, newdata=self.newdata, date_range=self.date_range, assistant=self.email_list,
+                    model_paras=self.model_paras)
             elif self.data_type == "general_train_type":  # 已有数据，直观统计
                 self.symbol_list = [i1 for i1 in self._get_train_list() if i1 not in self.exclude_list]
                 backtest = LoadBacktest(
                     self.initial_capital, self.heartbeat, self.start_predict,
                     self.csv_dir, self.symbol_list, self.ave_list, self.bband_list,
                     LoadCSVHandler, SimulatedExecutionHandler, Portfolio, MlaStrategy,
-                    split=0.8, newdata=self.newdata, date_range=self.date_range, assistant=self.email_list)
+                    split=0.8, newdata=self.newdata, date_range=self.date_range, assistant=self.email_list,
+                    model_paras=self.model_paras)
             elif self.data_type == "plate_train_type":  # 已有数据，直观统计
                 self.symbol_list = [i1 for i1 in choice_list(self.plate_list) if i1 not in self.exclude_list]
                 backtest = LoadBacktest(
                     self.initial_capital, self.heartbeat, self.start_predict,
                     self.csv_dir, self.symbol_list, self.ave_list, self.bband_list,
                     LoadCSVHandler, SimulatedExecutionHandler, Portfolio, MlaStrategy,
-                    split=0.8, newdata=self.newdata, date_range=self.date_range, assistant=self.email_list)
+                    split=0.8, newdata=self.newdata, date_range=self.date_range, assistant=self.email_list,
+                    model_paras=self.model_paras)
             elif self.data_type == "网络获取数据":  # 已有数据，统计强化学习
                 self.symbol_list = [i1 for i1 in self._get_train_list() if i1 not in self.exclude_list]
                 backtest = LoadBacktest(
                     self.initial_capital, self.heartbeat, self.start_predict,
                     None, self.symbol_list, self.ave_list, self.bband_list,
                     LoadCSVHandler, SimulatedExecutionHandler, Portfolio, MlaStrategy,
-                    split=0.8, newdata=self.newdata, date_range=self.date_range, assistant=self.email_list)
+                    split=0.8, newdata=self.newdata, date_range=self.date_range, assistant=self.email_list,
+                    model_paras=self.model_paras)
                 return None
             else:
                 raise Exception("error data_type 只允许：实盘demo, 实盘, 模拟, 网络")
@@ -143,9 +149,9 @@ class Acount(object):
         elif self.func_type == "train":
             backtest.train()
         elif self.func_type == "backtest":
-            backtest.simulate_trading(self.policy_config, self.strategy_config, startdate=self.start_predict)
+            backtest.simulate_trading(self.policy_config, self.strategy_config, get_startdate=self.get_startdate)
         elif self.func_type == "lastday":
-            backtest.simulate_lastday(self.policy_config, self.showconfig, startdate=self.start_predict)
+            backtest.simulate_lastday(self.policy_config, self.showconfig, get_startdate=self.get_startdate)
         else:
             raise Exception("func_type 只能是 train, backtest, lastday")
 
@@ -160,6 +166,7 @@ def main(paralist):
                 "test_type": "模拟",
                 "start_train": datetime.datetime(1990, 1, 1, 0, 0, 0),
                 "end_train": datetime.datetime(1990, 1, 1, 0, 0, 0),
+                "start_predict": datetime.datetime(1990, 1, 1, 0, 0, 0),
                 "end_predict": datetime.datetime(1990, 1, 1, 0, 0, 0),
                 "heartbeat": 0.0,
                 "initial_capital": 10000.0,
@@ -176,10 +183,12 @@ def main(paralist):
                 "data_type": "general_train_type",
                 # "data_type": "plate_train_type",
                 # "data_type": "symbol_train_type",
-                "date_range": [0, None],
-                # "date_range": [-5, None],
-                "start_predict": "2019-09-01 00:00:00",
-                # "start_predict": None,
+                # "date_range": [0, None],
+                # "date_range": [-4, None],
+                "date_range": [-2, None],
+                "get_startdate": "2019-09-01 00:00:00",
+                # get_startdate 为 None 不更新数据
+                # "get_startdate": None,
                 # "data_type": "实盘",
                 "csv_dir": data_path,
                 "plate_list": ["电子信息"],
@@ -187,10 +196,15 @@ def main(paralist):
                 # "symbol_list": ["000002_D"],
                 "ave_list": [1, 3, 5, 11, 19, 37, 67],
                 # "bband_list": [1],
+                # "bband_list": [2],
+                # "bband_list": [3],
+                # "bband_list": [4],
                 # "bband_list": [5],
+                # "bband_list": [6],
+                # "bband_list": [7],
                 # "bband_list": [19],
-                # "bband_list": [37],
-                "bband_list": [1, 5],
+                "bband_list": [37],
+                # "bband_list": [1, 5],
                 # "bband_list": [1, 2, 3, 4, 5, 6, 7],
                 # "bband_list": [5, 19],
                 # "bband_list": [1, 5, 19],
@@ -220,8 +234,9 @@ def main(paralist):
             },
             "strategy_config": {
                 "oper_num": 3,
-                "thresh_low": 1.001,
-                "thresh_high": 1.1,
+                "thresh_low": 1.005,
+                "thresh_high": 1.2,
+                # "thresh_high": 1.095,
                 "move_low": 0.5,
                 "move_high": 0.5,
             },
@@ -247,6 +262,34 @@ def main(paralist):
             #     "mount_high": 2,
             #     "mount_eff": 0.5,
             # }
+            "model_paras": {
+                "env": {
+                    "epsilon": 0.5,
+                    "min_epsilon": 0.1,
+                    "epoch": 100000,
+                    "single_num": 1,
+                    "max_memory": 5000,
+                    "batch_size": 1024,
+                    "discount": 0.8,
+                    "start_date": "2013-08-26",
+                    "end_date": "2025-08-25",
+                    "learn_rate": 1e-5,
+                    "early_stop": 10000000,
+                    "sudden_death": -1.0,
+                    "scope": 60,
+                    "inputdim": 61,
+                    "outspace": 3
+                },
+                "model": {
+                    "retrain": 1,
+                    "globalstep": 0,
+                    "dropout": 0.8,
+                    "modelname": "cnn_dense_lossave_more",
+                    "normal": 1e-4,
+                    "sub_fix": "5",
+                    "file": "learn_file"
+                }
+            }
         }
     ]
     ins = Acount(account_list[0])
