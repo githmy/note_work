@@ -166,8 +166,9 @@ def main(paralist):
             },
             "data_ori": {
                 "split": 0.8,
-                # 使用已下好的原生数据
-                "newdata": 1,
+                # 不使用生成的特征数据
+                # "newdata": 1,
+                "newdata": 0,
                 "func_type": "train",
                 # "func_type": "backtest",
                 # "func_type": "lastday",
