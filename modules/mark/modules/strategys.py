@@ -298,13 +298,14 @@ class MlaStrategy(strategy.BacktestingStrategy):
                 self.bars.f_ratio[s].append(wm)
                 self.bars.gain[s].append(self.toolins.kari_fix_normal_g(p, q, fw, fl, self.system_risk, wm))
 
-    def _prepare_model_para(self, args=None):
+    def _prepare_model_para(self, model_paras=None, args=None):
         # 2. 模型参数赋值
         config = {}
         parafile = os.path.join("config", "para.json")
         argspar = parseArgs(args)
         if argspar.modelname is None:
-            hpara = simplejson.load(open(parafile))
+            # hpara = simplejson.load(open(parafile))
+            hpara = model_paras
             config["modelname"] = hpara["model"]["modelname"]
             config["sub_fix"] = hpara["model"]["sub_fix"]
             config["tailname"] = "%s-%s" % (config["modelname"], config["sub_fix"])
@@ -355,7 +356,6 @@ class MlaStrategy(strategy.BacktestingStrategy):
         print("dropout:", config["dropout"])
         print("**********************************************************")
         self.trainconfig = config
-        # return config
 
     def _prepare_every_train_data(self, train_bars, ave_list, bband_list, data_range, split=0.8):
         mult_charact_trainx = []
@@ -737,54 +737,11 @@ class MlaStrategy(strategy.BacktestingStrategy):
         all_xnp[:, :][np.isinf(all_xnp[:, :])] = 0
         return all_xnp
 
-    def train_probability_signals(self, train_bars, ave_list, bband_list, date_range, split=0.8, args=None):
-        """训练"""
-        # 1. 输入参数
-        self._prepare_model_para(args)
-        # 2. 生产数据 随机打乱，分成batch
-        data_buff_dir = "npy_" + "_".join([str(i1) for i1 in bband_list])
-        full_data_buff_dir = os.path.join(data_path, data_buff_dir)
-        makesurepath(full_data_buff_dir)
-        if os.path.isfile(os.path.join(full_data_buff_dir, "inputs_t.npy")):
-            print("loadingdata")
-            inputs_t = np.load(os.path.join(full_data_buff_dir, "inputs_t.npy"))
-            targets_base_t = np.load(os.path.join(full_data_buff_dir, "targets_base_t.npy"))
-            targets_much_t = np.load(os.path.join(full_data_buff_dir, "targets_much_t.npy"))
-            inputs_v = np.load(os.path.join(full_data_buff_dir, "inputs_v.npy"))
-            targets_base_v = np.load(os.path.join(full_data_buff_dir, "targets_base_v.npy"))
-            targets_much_v = np.load(os.path.join(full_data_buff_dir, "targets_much_v.npy"))
-        else:
-            # 2. 加载衍生前值
-            train_bars.generate_b_derivative()
-            # 2. 加载衍生后值
-            train_bars.generate_a_derivative()
-            inputs_t, targets_base_t, targets_much_t, inputs_v, targets_base_v, targets_much_v = self._prepare_newtrain_data(
-                train_bars, ave_list, bband_list, date_range, split)
-            np.save(os.path.join(full_data_buff_dir, "inputs_t"), inputs_t)
-            np.save(os.path.join(full_data_buff_dir, "targets_base_t"), targets_base_t)
-            np.save(os.path.join(full_data_buff_dir, "targets_much_t"), targets_much_t)
-            np.save(os.path.join(full_data_buff_dir, "inputs_v"), inputs_v)
-            np.save(os.path.join(full_data_buff_dir, "targets_base_v"), targets_base_v)
-            np.save(os.path.join(full_data_buff_dir, "targets_much_v"), targets_much_v)
-        # 3. 训练
-        print(inputs_t.shape, targets_base_t.shape, targets_much_t.shape, inputs_v.shape, targets_base_v.shape,
-              targets_much_v.shape)
-        print("start-training")
-        self.trainconfig["tailname"] += data_buff_dir
-        self.trainconfig["inputdim"] = inputs_t.shape[1]
-        self.trainconfig["outretdim"], self.trainconfig["outstddim"] = targets_base_t.shape[1], targets_much_t.shape[1]
-        modelcrnn = CRNN(ave_list, bband_list, config=self.trainconfig)
-        modelcrnn.buildModel()
-        batch_size = self.trainconfig["batchsize"]
-        num_epochs = self.trainconfig["epoch"]
-        globalstep = modelcrnn.batch_train(inputs_t, targets_base_t, targets_much_t, inputs_v, targets_base_v,
-                                           targets_much_v, batch_size, num_epochs)
-
     def train_probability_everysignals(self, train_bars, ave_list, bband_list, date_range, newdata=1, split=0.8,
-                                       args=None):
+                                       model_paras=None, args=None):
         """训练"""
         # 1. 输入参数
-        self._prepare_model_para(args)
+        self._prepare_model_para(model_paras=model_paras, args=args)
         # 2. 生产数据 随机打乱，分成batch
         data_buff_dir = "everynpy_" + "_".join([str(i1) for i1 in bband_list])
         full_data_buff_dir = os.path.join(data_path, data_buff_dir)
@@ -851,10 +808,10 @@ class MlaStrategy(strategy.BacktestingStrategy):
                                            inputs_v, reta_v, reth_v, retl_v, stdup_v, stddw_v, drawup_v, drawdw_v,
                                            batch_size, num_epochs)
 
-    def predict_probability_signals(self, predict_bars, ave_list, bband_list, date_range, args=None):
+    def predict_probability_signals(self, predict_bars, ave_list, bband_list, date_range, model_paras=None, args=None):
         """预测"""
         # 1. 输入参数
-        self._prepare_model_para(args)
+        self._prepare_model_para(model_paras=model_paras, args=args)
         # 2. 生产数据
         self.trainconfig["dropout"] = 1.0
         data_buff_dir = "everynpy_" + "_".join([str(i1) for i1 in bband_list])
@@ -865,17 +822,17 @@ class MlaStrategy(strategy.BacktestingStrategy):
         pred_list_json = {}
         for symbol in predict_bars.symbol_list:
             inputs_t = self._prepare_every_predict_data(predict_bars, symbol, ave_list, date_range)
-            print("inputs_t")
-            print(len(inputs_t))
-            print(len(inputs_t[0]))
-            print(inputs_t)
+            # print("inputs_t")
+            # print(len(inputs_t))
+            # print(len(inputs_t[0]))
+            # print(inputs_t)
             pred_list_json[symbol] = modelcrnn.predict(inputs_t)
         return pred_list_json
 
-    def predict_fake_proba_signals(self, predict_bars, ave_list, bband_list, showconfig, args=None):
+    def predict_fake_proba_signals(self, predict_bars, ave_list, bband_list, showconfig, model_paras=None, args=None):
         """预测"""
         # 1. 输入参数
-        self._prepare_model_para(args)
+        self._prepare_model_para(model_paras=model_paras, args=args)
         # 2. 生产数据
         self.trainconfig["dropout"] = 1.0
         data_buff_dir = "everynpy_" + "_".join([str(i1) for i1 in bband_list])

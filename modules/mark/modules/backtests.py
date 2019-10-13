@@ -17,7 +17,7 @@ class LoadBacktest(object):
     def __init__(self, initial_capital, heartbeat, start_date,
                  csv_dir, symbol_list, ave_list, bband_list,
                  data_handler_cls, execution_handler_cls, portfolio_cls, strategy_cls,
-                 split=0.8, newdata=0, date_range=[1, None], assistant=[]):
+                 split=0.8, newdata=0, date_range=[0, None], assistant=[], model_paras=None):
         self.initial_capital = initial_capital
         self.heartbeat = heartbeat
         self.start_date = start_date
@@ -40,6 +40,7 @@ class LoadBacktest(object):
         self.newdata = newdata
         self.split = split
         self.date_range = date_range
+        self.model_paras = model_paras
         self._generate_trading_instances()
         print(self.symbol_list)
         print(len(self.symbol_list))
@@ -73,31 +74,33 @@ class LoadBacktest(object):
         # self.symbol_aft_drawup
         # self.symbol_aft_drawdown
         # 1. 训练数据, 输入原始规范训练数据，待时间截断
-        # todo: 1. 测试接口更新数据 2. 选出合理的bband 3. 用bband组合再次训练 预测
         train_bars = LoadCSVHandler(queue.Queue(), data_path, self.symbol_list, self.ave_list, self.bband_list)
         # date_range = [1, None]
         # split = 0.8  # 先截range 再split
         # 3. 训练
         self._strategy.train_probability_everysignals(train_bars, self.ave_list, self.bband_list, self.date_range,
-                                                      newdata=self.newdata, split=self.split, args=None)
+                                                      newdata=self.newdata, split=self.split,
+                                                      model_paras=self.model_paras, args=None)
 
     # 回测，根据不同事件执行不同的方法
-    def _run_backtest(self, policy_config, strategy_config, startdate="2000-01-01 00:00:00"):
+    def _run_backtest(self, policy_config, strategy_config, get_startdate="2000-01-01 00:00:00"):
         print("in backtest from")
         predict_bars_json = {}
         pred_list_json = {}
         # date_range = [550, None]
         # date_range = [0, None]
         predict_bars = LoadCSVHandler(queue.Queue(), data_path, self.symbol_list, self.ave_list, self.bband_list)
-        print(startdate)
-        if startdate is not None:
-            predict_bars.get_some_net_csv2files(startdate=startdate)
+        print("get_startdate:", get_startdate)
+        if get_startdate is not None:
+            predict_bars.get_some_net_csv2files(get_startdate=get_startdate)
             predict_bars.get_some_current_net_csv2files()
+            predict_bars.open_convert_csv_files()
         predict_bars.generate_b_derivative()
         # 2. 预测投资比例
         print("data full lenth: {}".format(len(predict_bars.symbol_ori_data[self.symbol_list[0]]["close"].index)))
         pred_list_json = self._strategy.predict_probability_signals(predict_bars, self.ave_list, self.bband_list,
-                                                                    self.date_range, args=None)
+                                                                    self.date_range, model_paras=self.model_paras,
+                                                                    args=None)
         print("data used lenth: {}".format(len(pred_list_json[self.symbol_list[0]][0])))
         print("pred_list_json: m个指标[y_reta, y_reth, y_retl, y_stdup, y_stddw, y_drawup, y_drawdw]，n天，ave_n")
         print(pred_list_json)
@@ -140,9 +143,9 @@ class LoadBacktest(object):
         print("Fills: %s" % self.fills)
 
     # 模拟回测并输出投资组合表现
-    def simulate_trading(self, policy_config, strategy_config, startdate="2000-01-01 00:00:00"):
+    def simulate_trading(self, policy_config, strategy_config, get_startdate="2000-01-01 00:00:00"):
         """回测 输出组合的 性能"""
-        contents = self._run_backtest(policy_config, strategy_config, startdate=startdate)
+        contents = self._run_backtest(policy_config, strategy_config, get_startdate=get_startdate)
         # self._output_performance()
         # 2. 发送邮件
         strs_list = []
@@ -156,17 +159,18 @@ class LoadBacktest(object):
         email_info(headstr, strs_list, addresses=self.email_list)
 
     # 模拟回测最后一天的不同情况
-    def simulate_lastday(self, policy_config, showconfig, startdate="2000-01-01 00:00:00"):
+    def simulate_lastday(self, policy_config, showconfig, get_startdate="2000-01-01 00:00:00"):
         """回测 最后一天的不同情况"""
         pred_list_json = {}
         # 1. 预测概率
         predict_bars = LoadCSVHandler(queue.Queue(), data_path, self.symbol_list, self.ave_list, self.bband_list)
-        if startdate is not None:
-            predict_bars.get_some_net_csv2files(startdate=startdate)
+        if get_startdate is not None:
+            predict_bars.get_some_net_csv2files(get_startdate=get_startdate)
         predict_bars.generate_b_derivative()
         # 2. 预测投资比例
         pred_list_json, fake_ori = self._strategy.predict_fake_proba_signals(predict_bars, self.ave_list,
-                                                                             self.bband_list, showconfig, args=None)
+                                                                             self.bband_list, showconfig,
+                                                                             model_paras=self.model_paras, args=None)
         # 3. 虚拟价格的操作空间
         fake_gain, fake_f_ratio, fake_mount = self._portfolio.components_res_fake_predict(predict_bars, pred_list_json,
                                                                                           fake_ori, policy_config)
