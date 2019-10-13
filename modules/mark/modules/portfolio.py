@@ -326,9 +326,14 @@ class Portfolio(object):
         print("target_idlist: n天，列表:band_idex")
         print(target_idlist)
         # 2. 统计值
+        # 2.1 只用收盘价
+        # all_holdings, all_positions, all_ratios = self.simu_gains_close_history(policy_config, strategy_config,
+        #                                                                         predict_bars, target_idlist,
+        #                                                                         f_ratio_json, date_range)
+        # 2.2 每天看情况报价
         all_holdings, all_positions, all_ratios = self.simu_gains_every_history(policy_config, strategy_config,
-                                                                                predict_bars, target_idlist,
-                                                                                f_ratio_json, date_range)
+                                                                                predict_bars, pred_list_json,
+                                                                                target_idlist, f_ratio_json, date_range)
         return all_holdings, all_positions, all_ratios
 
     def components_res_fake_predict(self, predict_bars, pred_list_json, fake_ori, policy_config):
@@ -392,11 +397,9 @@ class Portfolio(object):
             target_vallist.append(tmpvalobj)
         return target_idlist, target_vallist
 
-    def simu_gains_every_history(self, policy_config, strategy_config, predict_bars, target_list, f_ratio_json,
+    def simu_gains_close_history(self, policy_config, strategy_config, predict_bars, target_list, f_ratio_json,
                                  date_range):
-        move_low = strategy_config["move_low"]
-        move_high = strategy_config["move_high"]
-        # todo: 2.symbol 的进出值
+        # 只用收盘价的操作策略
         all_holdings = []
         all_positions = []
         all_ratios = []
@@ -501,6 +504,172 @@ class Portfolio(object):
                             all_holdings[id1]["total"] -= fees
                         else:
                             print("仓位 不变")
+                            all_holdings[id1]["cash"] -= mount_c * policy_config["hand_unit"] * price_c
+            print(all_holdings[id1],
+                  ["{}:{}".format(i2, all_positions[id1][i2]) for i2 in all_positions[id1] if
+                   all_positions[id1][i2] != 0],
+                  ["{}:{}".format(i2, all_ratios[id1][i2]) for i2 in all_ratios[id1] if all_positions[id1][i2] != 0])
+        annual_ratio = math.pow(all_holdings[-1]["total"] / policy_config["initial_capital"], 252 / datalenth)
+        print("annual_ratio: 1d {}, 1w {}, 1m {}, 1y {}, 2y {}, 4y {}, 8y {}, 10y {}"
+              "".format(math.pow(annual_ratio, 1 / 252),
+                        math.pow(annual_ratio, 5 / 252),
+                        math.pow(annual_ratio, 22 / 252),
+                        annual_ratio,
+                        math.pow(annual_ratio, 2),
+                        math.pow(annual_ratio, 4),
+                        math.pow(annual_ratio, 8),
+                        math.pow(annual_ratio, 10)))
+        return all_holdings, all_positions, all_ratios
+
+    def simu_gains_every_history(self, policy_config, strategy_config, predict_bars, pred_list_json, target_list,
+                                 f_ratio_json, date_range):
+        all_holdings = []
+        all_positions = []
+        all_ratios = []
+        datalenth = len(f_ratio_json[predict_bars.symbol_list[0]][0])
+        barlenth = len(predict_bars.symbol_ori_data[predict_bars.symbol_list[0]]["close"])
+        date_from = date_range[0] if date_range[0] >= 0 else barlenth + date_range[0]
+        # 1. 初始化循环每一天
+        for i1 in range(0, datalenth):
+            d = {}
+            d['datetime'] = i1
+            d['cash'] = policy_config["initial_capital"]
+            d['commission'] = 0.0
+            d['total'] = policy_config["initial_capital"]
+            all_holdings.append(d)
+            v = dict((k, v) for k, v in [(s, 0) for s in predict_bars.symbol_list])
+            all_positions.append(v)
+            u = dict((k, v) for k, v in [(s, 0.0) for s in predict_bars.symbol_list])
+            all_ratios.append(u)
+        # 2. 模拟循环每一天
+        # pred_list: y_reta, y_reth, y_retl, y_stdup, y_stddw, y_drawup, y_drawdw
+        move_in_percent = strategy_config["move_in_percent"]
+        move_out_percent = strategy_config["move_out_percent"]
+        for id1, key_bbandjson in enumerate(target_list):
+            key_list = list(key_bbandjson.keys())
+            try:
+                key_list.remove("没有")
+            except Exception as e:
+                pass
+            key_lenth = len(key_list)
+            print("id1:", id1, key_bbandjson)
+            if id1 == 0:
+                continue
+            pre_key_bbandjson = target_list[id1 - 1]
+            pre_key_list = list(pre_key_bbandjson.keys())
+            # 1. 更新今日的资产 临时用cash存放，生成模拟的当天操作价位
+            price_cid = date_from + all_holdings[id1]["datetime"]
+            all_holdings[id1]["cash"] = all_holdings[id1 - 1]["cash"]
+            price_c_in_json = {}
+            price_c_out_json = {}
+            day2_bbandjson = copy.deepcopy(key_bbandjson)
+            day2_bbandjson.update(pre_key_bbandjson)
+            oper_symbol = set(day2_bbandjson.keys())
+            try:
+                oper_symbol.remove("没有")
+            except Exception as e:
+                pass
+            # for i2 in predict_bars.symbol_list:
+            # 只用昨天和今天的symbol
+            for i2 in oper_symbol:
+                # 无法保证时序，只能近似 生成操作价位
+                # price_c 为 nan 时不应该成为 标的
+                price_c = predict_bars.symbol_ori_data[i2]["close"][price_cid]
+                price_c_h = predict_bars.symbol_ori_data[i2]["high"][price_cid]
+                price_c_l = predict_bars.symbol_ori_data[i2]["low"][price_cid]
+                price_pre = predict_bars.symbol_ori_data[i2]["close"][price_cid - 1]
+                mount_pre = all_positions[id1 - 1][i2]
+                # pred_list: y_reta, y_reth, y_retl, y_stdup, y_stddw, y_drawup, y_drawdw
+                pred_price_c = pred_list_json[i2][0][id1 - 1, day2_bbandjson[i2]]
+                pred_price_h = pred_list_json[i2][1][id1 - 1, day2_bbandjson[i2]]
+                pred_price_l = pred_list_json[i2][2][id1 - 1, day2_bbandjson[i2]]
+                ideal_outprice = price_pre * (pred_price_c + (pred_price_h - pred_price_c) * move_out_percent)
+                move_out_price = price_c if ideal_outprice > price_c_h else ideal_outprice
+                ideal_inprice = price_pre * (pred_price_c - (pred_price_c - pred_price_l) * move_in_percent)
+                move_in_price = price_c if ideal_inprice < price_c_l else ideal_inprice
+                # price_c_out_json[i2] = move_out_price
+                # price_c_in_json[i2] = move_in_price
+                # todo: 1. price_c 调制跟原来一样， 2. 训练和预测 数据拆成单天
+                price_c_out_json[i2] = price_c
+                price_c_in_json[i2] = price_c
+                # 清空折现
+                if mount_pre > 0:
+                    # 大于零时 平仓
+                    all_holdings[id1]["cash"] += mount_pre * policy_config["hand_unit"] * move_out_price
+                elif mount_pre < 0:
+                    # 小于零时 平仓
+                    all_holdings[id1]["cash"] += -mount_pre * policy_config["hand_unit"] * move_in_price
+                    # 今日清空
+                all_positions[id1][i2] = 0
+            # 2. 重赋总资产
+            all_holdings[id1]["total"] = all_holdings[id1]["cash"]
+            # 根据比例，仓位计算 all_positions all_ratios
+            for i2 in oper_symbol:
+                # 数据结构 已支持多标的综合操作
+                for key1 in key_list:
+                    if i2 == key1:
+                        if key1 in predict_bars.symbol_list:
+                            f_ratio_c = f_ratio_json[i2][day2_bbandjson[i2]][id1]
+                        else:
+                            f_ratio_c = 0
+                        # 在列表中加仓
+                        all_ratios[id1][i2] = float(f_ratio_c)
+                        targ_captail = f_ratio_c * all_holdings[id1]["total"] / key_lenth
+                        targ_mount = targ_captail / policy_config["hand_unit"] // price_c_in_json[i2]
+                        all_positions[id1][i2] = targ_mount
+            # 4. 更新核心 加载 今日 头寸
+            for i2 in oper_symbol:
+                price_pre = predict_bars.symbol_ori_data[i2]["close"][price_cid - 1]
+                price_c = predict_bars.symbol_ori_data[i2]["close"][price_cid]
+                price_h = predict_bars.symbol_ori_data[i2]["high"][price_cid]
+                price_l = predict_bars.symbol_ori_data[i2]["low"][price_cid]
+                pred_price_c = pred_list_json[i2][0][id1 - 1, day2_bbandjson[i2]]
+                pred_price_h = pred_list_json[i2][1][id1 - 1, day2_bbandjson[i2]]
+                pred_price_l = pred_list_json[i2][2][id1 - 1, day2_bbandjson[i2]]
+                mount_pre = all_positions[id1 - 1][i2]
+                mount_c = all_positions[id1][i2]
+                print("目标：{}, mount_c: {}, real_c {},real_h {},real_l {}, pred_c {},pred_h {},pred_l {}".format(
+                    i2, mount_c, price_c, price_h, price_l, pred_price_c * price_pre, pred_price_h * price_pre,
+                                                            pred_price_l * price_pre))
+                if i2 not in key_list:
+                    if mount_pre == 0:
+                        # 不在目标列表 且 没有仓位继续循环
+                        continue
+                    else:
+                        # 不在目标列表 且 有仓位 清空 放弃筹码
+                        print("仓位 清空 {}:{}".format(i2, price_c_out_json[i2]))
+                        fees = self.calcu_fee(policy_config["commission"], policy_config["commission_rate"],
+                                              policy_config["stamp_tax_in"], policy_config["stamp_tax_out"],
+                                              0, mount_pre, price_c_out_json[i2], policy_config["hand_unit"])
+                        all_holdings[id1]["commission"] += fees
+                        all_holdings[id1]["cash"] -= mount_c * policy_config["hand_unit"] * price_c_out_json[i2] + fees
+                        all_holdings[id1]["total"] -= fees
+                else:
+                    # 在目标列表 增减到目标头寸
+                    f_ratio_c = f_ratio_json[i2][day2_bbandjson[i2]][id1]
+                    print("f_ratio:{}".format(f_ratio_c))
+                    if f_ratio_c > 0:
+                        mount_add = mount_c - mount_pre
+                        if mount_add > 0:
+                            print("仓位 增加 {}:{}".format(i2, price_c_in_json[i2]))
+                            fees = self.calcu_fee(policy_config["commission"], policy_config["commission_rate"],
+                                                  policy_config["stamp_tax_in"], policy_config["stamp_tax_out"],
+                                                  mount_add, 0, price_c_in_json[i2], policy_config["hand_unit"])
+                            all_holdings[id1]["commission"] += fees
+                            all_holdings[id1]["cash"] -= mount_c * policy_config["hand_unit"] * price_c_in_json[
+                                i2] + fees
+                            all_holdings[id1]["total"] -= fees
+                        elif mount_add < 0:
+                            print("仓位 减仓 {}:{}".format(i2, price_c_out_json[i2]))
+                            fees = self.calcu_fee(policy_config["commission"], policy_config["commission_rate"],
+                                                  policy_config["stamp_tax_in"], policy_config["stamp_tax_out"],
+                                                  0, -mount_add, price_c_out_json[i2], policy_config["hand_unit"])
+                            all_holdings[id1]["commission"] += fees
+                            all_holdings[id1]["cash"] -= mount_c * policy_config["hand_unit"] * price_c_out_json[
+                                i2] + fees
+                            all_holdings[id1]["total"] -= fees
+                        else:
+                            print("仓位 不变 {}:{}".format(i2, price_c))
                             all_holdings[id1]["cash"] -= mount_c * policy_config["hand_unit"] * price_c
             print(all_holdings[id1],
                   ["{}:{}".format(i2, all_positions[id1][i2]) for i2 in all_positions[id1] if
