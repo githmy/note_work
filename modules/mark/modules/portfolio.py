@@ -320,7 +320,7 @@ class Portfolio(object):
             gain_json[symbols] = gain
         # 3. 目标操作列表, 代号：均线考察日
         print("gain_json 已经按band换算成单日: symbols , band_n, n天")
-        print(gain_json)
+        # print(gain_json)
         # 选操作目标
         target_idlist, target_vallist = self.get_target_every_list(predict_bars.symbol_list, gain_json, strategy_config)
         print("target_idlist: n天，列表:band_idex")
@@ -333,7 +333,8 @@ class Portfolio(object):
         # 2.2 每天看情况报价
         all_holdings, all_positions, all_ratios = self.simu_gains_every_history(policy_config, strategy_config,
                                                                                 predict_bars, pred_list_json,
-                                                                                target_idlist, f_ratio_json, date_range)
+                                                                                target_idlist, gain_json, f_ratio_json,
+                                                                                date_range)
         return all_holdings, all_positions, all_ratios
 
     def components_res_fake_predict(self, predict_bars, pred_list_json, fake_ori, policy_config):
@@ -522,7 +523,7 @@ class Portfolio(object):
         return all_holdings, all_positions, all_ratios
 
     def simu_gains_every_history(self, policy_config, strategy_config, predict_bars, pred_list_json, target_list,
-                                 f_ratio_json, date_range):
+                                 gain_json, f_ratio_json, date_range):
         all_holdings = []
         all_positions = []
         all_ratios = []
@@ -555,13 +556,13 @@ class Portfolio(object):
             print("id1:", id1, key_bbandjson)
             if id1 == 0:
                 continue
-            pre_key_bbandjson = target_list[id1 - 1]
-            pre_key_list = list(pre_key_bbandjson.keys())
             # 1. 更新今日的资产 临时用cash存放，生成模拟的当天操作价位
             price_cid = date_from + all_holdings[id1]["datetime"]
             all_holdings[id1]["cash"] = all_holdings[id1 - 1]["cash"]
             price_c_in_json = {}
             price_c_out_json = {}
+            pre_key_bbandjson = target_list[id1 - 1]
+            pre_key_list = list(pre_key_bbandjson.keys())
             day2_bbandjson = copy.deepcopy(key_bbandjson)
             day2_bbandjson.update(pre_key_bbandjson)
             oper_symbol = set(day2_bbandjson.keys())
@@ -580,25 +581,25 @@ class Portfolio(object):
                 price_pre = predict_bars.symbol_ori_data[i2]["close"][price_cid - 1]
                 mount_pre = all_positions[id1 - 1][i2]
                 # pred_list: y_reta, y_reth, y_retl, y_stdup, y_stddw, y_drawup, y_drawdw
-                pred_price_c = pred_list_json[i2][0][id1 - 1, day2_bbandjson[i2]]
-                pred_price_h = pred_list_json[i2][1][id1 - 1, day2_bbandjson[i2]]
-                pred_price_l = pred_list_json[i2][2][id1 - 1, day2_bbandjson[i2]]
+                tmpmaxcol = np.argmax([i3[id1 - 1] for i3 in gain_json[i2]])
+                pred_price_c = pred_list_json[i2][0][id1 - 1, tmpmaxcol]
+                pred_price_h = pred_list_json[i2][1][id1 - 1, tmpmaxcol]
+                pred_price_l = pred_list_json[i2][2][id1 - 1, tmpmaxcol]
+                #
                 ideal_outprice = price_pre * (pred_price_c + (pred_price_h - pred_price_c) * move_out_percent)
                 move_out_price = price_c if ideal_outprice > price_c_h else ideal_outprice
-                ideal_inprice = price_pre * (pred_price_c - (pred_price_c - pred_price_l) * move_in_percent)
+                ideal_inprice = price_pre * (pred_price_l + (pred_price_c - pred_price_l) * move_in_percent)
                 move_in_price = price_c if ideal_inprice < price_c_l else ideal_inprice
-                # price_c_out_json[i2] = move_out_price
-                # price_c_in_json[i2] = move_in_price
-                # todo: 1. price_c 调制跟原来一样， 2. 训练和预测 数据拆成单天
-                price_c_out_json[i2] = price_c
-                price_c_in_json[i2] = price_c
+                price_c_out_json[i2] = move_out_price
+                price_c_in_json[i2] = move_in_price
+                # todo: 1. price_c 优化模型后再看 目前因预测不准，效果太差， 2. 训练和预测 数据拆成单天
                 # 清空折现
                 if mount_pre > 0:
                     # 大于零时 平仓
-                    all_holdings[id1]["cash"] += mount_pre * policy_config["hand_unit"] * move_out_price
+                    all_holdings[id1]["cash"] += mount_pre * policy_config["hand_unit"] * price_c_out_json[i2]
                 elif mount_pre < 0:
                     # 小于零时 平仓
-                    all_holdings[id1]["cash"] += -mount_pre * policy_config["hand_unit"] * move_in_price
+                    all_holdings[id1]["cash"] += -mount_pre * policy_config["hand_unit"] * price_c_in_json[i2]
                     # 今日清空
                 all_positions[id1][i2] = 0
             # 2. 重赋总资产
@@ -623,9 +624,11 @@ class Portfolio(object):
                 price_c = predict_bars.symbol_ori_data[i2]["close"][price_cid]
                 price_h = predict_bars.symbol_ori_data[i2]["high"][price_cid]
                 price_l = predict_bars.symbol_ori_data[i2]["low"][price_cid]
-                pred_price_c = pred_list_json[i2][0][id1 - 1, day2_bbandjson[i2]]
-                pred_price_h = pred_list_json[i2][1][id1 - 1, day2_bbandjson[i2]]
-                pred_price_l = pred_list_json[i2][2][id1 - 1, day2_bbandjson[i2]]
+                # pred_list: y_reta, y_reth, y_retl, y_stdup, y_stddw, y_drawup, y_drawdw
+                tmpmaxcol = np.argmax([i3[id1 - 1] for i3 in gain_json[i2]])
+                pred_price_c = pred_list_json[i2][0][id1 - 1, tmpmaxcol]
+                pred_price_h = pred_list_json[i2][1][id1 - 1, tmpmaxcol]
+                pred_price_l = pred_list_json[i2][2][id1 - 1, tmpmaxcol]
                 mount_pre = all_positions[id1 - 1][i2]
                 mount_c = all_positions[id1][i2]
                 print("目标：{}, mount_c: {}, real_c {},real_h {},real_l {}, pred_c {},pred_h {},pred_l {}".format(

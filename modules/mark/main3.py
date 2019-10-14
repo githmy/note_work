@@ -237,8 +237,10 @@ def main(paralist):
                 "thresh_low": 1.005,
                 "thresh_high": 1.2,
                 # "thresh_high": 1.095,
-                "move_in_percent": 0.5,
-                "move_out_percent": 0.5,
+                # "move_out_percent": 0.5,
+                # "move_in_percent": 0.5,
+                "move_out_percent": 0.999,
+                "move_in_percent": 0.001,
             },
             # fake_data显示设置
             "showconfig": {
