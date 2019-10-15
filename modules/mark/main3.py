@@ -52,6 +52,7 @@ class Acount(object):
         self.date_range = config["data_ori"]["date_range"]
         self.data_type = config["data_ori"]["data_type"]
         self.bband_list = config["data_ori"]["bband_list"]
+        self.uband_list = config["data_ori"]["uband_list"]
         self.split = config["data_ori"]["split"]
         self.newdata = config["data_ori"]["newdata"]
         self.csv_dir = config["data_ori"]["csv_dir"]
@@ -93,19 +94,19 @@ class Acount(object):
                 self.symbol_list = [i1 for i1 in self.symbol_list if i1 not in self.exclude_list]
                 backtest = Backtest(
                     self.initial_capital, self.heartbeat, self.start_predict,
-                    self.csv_dir, self.symbol_list, self.ave_list, self.bband_list,
+                    self.csv_dir, self.symbol_list, self.ave_list, self.bband_list, self.uband_list,
                     CSVDataHandler, SimulatedExecutionHandler, Portfolio, MovingAverageCrossStrategy)
             elif self.data_type == "实盘":  # 已有数据，动态模拟, 未完善
                 self.symbol_list = [i1 for i1 in self.symbol_list if i1 not in self.exclude_list]
                 backtest = Backtest(
                     self.initial_capital, self.heartbeat, self.start_predict,
-                    self.csv_dir, self.symbol_list, self.ave_list, self.bband_list,
+                    self.csv_dir, self.symbol_list, self.ave_list, self.bband_list, self.uband_list,
                     CSVAppendDataHandler, SimulatedExecutionHandler, Portfolio, MultiCrossStrategy)
             elif self.data_type == "symbol_train_type":  # 已有数据，直观统计
                 self.symbol_list = [i1 for i1 in self.symbol_list if i1 not in self.exclude_list]
                 backtest = LoadBacktest(
                     self.initial_capital, self.heartbeat, self.start_predict,
-                    self.csv_dir, self.symbol_list, self.ave_list, self.bband_list,
+                    self.csv_dir, self.symbol_list, self.ave_list, self.bband_list, self.uband_list,
                     LoadCSVHandler, SimulatedExecutionHandler, Portfolio, MlaStrategy,
                     split=0.8, newdata=self.newdata, date_range=self.date_range, assistant=self.email_list,
                     model_paras=self.model_paras)
@@ -113,7 +114,7 @@ class Acount(object):
                 self.symbol_list = [i1 for i1 in self._get_train_list() if i1 not in self.exclude_list]
                 backtest = LoadBacktest(
                     self.initial_capital, self.heartbeat, self.start_predict,
-                    self.csv_dir, self.symbol_list, self.ave_list, self.bband_list,
+                    self.csv_dir, self.symbol_list, self.ave_list, self.bband_list, self.uband_list,
                     LoadCSVHandler, SimulatedExecutionHandler, Portfolio, MlaStrategy,
                     split=0.8, newdata=self.newdata, date_range=self.date_range, assistant=self.email_list,
                     model_paras=self.model_paras)
@@ -121,15 +122,15 @@ class Acount(object):
                 self.symbol_list = [i1 for i1 in choice_list(self.plate_list) if i1 not in self.exclude_list]
                 backtest = LoadBacktest(
                     self.initial_capital, self.heartbeat, self.start_predict,
-                    self.csv_dir, self.symbol_list, self.ave_list, self.bband_list,
+                    self.csv_dir, self.symbol_list, self.ave_list, self.bband_list, self.uband_list,
                     LoadCSVHandler, SimulatedExecutionHandler, Portfolio, MlaStrategy,
                     split=0.8, newdata=self.newdata, date_range=self.date_range, assistant=self.email_list,
                     model_paras=self.model_paras)
-            elif self.data_type == "网络获取数据":  # 已有数据，统计强化学习
+            elif self.func_type == "网络获取数据":  # 已有数据，统计强化学习
                 self.symbol_list = [i1 for i1 in self._get_train_list() if i1 not in self.exclude_list]
                 backtest = LoadBacktest(
                     self.initial_capital, self.heartbeat, self.start_predict,
-                    None, self.symbol_list, self.ave_list, self.bband_list,
+                    None, self.symbol_list, self.ave_list, self.bband_list, self.uband_list,
                     LoadCSVHandler, SimulatedExecutionHandler, Portfolio, MlaStrategy,
                     split=0.8, newdata=self.newdata, date_range=self.date_range, assistant=self.email_list,
                     model_paras=self.model_paras)
@@ -144,7 +145,7 @@ class Acount(object):
         # 1. 判断加载模型
         backtest = self._pattern_generate()
         # 2. 判断执行功能
-        if self.data_type == "网络获取数据":
+        if self.func_type == "网络获取数据":
             return None
         elif self.func_type == "train":
             backtest.train()
@@ -176,13 +177,13 @@ def main(paralist):
                 # 不使用生成的特征数据
                 # "newdata": 1,
                 "newdata": 0,
-                # "func_type": "train",
-                "func_type": "backtest",
+                # "func_type": "网络获取数据",
+                "func_type": "train",
+                # "func_type": "backtest",
                 # "func_type": "lastday",
-                # "data_type": "网络获取数据",
-                # "data_type": "general_train_type",
+                "data_type": "general_train_type",
                 # "data_type": "plate_train_type",
-                "data_type": "symbol_train_type",
+                # "data_type": "symbol_train_type",
                 "date_range": [0, None],
                 # "date_range": [-4, None],
                 # "date_range": [-2, None],
@@ -204,13 +205,14 @@ def main(paralist):
                 # "bband_list": [7],
                 # "bband_list": [19],
                 # "bband_list": [37],
-                "bband_list": [1, 5],
-                # "bband_list": [1, 2, 3, 4, 5, 6, 7],
+                # "bband_list": [1, 5],
+                "bband_list": [1, 2, 3, 4, 5, 6, 7, 19, 37],
                 # "bband_list": [5, 19],
                 # "bband_list": [1, 5, 19],
                 # "bband_list": [1, 5, 19, 37],
                 # "bband_list": [5, 19, 37],
                 # "exclude_list": ["000002_D"],
+                "uband_list": [1, 5],
                 "exclude_list": [],
             },
             "stratgey": {

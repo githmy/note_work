@@ -314,7 +314,7 @@ class Portfolio(object):
             pred_list = pred_list_json[symbols]
             # 2. 计算各种概率和收益列表
             # pred_list: y_reta, y_reth, y_retl, y_stdup, y_stddw, y_drawup, y_drawdw
-            upprb, downprb, f_ratio, gain = self.calculate_probability_every_signals(predict_bars.bband_list, pred_list)
+            upprb, downprb, f_ratio, gain = self.calculate_probability_every_signals(predict_bars.uband_list, pred_list)
             # f_ratio 必然大于零
             f_ratio_json[symbols] = f_ratio
             gain_json[symbols] = gain
