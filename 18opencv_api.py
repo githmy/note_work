@@ -93,6 +93,8 @@ def opencv_demo():
     cor = cv2.dilate(thresh, scan, iterations=1)
     # 2. 还原修补
     specular = cv2.inpaint(img, cor, 5, flags=cv2.INPAINT_TELEA)
+    # thresh：表示的是阈值（起始值） maxval：表示的是最大值 type：表示的是这里划分的时候使用的是什么类型的算法，常用值为0（cv2.THRESH_BINARY）
+    ret, binary_img = cv2.threshold(blur, 0, 1, cv2.THRESH_BINARY_INV + cv2.THRESH_OTSU)
     # 2.1 基于快速行进算法
     mask = cv2.imread('../data/mask2.png', 0)
     # 目标图像 = 源图像, 二进制掩码_指示要修复的像素, 像素周围的邻域补绘_如果要修复的区域很薄_使用较小的值会产生较少的模糊。
