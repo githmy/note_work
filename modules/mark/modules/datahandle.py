@@ -616,6 +616,7 @@ class LoadCSVHandler(object):
     # 加载衍生前值
     def generate_b_derivative(self):
         for s in self.symbol_list_with_benchmark:
+            print("gene before ", s)
             self.symbol_pre_avep[s] = []
             self.symbol_pre_avem[s] = []
             self.symbol_pre_half_std_up[s] = []

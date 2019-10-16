@@ -212,7 +212,7 @@ def main(paralist):
                 # "bband_list": [1, 5, 19, 37],
                 # "bband_list": [5, 19, 37],
                 # "exclude_list": ["000002_D"],
-                "uband_list": [1, 5],
+                "uband_list": [37],
                 "exclude_list": [],
             },
             "stratgey": {
@@ -288,8 +288,8 @@ def main(paralist):
                     "retrain": 1,
                     "globalstep": 0,
                     "dropout": 0.8,
-                    "modelname": "cnn_dense_more",
-                    # "modelname": "cnn_dense_lossave_more",
+                    # "modelname": "cnn_dense_more",
+                    "modelname": "cnn_dense_lossave_more",
                     "normal": 1e-4,
                     "sub_fix": "5",
                     "file": "learn_file"

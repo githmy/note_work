@@ -592,7 +592,7 @@ class Portfolio(object):
                 move_in_price = price_c if ideal_inprice < price_c_l else ideal_inprice
                 price_c_out_json[i2] = move_out_price
                 price_c_in_json[i2] = move_in_price
-                # todo: 1. price_c 优化模型后再看 目前因预测不准，效果太差， 2. 训练和预测 数据拆成单天
+                # todo: 1. price_c 优化模型后再看 目前因预测不准，效果太差
                 # 清空折现
                 if mount_pre > 0:
                     # 大于零时 平仓
