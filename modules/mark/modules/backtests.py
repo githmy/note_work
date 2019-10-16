@@ -15,7 +15,7 @@ from modules.datahandle import LoadCSVHandler
 
 class LoadBacktest(object):
     def __init__(self, initial_capital, heartbeat, start_date,
-                 csv_dir, symbol_list, ave_list, bband_list,
+                 csv_dir, symbol_list, ave_list, bband_list, uband_list,
                  data_handler_cls, execution_handler_cls, portfolio_cls, strategy_cls,
                  split=0.8, newdata=0, date_range=[0, None], assistant=[], model_paras=None):
         self.initial_capital = initial_capital
@@ -26,6 +26,7 @@ class LoadBacktest(object):
         self.symbol_list = symbol_list
         self.ave_list = ave_list
         self.bband_list = bband_list
+        self.uband_list = uband_list
         self.email_list = assistant
         self.data_handler_cls = data_handler_cls
         self.execution_handler_cls = execution_handler_cls
@@ -46,6 +47,7 @@ class LoadBacktest(object):
         print(len(self.symbol_list))
         print(self.ave_list)
         print(self.bband_list)
+        print(self.uband_list)
 
     # 各种实例生成
     def _generate_trading_instances(self):
@@ -54,7 +56,7 @@ class LoadBacktest(object):
         """
         logger.info("Creating DataHandler, Strategy, Portfolio and ExecutionHandler")
         self._data_handler = self.data_handler_cls(self.events, self.csv_dir, self.symbol_list, self.ave_list,
-                                                   self.bband_list)
+                                                   self.bband_list, self.uband_list)
         self._execution = self.execution_handler_cls(self.events)
         self._strategy = self.strategy_cls(self._data_handler, self.events, self.ave_list, self.bband_list)
         self._portfolio = self.portfolio_cls(self._data_handler, self.events, self.start_date,
@@ -74,11 +76,12 @@ class LoadBacktest(object):
         # self.symbol_aft_drawup
         # self.symbol_aft_drawdown
         # 1. 训练数据, 输入原始规范训练数据，待时间截断
-        train_bars = LoadCSVHandler(queue.Queue(), data_path, self.symbol_list, self.ave_list, self.bband_list)
+        # train_bars = LoadCSVHandler(queue.Queue(), data_path, self.symbol_list, self.ave_list, self.bband_list)
+        train_bars = self._data_handler
         # date_range = [1, None]
         # split = 0.8  # 先截range 再split
         # 3. 训练
-        self._strategy.train_probability_everysignals(train_bars, self.ave_list, self.bband_list, self.date_range,
+        self._strategy.train_probability_everysignals(train_bars, self.ave_list, self.uband_list, self.date_range,
                                                       newdata=self.newdata, split=self.split,
                                                       model_paras=self.model_paras, args=None)
 
@@ -89,7 +92,8 @@ class LoadBacktest(object):
         pred_list_json = {}
         # date_range = [550, None]
         # date_range = [0, None]
-        predict_bars = LoadCSVHandler(queue.Queue(), data_path, self.symbol_list, self.ave_list, self.bband_list)
+        # predict_bars = LoadCSVHandler(queue.Queue(), data_path, self.symbol_list, self.ave_list, self.bband_list)
+        predict_bars = self._data_handler
         print("get_startdate:", get_startdate)
         if get_startdate is not None:
             predict_bars.get_some_net_csv2files(get_startdate=get_startdate)
@@ -98,7 +102,7 @@ class LoadBacktest(object):
         predict_bars.generate_b_derivative()
         # 2. 预测投资比例
         print("data full lenth: {}".format(len(predict_bars.symbol_ori_data[self.symbol_list[0]]["close"].index)))
-        pred_list_json = self._strategy.predict_probability_signals(predict_bars, self.ave_list, self.bband_list,
+        pred_list_json = self._strategy.predict_probability_signals(predict_bars, self.ave_list, self.uband_list,
                                                                     self.date_range, model_paras=self.model_paras,
                                                                     args=None)
         print("data used lenth: {}".format(len(pred_list_json[self.symbol_list[0]][0])))
@@ -163,13 +167,14 @@ class LoadBacktest(object):
         """回测 最后一天的不同情况"""
         pred_list_json = {}
         # 1. 预测概率
-        predict_bars = LoadCSVHandler(queue.Queue(), data_path, self.symbol_list, self.ave_list, self.bband_list)
+        # predict_bars = LoadCSVHandler(queue.Queue(), data_path, self.symbol_list, self.ave_list, self.bband_list)
+        predict_bars = self._data_handler
         if get_startdate is not None:
             predict_bars.get_some_net_csv2files(get_startdate=get_startdate)
         predict_bars.generate_b_derivative()
         # 2. 预测投资比例
         pred_list_json, fake_ori = self._strategy.predict_fake_proba_signals(predict_bars, self.ave_list,
-                                                                             self.bband_list, showconfig,
+                                                                             self.uband_list, showconfig,
                                                                              model_paras=self.model_paras, args=None)
         # 3. 虚拟价格的操作空间
         fake_gain, fake_f_ratio, fake_mount = self._portfolio.components_res_fake_predict(predict_bars, pred_list_json,
@@ -180,7 +185,7 @@ class LoadBacktest(object):
         # 4. 绘制收益过程
         insplt = PlotTool()
         for symbol in self.symbol_list:
-            avestr = ",".join([str(i2) for i2 in self.bband_list])
+            avestr = ",".join([str(i2) for i2 in self.uband_list])
             titie_str = "gain {} ave {}".format(symbol, avestr)
             insplt.plot_dim3(fake_gain[symbol], titie_str, **showconfig)
             titie_str = "f_ratio {} ave {}".format(symbol, avestr)

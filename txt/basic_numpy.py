@@ -102,7 +102,7 @@ print(ychara_list[-1][~delpreaftsig])
 # res= df.values
 # res= np.array(df)
 
-# # 拼接垂直水平
+# # 合并 拼接垂直水平
 # np.vstack((a, b))
 # np.hstack((a, b))
 # tt = np.concatenate([X_t,X_te],axis=0)
