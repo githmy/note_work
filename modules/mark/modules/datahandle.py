@@ -536,8 +536,7 @@ class LoadCSVHandler(object):
         print("gene new data")
         self.generate_b_derivative()
         # 2. 加载衍生后值
-        self.generate_a_derivative()
-        # todo: generate_a_derivative 需要根据运行条件生成特征 需要传参
+        self.generate_a_derivative(self.bband_list)
         data_buff_dir = "everynpy_all"
         full_data_buff_dir = os.path.join(data_path, data_buff_dir)
         makesurepath(full_data_buff_dir)
@@ -641,7 +640,7 @@ class LoadCSVHandler(object):
                     self.symbol_pre_retm[s][-1].append(self.tool_ins.rise_n(self.symbol_pre_avem[s][-1], avem))
 
     # 加载衍生后值
-    def generate_a_derivative(self):
+    def generate_a_derivative(self, uband_list):
         for s in self.symbol_list_with_benchmark:
             print("generating {}".format(s))
             self.symbol_aft_retp_high[s] = []
@@ -651,7 +650,7 @@ class LoadCSVHandler(object):
             self.symbol_aft_half_std_down[s] = []
             self.symbol_aft_drawdown[s] = []
             self.symbol_aft_drawup[s] = []
-            for id2, aven in enumerate(self.bband_list):
+            for id2, aven in enumerate(uband_list):
                 # 未来n天的 最大涨跌幅
                 self.symbol_aft_retp_high[s].append(
                     self.tool_ins.general_max_highlow_ret_aft_n(self.symbol_ori_data[s], aven)[0])
@@ -665,13 +664,13 @@ class LoadCSVHandler(object):
                 self.symbol_aft_reta[s].append(
                     self.tool_ins.rise_n(self.symbol_ori_data[s]["close"], aven).shift(-aven))
                 # 临时均线数据,  方差 未来n天的 上下半std
-                self.symbol_aft_half_std_up[s].append(self.symbol_pre_half_std_up[s][id2].shift(-aven))
-                self.symbol_aft_half_std_down[s].append(self.symbol_pre_half_std_down[s][id2].shift(-aven))
+                # self.symbol_aft_half_std_up[s].append(self.symbol_pre_half_std_up[s][id2].shift(-aven))
+                # self.symbol_aft_half_std_down[s].append(self.symbol_pre_half_std_down[s][id2].shift(-aven))
                 # self.symbol_aft_half_std_up[s].append(self.symbol_pre_half_std_up[s][id2].shift(-aven + 1))
                 # self.symbol_aft_half_std_down[s].append(self.symbol_pre_half_std_down[s][id2].shift(-aven + 1))
-                # tmpup, tmpdown = self.tool_ins.general_pre_up_down_std(self.symbol_ori_data[s]["close"], aven)
-                # self.symbol_aft_half_std_up[s].append(tmpup.shift(-aven + 1))
-                # self.symbol_aft_half_std_down[s].append(tmpdown.shift(-aven + 1))
+                tmpup, tmpdown = self.tool_ins.general_pre_up_down_std(self.symbol_ori_data[s]["close"], aven)
+                self.symbol_aft_half_std_up[s].append(tmpup.shift(-aven))
+                self.symbol_aft_half_std_down[s].append(tmpdown.shift(-aven))
 
     # 生成最后一日的空间 前一日的[-0.1~0.1]
     def generate_lastspace(self, range_low=-10, range_high=11, range_eff=0.01, mount_low=-10, mount_high=11,

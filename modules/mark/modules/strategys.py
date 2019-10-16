@@ -748,7 +748,7 @@ class MlaStrategy(strategy.BacktestingStrategy):
         elif len(self.symbol_list) <= 500:
             # 只加载不保存
             train_bars.generate_b_derivative()
-            train_bars.generate_a_derivative()
+            train_bars.generate_a_derivative(uband_list)
             inputs_t, reta_t, reth_t, retl_t, stdup_t, stddw_t, drawup_t, drawdw_t, inputs_v, reta_v, reth_v, retl_v, \
             stdup_v, stddw_v, drawup_v, drawdw_v = train_bars.prepare_every_train_data(date_range, split)
             loadsuccess = 1
@@ -788,106 +788,6 @@ class MlaStrategy(strategy.BacktestingStrategy):
                                                drawdw_v[:, index_bband:index_bband + 1],
                                                batch_size, num_epochs)
 
-    def train_probability_everysignalsss(self, train_bars, ave_list, bband_list, date_range, newdata=1, split=0.8,
-                                         model_paras=None, args=None):
-        """训练"""
-        # 1. 输入参数
-        self._prepare_model_para(model_paras=model_paras, args=args)
-        # 2. 生产数据 随机打乱，分成batch
-        data_buff_dir = "everynpy_" + "_".join([str(i1) for i1 in bband_list])
-        full_data_buff_dir = os.path.join(data_path, data_buff_dir)
-        makesurepath(full_data_buff_dir)
-        # 如果存在生成文件 且  newdata 标记为0 且 数量巨大超过500个即通用计算,  则使用老数据
-        # if os.path.isfile(os.path.join(full_data_buff_dir, "drawdw_v.npy")) and 1 != newdata:
-        loadsuccess = 0
-        if 1 != newdata and len(self.symbol_list) > 500:
-            print("loading old data")
-            try:
-                inputs_t = np.load(os.path.join(full_data_buff_dir, "inputs_t.npy"))
-                inputs_v = np.load(os.path.join(full_data_buff_dir, "inputs_v.npy"))
-                shape_inputs_t = inputs_t.shape
-                shape_inputs_v = inputs_v.shape
-                lenth_y = len(self.bband_list)
-                reta_t = np.zeros((shape_inputs_t[0], lenth_y))
-                reth_t = np.zeros((shape_inputs_t[0], lenth_y))
-                retl_t = np.zeros((shape_inputs_t[0], lenth_y))
-                stdup_t = np.zeros((shape_inputs_t[0], lenth_y))
-                stddw_t = np.zeros((shape_inputs_t[0], lenth_y))
-                drawup_t = np.zeros((shape_inputs_t[0], lenth_y))
-                drawdw_t = np.zeros((shape_inputs_t[0], lenth_y))
-                reta_v = np.zeros((shape_inputs_v[0], lenth_y))
-                reth_v = np.zeros((shape_inputs_v[0], lenth_y))
-                retl_v = np.zeros((shape_inputs_v[0], lenth_y))
-                stdup_v = np.zeros((shape_inputs_v[0], lenth_y))
-                stddw_v = np.zeros((shape_inputs_v[0], lenth_y))
-                drawup_v = np.zeros((shape_inputs_v[0], lenth_y))
-                drawdw_v = np.zeros((shape_inputs_v[0], lenth_y))
-                for id2, i2 in enumerate(bband_list):
-                    reta_t[:, id2] = np.load(os.path.join(full_data_buff_dir, "reta_t_{}.npy".format(id2)))
-                    reth_t[:, id2] = np.load(os.path.join(full_data_buff_dir, "reth_t_{}.npy".format(id2)))
-                    retl_t[:, id2] = np.load(os.path.join(full_data_buff_dir, "retl_t_{}.npy".format(id2)))
-                    stdup_t[:, id2] = np.load(os.path.join(full_data_buff_dir, "stdup_t_{}.npy".format(id2)))
-                    stddw_t[:, id2] = np.load(os.path.join(full_data_buff_dir, "stddw_t_{}.npy".format(id2)))
-                    drawup_t[:, id2] = np.load(os.path.join(full_data_buff_dir, "drawup_t_{}.npy".format(id2)))
-                    drawdw_t[:, id2] = np.load(os.path.join(full_data_buff_dir, "drawdw_t_{}.npy".format(id2)))
-                    reta_v[:, id2] = np.load(os.path.join(full_data_buff_dir, "reta_v_{}.npy".format(id2)))
-                    reth_v[:, id2] = np.load(os.path.join(full_data_buff_dir, "reth_v_{}.npy".format(id2)))
-                    retl_v[:, id2] = np.load(os.path.join(full_data_buff_dir, "retl_v_{}.npy".format(id2)))
-                    stdup_v[:, id2] = np.load(os.path.join(full_data_buff_dir, "stdup_v_{}.npy".format(id2)))
-                    stddw_v[:, id2] = np.load(os.path.join(full_data_buff_dir, "stddw_v_{}.npy".format(id2)))
-                    drawup_v[:, id2] = np.load(os.path.join(full_data_buff_dir, "drawup_v_{}.npy".format(id2)))
-                    drawdw_v[:, id2] = np.load(os.path.join(full_data_buff_dir, "drawdw_v_{}.npy".format(id2)))
-                # 打印尺寸
-                print_range(train_bars, bband_list, ave_list, date_range, split)
-                loadsuccess = 1
-            except Exception as e:
-                loadsuccess = 0
-        elif len(self.symbol_list) <= 500:
-            # 只加载不保存
-            train_bars.generate_b_derivative()
-            train_bars.generate_a_derivative()
-            loadsuccess = 1
-        if 0 == loadsuccess:
-            # 2. 加载衍生前值
-            print("gene new data")
-            train_bars.generate_b_derivative()
-            # 2. 加载衍生后值
-            train_bars.generate_a_derivative()
-            inputs_t, reta_t, reth_t, retl_t, stdup_t, stddw_t, drawup_t, drawdw_t, inputs_v, reta_v, reth_v, retl_v, \
-            stdup_v, stddw_v, drawup_v, drawdw_v = self._prepare_every_train_data(train_bars, ave_list, bband_list,
-                                                                                  date_range, split)
-            np.save(os.path.join(full_data_buff_dir, "inputs_t"), inputs_t)
-            np.save(os.path.join(full_data_buff_dir, "inputs_v"), inputs_v)
-            for id2, i2 in enumerate(bband_list):
-                np.save(os.path.join(full_data_buff_dir, "reta_t_{}".format(i2)), reta_t[:, id2])
-                np.save(os.path.join(full_data_buff_dir, "reth_t_{}".format(i2)), reth_t[:, id2])
-                np.save(os.path.join(full_data_buff_dir, "retl_t_{}".format(i2)), retl_t[:, id2])
-                np.save(os.path.join(full_data_buff_dir, "stdup_t_{}".format(i2)), stdup_t[:, id2])
-                np.save(os.path.join(full_data_buff_dir, "stddw_t_{}".format(i2)), stddw_t[:, id2])
-                np.save(os.path.join(full_data_buff_dir, "drawup_t_{}".format(i2)), drawup_t[:, id2])
-                np.save(os.path.join(full_data_buff_dir, "drawdw_t_{}".format(i2)), drawdw_t[:, id2])
-                np.save(os.path.join(full_data_buff_dir, "reta_v_{}".format(i2)), reta_v[:, id2])
-                np.save(os.path.join(full_data_buff_dir, "reth_v_{}".format(i2)), reth_v[:, id2])
-                np.save(os.path.join(full_data_buff_dir, "retl_v_{}".format(i2)), retl_v[:, id2])
-                np.save(os.path.join(full_data_buff_dir, "stdup_v_{}".format(i2)), stdup_v[:, id2])
-                np.save(os.path.join(full_data_buff_dir, "stddw_v_{}".format(i2)), stddw_v[:, id2])
-                np.save(os.path.join(full_data_buff_dir, "drawup_v_{}".format(i2)), drawup_v[:, id2])
-                np.save(os.path.join(full_data_buff_dir, "drawdw_v_{}".format(i2)), drawdw_v[:, id2])
-        # 3. 训练
-        print(inputs_t.shape, reta_t.shape, reth_t.shape, retl_t.shape,
-              stdup_t.shape, stddw_t.shape, drawup_t.shape, drawdw_t.shape,
-              inputs_v.shape, reta_v.shape, reth_v.shape, retl_v.shape,
-              stdup_v.shape, stddw_v.shape, drawup_v.shape, drawdw_v.shape)
-        print("start-training")
-        self.trainconfig["tailname"] += data_buff_dir
-        modelcrnn = CRNNevery(ave_list, bband_list, config=self.trainconfig)
-        modelcrnn.buildModel()
-        batch_size = self.trainconfig["batchsize"]
-        num_epochs = self.trainconfig["epoch"]
-        globalstep = modelcrnn.batch_train(inputs_t, reta_t, reth_t, retl_t, stdup_t, stddw_t, drawup_t, drawdw_t,
-                                           inputs_v, reta_v, reth_v, retl_v, stdup_v, stddw_v, drawup_v, drawdw_v,
-                                           batch_size, num_epochs)
-
     def predict_probability_signals(self, predict_bars, ave_list, uband_list, date_range, model_paras=None, args=None):
         """预测"""
         # 1. 输入参数
@@ -920,7 +820,8 @@ class MlaStrategy(strategy.BacktestingStrategy):
             pred_list_json[symbol] = tmp_chara
         return pred_list_json
 
-    def predict_fake_proba_signalsssss(self, predict_bars, ave_list, uband_list, showconfig, model_paras=None, args=None):
+    def predict_fake_proba_signalsssss(self, predict_bars, ave_list, uband_list, showconfig, model_paras=None,
+                                       args=None):
         """预测"""
         # 1. 输入参数
         self._prepare_model_para(model_paras=model_paras, args=args)
