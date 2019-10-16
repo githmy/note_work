@@ -428,6 +428,8 @@ def nlp资料():
     # 108. 语音情感分析 https://github.com/MITESHPUTHRANNEU/Speech-Emotion-Analyzer
     # 109. 中文ULMFiT 情感分析 文本分类 语料及模型 https://github.com/bigboNed3/chinese_ulmfit
     # 110. 一个拍照做题程序。输入一张包含数学计算题的图片，输出识别出的数学计算式以及计算结果 https://github.com/Roujack/mathAI
+    # 110. 打印公式识别：https://github.com/LinXueyuanStdio/LaTeX_OCR
+    # 110. yolo原理与实现：https://blog.csdn.net/qq8993174/article/details/90038730
     # 111. 世界各国大规模人名库 https://github.com/philipperemy/name-dataset
     # 112. 一个利用有趣中文语料库 qingyun 训练出来的中文聊天机器人 https://github.com/Doragd/Chinese-Chatbot-PyTorch-Implementation
     # 使用了青云语料10万语料，本repo中也有该语料的链接

@@ -537,6 +537,7 @@ class LoadCSVHandler(object):
         self.generate_b_derivative()
         # 2. 加载衍生后值
         self.generate_a_derivative()
+        # todo: generate_a_derivative 需要根据运行条件生成特征 需要传参
         data_buff_dir = "everynpy_all"
         full_data_buff_dir = os.path.join(data_path, data_buff_dir)
         makesurepath(full_data_buff_dir)
