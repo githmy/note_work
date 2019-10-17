@@ -20,10 +20,9 @@ class AbstractModeltensor(object):
 
 
 class CRNN(AbstractModeltensor):
-    def __init__(self, ave_list, bband_list, config=None):
+    def __init__(self, ave_list, uband_list, config=None):
         super(CRNN, self).__init__(config)
         self.modeldic = {
-            "cnn_dense": self._cnn_dense_model,  # 原始结构
             "cnn_dense_more": self._cnn_dense_more_model,
             "cnn_full": self._cnn_full_model,  # 原始结构
             "full": self._fullmodel,  # 原始结构
@@ -35,7 +34,7 @@ class CRNN(AbstractModeltensor):
         }
         self.ydim = 1
         self.keep_prob_ph = config["dropout"]
-        self.base_dim, self.much_dim = len(bband_list) * 3, len(bband_list) * 4
+        self.base_dim, self.much_dim = len(uband_list) * 3, len(uband_list) * 4
         self.input_dim = len(ave_list) * (2 * len(ave_list) + 2)
         with tf.name_scope('Inputs'):
             self.input_p = tf.placeholder(tf.float32, [None, self.input_dim])
@@ -122,38 +121,6 @@ class CRNN(AbstractModeltensor):
         tf.summary.scalar('pred_bene', pred_bene)  # 记录标量的变化
         tf.summary.scalar('space_loss', space_loss)  # 记录标量的变化
         return None
-
-    def _cnn_dense_model(self):
-        # 部分1，预测值
-        dense1 = tf.layers.dense(inputs=self.input_p, units=128, activation=tf.nn.relu, name="layer_dense1")
-        concat1 = tf.concat([self.input_p, dense1], 1, name='concat1')
-        denseo1 = tf.nn.dropout(concat1, keep_prob=self.keep_prob_ph)
-        # tf.summary.histogram('layer_dense1', dense1)  # 记录标量的变化
-        dense2 = tf.layers.dense(inputs=denseo1, units=512, activation=tf.nn.relu, name="layer_dense2")
-        concat2 = tf.concat([self.input_p, dense1, dense2], 1, name='concat2')
-        denseo2 = tf.nn.dropout(concat2, keep_prob=self.keep_prob_ph)
-        dense3 = tf.layers.dense(inputs=denseo2, units=256, activation=tf.nn.relu, name="layer_dense3")
-        denseo3 = tf.nn.dropout(dense3, keep_prob=self.keep_prob_ph)
-        dense4 = tf.layers.dense(inputs=denseo3, units=128, activation=tf.nn.relu, name="layer_dense4")
-        denseo4 = tf.nn.dropout(dense4, keep_prob=self.keep_prob_ph)
-        # tf.summary.histogram('layer_dense2', dense2)  # 记录标量的变化
-        y_base = tf.layers.dense(inputs=denseo4, units=self.base_dim, activation=None, name="y_base")
-        y_much = tf.layers.dense(inputs=denseo4, units=self.much_dim, activation=None, name="y_much")
-        tf.summary.histogram('y_base', y_base)  # 记录标量的变化
-        tf.summary.histogram('y_much', y_much)  # 记录标量的变化
-        # 损失返回值
-        y_loss_base = tf.reduce_mean(tf.square(y_base - self.target_base_y), name="y_loss_base")
-        y_loss_much = tf.reduce_mean(tf.square(y_much - self.target_much_y), name="y_loss_much")
-        # 猜错的获取 实际盈利值的负数
-        # self.learn_rate = tf.Variable(self.learn_rate_p, name="lr", trainable=False)
-        # self.update_lr = tf.assign(self.learn_rate, tf.multiply(self.lr_decay, self.learn_rate))
-        self.train_list = [y_loss_base, y_loss_much]
-        self.valid_list = [y_loss_base, y_loss_much]
-        self.pred_list = [y_base, y_much]
-        # 打印信息
-        tf.summary.scalar('lr', self.learn_rate_p)  # 记录标量的变化
-        tf.summary.scalar('y_loss_base', y_loss_base)  # 记录标量的变化
-        tf.summary.scalar('y_loss_much', y_loss_much)  # 记录标量的变化
 
     def _cnn_dense_more_model(self):
         # 部分1，预测值
@@ -303,19 +270,18 @@ class CRNN(AbstractModeltensor):
 
 
 class CRNNevery(AbstractModeltensor):
-    def __init__(self, ave_list, bband_list, config=None):
+    def __init__(self, ave_list, uband_list, config=None):
         super(CRNNevery, self).__init__(config)
         self.graph = tf.Graph()  # 为每个类(实例)单独创建一个graph
         self.modeldic = {
-            "cnn_dense": self._cnn_dense_model,  # 原始结构
             "cnn_dense_more": self._cnn_dense_more_model,
             "cnn_dense_less": self._cnn_dense_less_model,
             "cnn_dense_lossave_more": self._cnn_dense_lossave_more_model,
         }
         self.ydim = 1
         self.keep_prob_ph = config["dropout"]
-        self.bband_list = bband_list
-        self.out_dim = len(bband_list)
+        self.uband_list = uband_list
+        self.out_dim = len(uband_list)
         self.input_dim = len(ave_list) * (2 * len(ave_list) + 2)
         with self.graph.as_default():
             with tf.name_scope('Inputs'):
@@ -371,13 +337,13 @@ class CRNNevery(AbstractModeltensor):
             tf.summary.histogram('y_drawup', y_drawup)  # 记录标量的变化
             tf.summary.histogram('y_drawdw', y_drawdw)  # 记录标量的变化
             # 损失返回值
-            y_loss_reta = tf.reduce_mean(tf.square(y_reta - self.reta), name="y_loss_reta")
-            y_loss_reth = tf.reduce_mean(tf.square(y_reth - self.reth), name="y_loss_reth")
-            y_loss_retl = tf.reduce_mean(tf.square(y_retl - self.retl), name="y_loss_retl")
-            y_loss_stdup = tf.reduce_mean(tf.square(y_stdup - self.stdup), name="y_loss_stdup")
-            y_loss_stddw = tf.reduce_mean(tf.square(y_stddw - self.stddw), name="y_loss_stddw")
-            y_loss_drawup = tf.reduce_mean(tf.square(y_drawup - self.drawup), name="y_loss_drawup")
-            y_loss_drawdw = tf.reduce_mean(tf.square(y_drawdw - self.drawdw), name="y_loss_drawdw")
+            y_loss_reta = tf.sqrt(tf.reduce_mean(tf.square(y_reta - self.reta)), name="y_loss_reta")
+            y_loss_reth = tf.sqrt(tf.reduce_mean(tf.square(y_reth - self.reth)), name="y_loss_reth")
+            y_loss_retl = tf.sqrt(tf.reduce_mean(tf.square(y_retl - self.retl)), name="y_loss_retl")
+            y_loss_stdup = tf.sqrt(tf.reduce_mean(tf.square(y_stdup - self.stdup)), name="y_loss_stdup")
+            y_loss_stddw = tf.sqrt(tf.reduce_mean(tf.square(y_stddw - self.stddw)), name="y_loss_stddw")
+            y_loss_drawup = tf.sqrt(tf.reduce_mean(tf.square(y_drawup - self.drawup)), name="y_loss_drawup")
+            y_loss_drawdw = tf.sqrt(tf.reduce_mean(tf.square(y_drawdw - self.drawdw)), name="y_loss_drawdw")
             # 猜错的获取 实际盈利值的负数
             # self.learn_rate = tf.Variable(self.learn_rate_p, name="lr", trainable=False)
             # self.update_lr = tf.assign(self.learn_rate, tf.multiply(self.lr_decay, self.learn_rate))
@@ -396,61 +362,6 @@ class CRNNevery(AbstractModeltensor):
             tf.summary.scalar('y_loss_drawdw', y_loss_drawdw)  # 记录标量的变化
             tf.summary.scalar('lr', self.learn_rate_p)  # 记录标量的变化
             return None
-
-    def _cnn_dense_model(self):
-        with self.graph.as_default():
-            # 部分1，预测值
-            dense1 = tf.layers.dense(inputs=self.input_p, units=128, activation=tf.nn.elu, name="layer_dense1")
-            concat1 = tf.concat([self.input_p, dense1], 1, name='concat1')
-            denseo1 = tf.nn.dropout(concat1, keep_prob=self.keep_prob_ph)
-            # tf.summary.histogram('layer_dense1', dense1)  # 记录标量的变化
-            dense2 = tf.layers.dense(inputs=denseo1, units=512, activation=tf.nn.elu, name="layer_dense2")
-            concat2 = tf.concat([self.input_p, dense1, dense2], 1, name='concat2')
-            denseo2 = tf.nn.dropout(concat2, keep_prob=self.keep_prob_ph)
-            dense3 = tf.layers.dense(inputs=denseo2, units=256, activation=tf.nn.elu, name="layer_dense3")
-            denseo3 = tf.nn.dropout(dense3, keep_prob=self.keep_prob_ph)
-            dense4 = tf.layers.dense(inputs=denseo3, units=128, activation=tf.nn.elu, name="layer_dense4")
-            denseo4 = tf.nn.dropout(dense4, keep_prob=self.keep_prob_ph)
-            # tf.summary.histogram('layer_dense2', dense2)  # 记录标量的变化
-            y_reta = tf.layers.dense(inputs=denseo4, units=self.out_dim, activation=None, name="y_reta")
-            y_reth = tf.layers.dense(inputs=denseo4, units=self.out_dim, activation=None, name="y_reth")
-            y_retl = tf.layers.dense(inputs=denseo4, units=self.out_dim, activation=None, name="y_retl")
-            y_stdup = tf.layers.dense(inputs=denseo4, units=self.out_dim, activation=None, name="y_stdup")
-            y_stddw = tf.layers.dense(inputs=denseo4, units=self.out_dim, activation=None, name="y_stddw")
-            y_drawup = tf.layers.dense(inputs=denseo4, units=self.out_dim, activation=None, name="y_drawup")
-            y_drawdw = tf.layers.dense(inputs=denseo4, units=self.out_dim, activation=None, name="y_drawdw")
-            tf.summary.histogram('y_reta', y_reta)  # 记录标量的变化
-            tf.summary.histogram('y_reth', y_reth)  # 记录标量的变化
-            tf.summary.histogram('y_retl', y_retl)  # 记录标量的变化
-            tf.summary.histogram('y_stdup', y_stdup)  # 记录标量的变化
-            tf.summary.histogram('y_stddw', y_stddw)  # 记录标量的变化
-            tf.summary.histogram('y_drawup', y_drawup)  # 记录标量的变化
-            tf.summary.histogram('y_drawdw', y_drawdw)  # 记录标量的变化
-            # 损失返回值
-            y_loss_reta = tf.reduce_mean(tf.square(y_reta - self.reta), name="y_loss_reta")
-            y_loss_reth = tf.reduce_mean(tf.square(y_reth - self.reth), name="y_loss_reth")
-            y_loss_retl = tf.reduce_mean(tf.square(y_retl - self.retl), name="y_loss_retl")
-            y_loss_stdup = tf.reduce_mean(tf.square(y_stdup - self.stdup), name="y_loss_stdup")
-            y_loss_stddw = tf.reduce_mean(tf.square(y_stddw - self.stddw), name="y_loss_stddw")
-            y_loss_drawup = tf.reduce_mean(tf.square(y_drawup - self.drawup), name="y_loss_drawup")
-            y_loss_drawdw = tf.reduce_mean(tf.square(y_drawdw - self.drawdw), name="y_loss_drawdw")
-            # 猜错的获取 实际盈利值的负数
-            # self.learn_rate = tf.Variable(self.learn_rate_p, name="lr", trainable=False)
-            # self.update_lr = tf.assign(self.learn_rate, tf.multiply(self.lr_decay, self.learn_rate))
-            self.train_list = [y_loss_reta, y_loss_reth, y_loss_retl, y_loss_stdup, y_loss_stddw, y_loss_drawup,
-                               y_loss_drawdw]
-            self.valid_list = [y_loss_reta, y_loss_reth, y_loss_retl, y_loss_stdup, y_loss_stddw, y_loss_drawup,
-                               y_loss_drawdw]
-            self.pred_list = [y_reta, y_reth, y_retl, y_stdup, y_stddw, y_drawup, y_drawdw]
-            # 打印信息
-            tf.summary.scalar('y_loss_reta', y_loss_reta)  # 记录标量的变化
-            tf.summary.scalar('y_loss_reth', y_loss_reth)  # 记录标量的变化
-            tf.summary.scalar('y_loss_retl', y_loss_retl)  # 记录标量的变化
-            tf.summary.scalar('y_loss_stdup', y_loss_stdup)  # 记录标量的变化
-            tf.summary.scalar('y_loss_stddw', y_loss_stddw)  # 记录标量的变化
-            tf.summary.scalar('y_loss_drawup', y_loss_drawup)  # 记录标量的变化
-            tf.summary.scalar('y_loss_drawdw', y_loss_drawdw)  # 记录标量的变化
-            tf.summary.scalar('lr', self.learn_rate_p)  # 记录标量的变化
 
     def _cnn_dense_more_model(self):
         with self.graph.as_default():
@@ -483,13 +394,13 @@ class CRNNevery(AbstractModeltensor):
             tf.summary.histogram('y_drawup', y_drawup)  # 记录标量的变化
             tf.summary.histogram('y_drawdw', y_drawdw)  # 记录标量的变化
             # 损失返回值
-            y_loss_reta = tf.reduce_mean(tf.square(y_reta - self.reta), name="y_loss_reta")
-            y_loss_reth = tf.reduce_mean(tf.square(y_reth - self.reth), name="y_loss_reth")
-            y_loss_retl = tf.reduce_mean(tf.square(y_retl - self.retl), name="y_loss_retl")
-            y_loss_stdup = tf.reduce_mean(tf.square(y_stdup - self.stdup), name="y_loss_stdup")
-            y_loss_stddw = tf.reduce_mean(tf.square(y_stddw - self.stddw), name="y_loss_stddw")
-            y_loss_drawup = tf.reduce_mean(tf.square(y_drawup - self.drawup), name="y_loss_drawup")
-            y_loss_drawdw = tf.reduce_mean(tf.square(y_drawdw - self.drawdw), name="y_loss_drawdw")
+            y_loss_reta = tf.sqrt(tf.reduce_mean(tf.square(y_reta - self.reta)), name="y_loss_reta")
+            y_loss_reth = tf.sqrt(tf.reduce_mean(tf.square(y_reth - self.reth)), name="y_loss_reth")
+            y_loss_retl = tf.sqrt(tf.reduce_mean(tf.square(y_retl - self.retl)), name="y_loss_retl")
+            y_loss_stdup = tf.sqrt(tf.reduce_mean(tf.square(y_stdup - self.stdup)), name="y_loss_stdup")
+            y_loss_stddw = tf.sqrt(tf.reduce_mean(tf.square(y_stddw - self.stddw)), name="y_loss_stddw")
+            y_loss_drawup = tf.sqrt(tf.reduce_mean(tf.square(y_drawup - self.drawup)), name="y_loss_drawup")
+            y_loss_drawdw = tf.sqrt(tf.reduce_mean(tf.square(y_drawdw - self.drawdw)), name="y_loss_drawdw")
             # 猜错的获取 实际盈利值的负数
             # self.learn_rate = tf.Variable(self.learn_rate_p, name="lr", trainable=False)
             # self.update_lr = tf.assign(self.learn_rate, tf.multiply(self.lr_decay, self.learn_rate))
@@ -539,26 +450,26 @@ class CRNNevery(AbstractModeltensor):
             tf.summary.histogram('y_drawup', y_drawup)  # 记录标量的变化
             tf.summary.histogram('y_drawdw', y_drawdw)  # 记录标量的变化
             # 损失返回值
-            y_loss_reta = tf.reduce_mean(
-                tf.square(y_reta - self.reta) / tf.cast(tf.constant(self.bband_list), tf.float32),
+            y_loss_reta = tf.sqrt(tf.reduce_mean(
+                tf.square(y_reta - self.reta) / tf.cast(tf.constant(self.uband_list), tf.float32)),
                 name="y_loss_reta")
-            y_loss_reth = tf.reduce_mean(
-                tf.square(y_reth - self.reth) / tf.cast(tf.constant(self.bband_list), tf.float32),
+            y_loss_reth = tf.sqrt(tf.reduce_mean(
+                tf.square(y_reth - self.reth) / tf.cast(tf.constant(self.uband_list), tf.float32)),
                 name="y_loss_reth")
-            y_loss_retl = tf.reduce_mean(
-                tf.square(y_retl - self.retl) / tf.cast(tf.constant(self.bband_list), tf.float32),
+            y_loss_retl = tf.sqrt(tf.reduce_mean(
+                tf.square(y_retl - self.retl) / tf.cast(tf.constant(self.uband_list), tf.float32)),
                 name="y_loss_retl")
-            y_loss_stdup = tf.reduce_mean(
-                tf.square(y_stdup - self.stdup) / tf.cast(tf.constant(self.bband_list), tf.float32),
+            y_loss_stdup = tf.sqrt(tf.reduce_mean(
+                tf.square(y_stdup - self.stdup) / tf.cast(tf.constant(self.uband_list), tf.float32)),
                 name="y_loss_stdup")
-            y_loss_stddw = tf.reduce_mean(
-                tf.square(y_stddw - self.stddw) / tf.cast(tf.constant(self.bband_list), tf.float32),
+            y_loss_stddw = tf.sqrt(tf.reduce_mean(
+                tf.square(y_stddw - self.stddw) / tf.cast(tf.constant(self.uband_list), tf.float32)),
                 name="y_loss_stddw")
-            y_loss_drawup = tf.reduce_mean(
-                tf.square(y_drawup - self.drawup) / tf.cast(tf.constant(self.bband_list), tf.float32),
+            y_loss_drawup = tf.sqrt(tf.reduce_mean(
+                tf.square(y_drawup - self.drawup) / tf.cast(tf.constant(self.uband_list), tf.float32)),
                 name="y_loss_drawup")
-            y_loss_drawdw = tf.reduce_mean(
-                tf.square(y_drawdw - self.drawdw) / tf.cast(tf.constant(self.bband_list), tf.float32),
+            y_loss_drawdw = tf.sqrt(tf.reduce_mean(
+                tf.square(y_drawdw - self.drawdw) / tf.cast(tf.constant(self.uband_list), tf.float32)),
                 name="y_loss_drawdw")
             # 猜错的获取 实际盈利值的负数
             # self.learn_rate = tf.Variable(self.learn_rate_p, name="lr", trainable=False)

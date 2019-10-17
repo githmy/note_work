@@ -212,7 +212,7 @@ def main(paralist):
                 # "bband_list": [1, 5, 19, 37],
                 # "bband_list": [5, 19, 37],
                 # "exclude_list": ["000002_D"],
-                "uband_list": [37],
+                "uband_list": [19, 37],
                 "exclude_list": [],
             },
             "stratgey": {
