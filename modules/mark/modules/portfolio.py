@@ -563,14 +563,13 @@ class Portfolio(object):
             price_c_out_json = {}
             pre_key_bbandjson = target_list[id1 - 1]
             pre_key_list = list(pre_key_bbandjson.keys())
-            day2_bbandjson = copy.deepcopy(key_bbandjson)
-            day2_bbandjson.update(pre_key_bbandjson)
+            day2_bbandjson = copy.deepcopy(pre_key_bbandjson)
+            day2_bbandjson.update(key_bbandjson)
             oper_symbol = set(day2_bbandjson.keys())
             try:
                 oper_symbol.remove("没有")
             except Exception as e:
                 pass
-            # for i2 in predict_bars.symbol_list:
             # 只用昨天和今天的symbol
             for i2 in oper_symbol:
                 # 无法保证时序，只能近似 生成操作价位
@@ -592,7 +591,6 @@ class Portfolio(object):
                 move_in_price = price_c if ideal_inprice < price_c_l else ideal_inprice
                 price_c_out_json[i2] = move_out_price
                 price_c_in_json[i2] = move_in_price
-                # todo: 1. price_c 优化模型后再看 目前因预测不准，效果太差
                 # 清空折现
                 if mount_pre > 0:
                     # 大于零时 平仓
@@ -631,9 +629,10 @@ class Portfolio(object):
                 pred_price_l = pred_list_json[i2][2][id1 - 1, tmpmaxcol]
                 mount_pre = all_positions[id1 - 1][i2]
                 mount_c = all_positions[id1][i2]
-                print("目标：{}, mount_c: {}, real_c {},real_h {},real_l {}, pred_c {},pred_h {},pred_l {}".format(
-                    i2, mount_c, price_c, price_h, price_l, pred_price_c * price_pre, pred_price_h * price_pre,
-                                                            pred_price_l * price_pre))
+                print("目标：{}, mount_c: {}, mount_pre: {}, real_c {},real_h {},real_l {}, "
+                      "pred_c {},pred_h {},pred_l {}".format(i2, mount_c, mount_pre, price_c, price_h, price_l,
+                                                             pred_price_c * price_pre, pred_price_h * price_pre,
+                                                             pred_price_l * price_pre))
                 if i2 not in key_list:
                     if mount_pre == 0:
                         # 不在目标列表 且 没有仓位继续循环
