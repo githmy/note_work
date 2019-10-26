@@ -222,8 +222,8 @@ def main(paralist):
                 "portfolio_name": None
             },
             "assist_option": {
-                "email_list": ["a1593572007@126.com", "619041014@qq.com"],
-                # "email_list": ["a1593572007@126.com"],
+                # "email_list": ["a1593572007@126.com", "619041014@qq.com"],
+                "email_list": ["a1593572007@126.com"],
                 # "email_list": [],
             },
             "policy_config": {

@@ -331,11 +331,10 @@ class Portfolio(object):
         #                                                                         predict_bars, target_idlist,
         #                                                                         f_ratio_json, date_range)
         # 2.2 每天看情况报价
-        all_holdings, all_positions, all_ratios = self.simu_gains_every_history(policy_config, strategy_config,
-                                                                                predict_bars, pred_list_json,
-                                                                                target_idlist, gain_json, f_ratio_json,
-                                                                                date_range)
-        return all_holdings, all_positions, all_ratios
+        all_holdings, all_positions, all_ratios, \
+        all_oper_price = self.simu_gains_every_history(policy_config, strategy_config, predict_bars, pred_list_json,
+                                                       target_idlist, gain_json, f_ratio_json, date_range)
+        return all_holdings, all_positions, all_ratios, all_oper_price
 
     def components_res_fake_predict(self, predict_bars, pred_list_json, fake_ori, policy_config):
         # 1. 参数初始化
@@ -527,6 +526,8 @@ class Portfolio(object):
         all_holdings = []
         all_positions = []
         all_ratios = []
+        all_oper_price = []
+        # todo: 1. 为什么每次随机？ 2. 起始计数归一化。
         datalenth = len(f_ratio_json[predict_bars.symbol_list[0]][0])
         barlenth = len(predict_bars.symbol_ori_data[predict_bars.symbol_list[0]]["close"])
         date_from = date_range[0] if date_range[0] >= 0 else barlenth + date_range[0]
@@ -542,6 +543,7 @@ class Portfolio(object):
             all_positions.append(v)
             u = dict((k, v) for k, v in [(s, 0.0) for s in predict_bars.symbol_list])
             all_ratios.append(u)
+            all_oper_price.append({})
         # 2. 模拟循环每一天
         # pred_list: y_reta, y_reth, y_retl, y_stdup, y_stddw, y_drawup, y_drawdw
         move_in_percent = strategy_config["move_in_percent"]
@@ -556,7 +558,7 @@ class Portfolio(object):
             print("id1:", id1, key_bbandjson)
             if id1 == 0:
                 continue
-            # 1. 更新今日的资产 临时用cash存放，生成模拟的当天操作价位
+            # 2.1. 更新今日的资产 临时用cash存放，生成模拟的当天操作价位
             price_cid = date_from + all_holdings[id1]["datetime"]
             all_holdings[id1]["cash"] = all_holdings[id1 - 1]["cash"]
             price_c_in_json = {}
@@ -600,7 +602,7 @@ class Portfolio(object):
                     all_holdings[id1]["cash"] += -mount_pre * policy_config["hand_unit"] * price_c_in_json[i2]
                     # 今日清空
                 all_positions[id1][i2] = 0
-            # 2. 重赋总资产
+            # 2.2 重赋总资产
             all_holdings[id1]["total"] = all_holdings[id1]["cash"]
             # 根据比例，仓位计算 all_positions all_ratios
             for i2 in oper_symbol:
@@ -616,7 +618,7 @@ class Portfolio(object):
                         targ_captail = f_ratio_c * all_holdings[id1]["total"] / key_lenth
                         targ_mount = targ_captail / policy_config["hand_unit"] // price_c_in_json[i2]
                         all_positions[id1][i2] = targ_mount
-            # 4. 更新核心 加载 今日 头寸
+            # 2.3. 更新核心 加载 今日 头寸
             for i2 in oper_symbol:
                 price_pre = predict_bars.symbol_ori_data[i2]["close"][price_cid - 1]
                 price_c = predict_bars.symbol_ori_data[i2]["close"][price_cid]
@@ -629,6 +631,14 @@ class Portfolio(object):
                 pred_price_l = pred_list_json[i2][2][id1 - 1, tmpmaxcol]
                 mount_pre = all_positions[id1 - 1][i2]
                 mount_c = all_positions[id1][i2]
+                ideal_outprice = price_pre * (pred_price_c + (pred_price_h - pred_price_c) * move_out_percent)
+                ideal_inprice = price_pre * (pred_price_l + (pred_price_c - pred_price_l) * move_in_percent)
+                all_oper_price[id1][i2] = {"pre_high": float(pred_price_h), "pre_low": float(pred_price_l),
+                                           "pre_close": float(pred_price_c), "price_pre": price_pre,
+                                           "pre_high_ins": float(pred_price_h) * price_pre,
+                                           "pre_low_ins": float(pred_price_l) * price_pre,
+                                           "pre_close_ins": float(pred_price_c) * price_pre,
+                                           "in": float(ideal_inprice), "out": float(ideal_outprice)}
                 print("目标：{}, mount_c: {}, mount_pre: {}, real_c {},real_h {},real_l {}, "
                       "pred_c {},pred_h {},pred_l {}".format(i2, mount_c, mount_pre, price_c, price_h, price_l,
                                                              pred_price_c * price_pre, pred_price_h * price_pre,
@@ -687,7 +697,7 @@ class Portfolio(object):
                         math.pow(annual_ratio, 4),
                         math.pow(annual_ratio, 8),
                         math.pow(annual_ratio, 10)))
-        return all_holdings, all_positions, all_ratios
+        return all_holdings, all_positions, all_ratios, all_oper_price
 
     # 基于预测结果 盈利测试
     def calculate_probability_every_signals(self, bband_list, pred_list):

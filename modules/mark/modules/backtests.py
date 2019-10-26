@@ -109,11 +109,9 @@ class LoadBacktest(object):
         print("pred_list_json: m个指标[y_reta, y_reth, y_retl, y_stdup, y_stddw, y_drawup, y_drawdw]，n天，ave_n")
         print(pred_list_json)
         # 3. 投资回测结果 此处不需要指定date range 因为预测数据已经在此范围内
-        all_holdings, all_positions, all_ratios = self._portfolio.components_res_every_predict(predict_bars,
-                                                                                               pred_list_json,
-                                                                                               policy_config,
-                                                                                               strategy_config,
-                                                                                               self.date_range)
+        all_holdings, all_positions, all_ratios, \
+        all_oper_price = self._portfolio.components_res_every_predict(predict_bars, pred_list_json, policy_config,
+                                                                      strategy_config, self.date_range)
         # 4. 绘制收益过程
         show_list = []
         show_x = [i1["datetime"] for i1 in all_holdings]
@@ -128,7 +126,7 @@ class LoadBacktest(object):
         insplt = PlotTool()
         insplt.plot_line(show_list, titie_list)
         # 5. 返回邮件数据
-        return all_holdings[-1], all_positions[-1], all_ratios[-1]
+        return all_holdings[-1], all_positions[-1], all_ratios[-1], all_oper_price[-1]
 
     # 从回测中得到策略的表现
     def _output_performance(self):
@@ -153,12 +151,13 @@ class LoadBacktest(object):
         # self._output_performance()
         # 2. 发送邮件
         strs_list = []
-        for i1 in contents:
+        for i1 in contents[:3]:
             tmpjson = {}
             for i2 in i1:
                 if not (i1[i2] == 0 or i1[i2] == 0.0):
                     tmpjson[i2] = i1[i2]
             strs_list.append(json.dumps(tmpjson, indent=4, ensure_ascii=False))
+        strs_list.append(json.dumps(contents[3], indent=4, ensure_ascii=False))
         headstr = "策略信息"
         email_info(headstr, strs_list, addresses=self.email_list)
 
