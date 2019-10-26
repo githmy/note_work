@@ -165,13 +165,13 @@ def print_video(infile, outfile):
 # def moviepy_trans(infile, outfile, start_t=0.0, end_t=0.0):
 def moviepy_trans(infile, outfile):
     # 0. 参数定义
-    ratio_wide, ratio_heigh = 0.14, 0.1
+    ratio_wide, ratio_heigh = 0.10, 0.10
     # 1. 打开视频
     ori_video = VideoFileClip(infile)
     moviesize = (ori_video.w, ori_video.h)
     logosize = (int(ori_video.w * ratio_wide), int(ori_video.h * ratio_heigh))
     # frame_fromx, frame_fromy = moviesize[0] - logosize[0] - 40, moviesize[1] - logosize[1] - 29
-    frame_fromx, frame_fromy = moviesize[0] - logosize[0] - 39, moviesize[1] - logosize[1] - 5
+    frame_fromx, frame_fromy = moviesize[0] - logosize[0] - 80, moviesize[1] - logosize[1] - 0
 
     # print("moviesize", moviesize)
     # print("logosize", logosize)
@@ -240,7 +240,9 @@ def moviepy_trans(infile, outfile):
                     cv2.rectangle(image, left_up, right_down, color, -1)
             return image
 
-    ori_video = ori_video.fl_image(Mosaic(frame_fromx, frame_fromy, logosize[0] + 20, logosize[1] + 10, neighbor=50),
+    # ori_video = ori_video.fl_image(Mosaic(frame_fromx, frame_fromy, logosize[0] + 120, logosize[1] + 10, neighbor=100),
+    #                                apply_to=['mask'])
+    ori_video = ori_video.fl_image(Mosaic(950, 20, logosize[0] + 200, logosize[1] + 20, neighbor=100),
                                    apply_to=['mask'])
     # 3. 打logo2
     logo = ImageClip('logo_3.png')
@@ -534,13 +536,13 @@ def main():
 
 if __name__ == "__main__":
     # 视频转化单版测试
-    filehead = "pcM_5c08f39ae8200039b3d4543d"
+    filehead = "用两边平方法解无理方程九年级数学培优题验根是最重要步骤"
     # # start_t = 3.01
     # # end_t = 6.1
-    # # start_t = 36
-    # # end_t = 80
-    start_t = 9
-    end_t = 0
+    # start_t = 6
+    # end_t = 6
+    start_t = 65
+    end_t = 70
     source_path = os.path.join("D:\\", "video_data", "洋葱incom")
     source_root = os.path.join(source_path, filehead)
     mid_path = os.path.join("D:\\", "video_data", "洋葱incommid")
@@ -551,9 +553,10 @@ if __name__ == "__main__":
     target_root = os.path.join(target_path, filehead)
     if not os.path.exists(target_path):
         os.makedirs(target_path)
-    moviepy_dehead(source_root + ".mp4", mid_root + ".mp4", start_t, end_t)
     # moviepy_demid(mid_root + ".mp4", target_root + ".mp4", start_t, end_t)
+    moviepy_dehead(source_root + ".mp4", mid_root + ".mp4", start_t, end_t)
     moviepy_trans(mid_root + ".mp4", target_root + ".mp4")
+    # moviepy_trans(source_root + ".mp4", target_root + ".mp4")
 
     # # 视频批量转化
     # main()

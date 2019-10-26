@@ -341,7 +341,7 @@ class Contents2uuid(object):
         for i1 in get_special_type_iter(self.source_root, self.target_root, self.file_type):
             if os.path.isfile(i1[0] + self.file_type):
                 print(i1[0] + self.file_type)
-            #     os.remove(i1[0] + self.file_type)
+                #     os.remove(i1[0] + self.file_type)
 
     def list_content2excel(self):
         # 1. 定义输入输出
@@ -615,4 +615,11 @@ def main():
 
 # 替换知识点
 if __name__ == '__main__':
+    # def strs2uuid(strs):
+    #     namespace = uuid.NAMESPACE_URL
+    #     return str(uuid.uuid3(namespace, strs))
+    # sst = "用两边平方法解无理方程九年级数学培优题验根是最重要步骤"
+    # res = strs2uuid(sst)
+    # print(res)
+    # exit()
     main()

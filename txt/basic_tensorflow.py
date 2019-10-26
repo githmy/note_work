@@ -45,6 +45,8 @@ def neurous_network(label_pd, batch_size=10):
     # y_data = np.mat(x_data) * w_data + 10 + np.random.randn(M, 1) * 0.33
     y_data = np.array(Yt)
 
+    # 如果存在旧图，重置。
+    tf.reset_default_graph()
     # run model use session
     with tf.Session() as sess:
         with tf.name_scope("name_scope_test"):
