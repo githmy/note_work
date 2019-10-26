@@ -70,9 +70,11 @@ class MongoDB:
         x = self.mycol.update_many(myquery, newvalues)
         print(x.modified_count, "文档已修改")
 
-    def exec_require(self):
+    def exec_require(self, quire_list):
         # 显示查询结果
-        mydoc = self.mycol.find()
+        mydoc = {}
+        for col in quire_list:
+            mydoc[col] = self.mydb[col].find()
         return mydoc
 
     def exec_check(self):
