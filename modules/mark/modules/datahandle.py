@@ -298,8 +298,10 @@ class LoadCSVHandler(object):
         self.tool_ins = ElementTool()
         # 加载原始值
         if self.csv_dir is None:
+            print("_get_net_csv2files")
             self._get_net_csv2files()
         else:
+            print("open_convert_csv_files")
             self.open_convert_csv_files()
 
     def _get_net_csv2files(self):

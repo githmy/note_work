@@ -62,6 +62,10 @@ class LoadBacktest(object):
         self._portfolio = self.portfolio_cls(self._data_handler, self.events, self.start_date,
                                              self.ave_list, self.bband_list, self.initial_capital)
 
+    def get_data(self):
+        # self._data_handler.
+        print("got data")
+
     def train(self):
         # self.symbol_pre_half_std_up
         # self.symbol_pre_half_std_down

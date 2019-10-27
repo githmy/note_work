@@ -96,6 +96,14 @@ class Acount(object):
                     self.initial_capital, self.heartbeat, self.start_predict,
                     self.csv_dir, self.symbol_list, self.ave_list, self.bband_list, self.uband_list,
                     CSVDataHandler, SimulatedExecutionHandler, Portfolio, MovingAverageCrossStrategy)
+            elif self.func_type == "网络获取数据":  # 已有数据，统计强化学习
+                self.symbol_list = [i1 for i1 in self._get_train_list() if i1 not in self.exclude_list]
+                backtest = LoadBacktest(
+                    self.initial_capital, self.heartbeat, self.start_predict,
+                    None, self.symbol_list, self.ave_list, self.bband_list, self.uband_list,
+                    LoadCSVHandler, SimulatedExecutionHandler, Portfolio, MlaStrategy,
+                    split=0.8, newdata=self.newdata, date_range=self.date_range, assistant=self.email_list,
+                    model_paras=self.model_paras)
             elif self.data_type == "实盘":  # 已有数据，动态模拟, 未完善
                 self.symbol_list = [i1 for i1 in self.symbol_list if i1 not in self.exclude_list]
                 backtest = Backtest(
@@ -126,15 +134,6 @@ class Acount(object):
                     LoadCSVHandler, SimulatedExecutionHandler, Portfolio, MlaStrategy,
                     split=0.8, newdata=self.newdata, date_range=self.date_range, assistant=self.email_list,
                     model_paras=self.model_paras)
-            elif self.func_type == "网络获取数据":  # 已有数据，统计强化学习
-                self.symbol_list = [i1 for i1 in self._get_train_list() if i1 not in self.exclude_list]
-                backtest = LoadBacktest(
-                    self.initial_capital, self.heartbeat, self.start_predict,
-                    None, self.symbol_list, self.ave_list, self.bband_list, self.uband_list,
-                    LoadCSVHandler, SimulatedExecutionHandler, Portfolio, MlaStrategy,
-                    split=0.8, newdata=self.newdata, date_range=self.date_range, assistant=self.email_list,
-                    model_paras=self.model_paras)
-                return None
             else:
                 raise Exception("error data_type 只允许：实盘demo, 实盘, 模拟, 网络")
         else:
@@ -146,7 +145,7 @@ class Acount(object):
         backtest = self._pattern_generate()
         # 2. 判断执行功能
         if self.func_type == "网络获取数据":
-            return None
+            backtest.get_data()
         elif self.func_type == "train":
             backtest.train()
         elif self.func_type == "backtest":
