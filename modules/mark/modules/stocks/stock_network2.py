@@ -451,13 +451,13 @@ class CRNNevery(AbstractModeltensor):
             tf.summary.histogram('y_drawdw', y_drawdw)  # 记录标量的变化
             # 损失返回值
             y_loss_reta = tf.sqrt(tf.reduce_mean(
-                tf.square(y_reta - self.reta) / tf.cast(tf.constant(self.uband_list), tf.float32)),
+                tf.square(y_reta - self.reta - 1) / tf.cast(tf.constant(self.uband_list), tf.float32)),
                 name="y_loss_reta")
             y_loss_reth = tf.sqrt(tf.reduce_mean(
-                tf.square(y_reth - self.reth) / tf.cast(tf.constant(self.uband_list), tf.float32)),
+                tf.square(y_reth - self.reth - 1) / tf.cast(tf.constant(self.uband_list), tf.float32)),
                 name="y_loss_reth")
             y_loss_retl = tf.sqrt(tf.reduce_mean(
-                tf.square(y_retl - self.retl) / tf.cast(tf.constant(self.uband_list), tf.float32)),
+                tf.square(y_retl - self.retl - 1) / tf.cast(tf.constant(self.uband_list), tf.float32)),
                 name="y_loss_retl")
             y_loss_stdup = tf.sqrt(tf.reduce_mean(
                 tf.square(y_stdup - self.stdup) / tf.cast(tf.constant(self.uband_list), tf.float32)),
@@ -466,10 +466,10 @@ class CRNNevery(AbstractModeltensor):
                 tf.square(y_stddw - self.stddw) / tf.cast(tf.constant(self.uband_list), tf.float32)),
                 name="y_loss_stddw")
             y_loss_drawup = tf.sqrt(tf.reduce_mean(
-                tf.square(y_drawup - self.drawup) / tf.cast(tf.constant(self.uband_list), tf.float32)),
+                tf.square(y_drawup - self.drawup - 1) / tf.cast(tf.constant(self.uband_list), tf.float32)),
                 name="y_loss_drawup")
             y_loss_drawdw = tf.sqrt(tf.reduce_mean(
-                tf.square(y_drawdw - self.drawdw) / tf.cast(tf.constant(self.uband_list), tf.float32)),
+                tf.square(y_drawdw - self.drawdw - 1) / tf.cast(tf.constant(self.uband_list), tf.float32)),
                 name="y_loss_drawdw")
             # 猜错的获取 实际盈利值的负数
             # self.learn_rate = tf.Variable(self.learn_rate_p, name="lr", trainable=False)

@@ -211,118 +211,24 @@ class Portfolio(object):
         self.equity_curve.to_csv(os.path.join(out_path, 'equity.csv'))
         return stats
 
-    # 基于滞后统计结果 盈利测试
-    def components_res_base_aft(self):
-        # 1. 目标操作列表, 代号：均线考察日
-        hand_unit = 100
-        target_list = []
-        datalenth = self.bars.symbol_ori_data[self.symbol_list[0]].shape[0]
-        for i1 in range(1, datalenth + 1):
-            max_bbandid = []
-            max_list = []
-            for s in self.bars.symbol_list:
-                rank_list = [i2[i1] if not np.isnan(i2[i1]) else 0.0 for i2 in self.bars.gain[s]]
-                tmp_vlaue = max(rank_list)
-                max_bbandid.append(rank_list.index(tmp_vlaue))
-                max_list.append(tmp_vlaue)
-            day_max_val = max(max_list)
-            if day_max_val > 0.0:
-                symblname = self.bars.symbol_list[max_list.index(day_max_val)]
-            else:
-                symblname = "没有"
-            target_list.append({
-                symblname: max_bbandid[max_list.index(day_max_val)],
-            })
-        # 2. 统计值
-        self.all_holdings = []
-        self.all_positions = []
-        for i1 in range(1, datalenth + 1):
-            d = {}
-            d['datetime'] = i1
-            d['cash'] = self.initial_capital
-            d['commission'] = 0.0
-            d['total'] = self.initial_capital
-            self.all_holdings.append(d)
-            v = dict((k, v) for k, v in [(s, 0) for s in self.symbol_list])
-            self.all_positions.append(v)
-        for id1, i1 in enumerate(target_list):
-            key_list = list(i1.keys())
-            print("id1:", id1, i1, key_list)
-            if key_list[0] not in self.symbol_list:
-                print("清仓")
-                if id1 == 0:
-                    pass
-                else:
-                    self.all_holdings[id1]["cash"] = self.all_holdings[id1 - 1]["cash"]
-                    for i2 in self.symbol_list:
-                        if id1 == 0:
-                            pass
-                        elif self.all_positions[id1 - 1][i2] > 0:
-                            self.all_positions[id1][i2] = 0
-                            self.all_holdings[id1]["cash"] += self.all_positions[id1 - 1][i2] * hand_unit * \
-                                                              self.bars.symbol_ori_data[i2]["close"][
-                                                                  self.all_holdings[id1]["datetime"]]
-                    self.all_holdings[id1]["total"] = self.all_holdings[id1]["cash"]
-            else:
-                print(self.bars.f_ratio[key_list[0]][i1[key_list[0]]][self.all_holdings[id1]["datetime"]])
-                if self.bars.f_ratio[key_list[0]][i1[key_list[0]]][self.all_holdings[id1]["datetime"]] > 0:
-                    print("目标仓位相同")
-                    # self.all_holdings[id1]["total"] = self.all_holdings[id1]["cash"]
-                    if id1 == 0:
-                        pass
-                    else:
-                        self.all_holdings[id1]["cash"] = self.all_holdings[id1 - 1]["cash"]
-                        for i2 in self.symbol_list:
-                            if self.all_positions[id1 - 1][i2] > 0:
-                                self.all_holdings[id1]["cash"] += self.all_positions[id1 - 1][i2] * hand_unit * \
-                                                                  self.bars.symbol_ori_data[i2]["close"][
-                                                                      self.all_holdings[id1]["datetime"]]
-                                self.all_positions[id1][i2] = 0
-                    self.all_holdings[id1]["total"] = self.all_holdings[id1]["cash"]
-                    targ_captail = self.bars.f_ratio[key_list[0]][i1[key_list[0]]][self.all_holdings[id1]["datetime"]] * \
-                                   self.all_holdings[id1]["total"]
-                    targ_mount = targ_captail / hand_unit // self.bars.symbol_ori_data[key_list[0]]["close"][
-                        self.all_holdings[id1]["datetime"]]
-                    self.all_positions[id1][key_list[0]] = targ_mount
-                    self.all_holdings[id1]["cash"] = self.all_holdings[id1]["total"] - targ_mount * hand_unit * \
-                                                                                       self.bars.symbol_ori_data[
-                                                                                           key_list[0]]["close"][
-                                                                                           self.all_holdings[id1][
-                                                                                               "datetime"]]
-                else:
-                    print("目标仓位不同")
-                    if id1 == 0:
-                        pass
-                        # elif self.all_positions[id1 - 1][i2] != 0:
-                    else:
-                        self.all_holdings[id1]["cash"] = self.all_holdings[id1 - 1]["cash"]
-                        for i2 in self.symbol_list:
-                            self.all_positions[id1][i2] = 0
-                            self.all_holdings[id1]["cash"] += self.all_positions[id1 - 1][i2] * hand_unit * \
-                                                              self.bars.symbol_ori_data[i2]["close"][
-                                                                  self.all_holdings[id1]["datetime"]]
-                    self.all_holdings[id1]["total"] = self.all_holdings[id1]["cash"]
-            print(self.all_holdings[id1], self.all_positions[id1], self.bars.symbol_ori_data["SAPower"]["close"][
-                self.all_holdings[id1]["datetime"]])
-            # return self.all_holdings
-
     def components_res_every_predict(self, predict_bars, pred_list_json, policy_config, strategy_config, date_range):
+        # pred_list: y_reta, y_reth, y_retl, y_stdup, y_stddw, y_drawup, y_drawdw
         # 1. 参数初始化
         f_ratio_json = {}
         gain_json = {}
         for symbols in predict_bars.symbol_list:
             pred_list = pred_list_json[symbols]
             # 2. 计算各种概率和收益列表
-            # pred_list: y_reta, y_reth, y_retl, y_stdup, y_stddw, y_drawup, y_drawdw
             upprb, downprb, f_ratio, gain = self.calculate_probability_every_signals(predict_bars.uband_list, pred_list)
             # f_ratio 必然大于零
             f_ratio_json[symbols] = f_ratio
             gain_json[symbols] = gain
-        # 3. 目标操作列表, 代号：均线考察日
+        # 3. 核心策略得出：选操作目标, 代号：均线考察日
         print("gain_json 已经按band换算成单日: symbols , band_n, n天")
         # print(gain_json)
-        # 选操作目标
-        target_idlist, target_vallist = self.get_target_every_list(predict_bars.symbol_list, gain_json, strategy_config)
+        # target_idlist, target_vallist = self.get_target_list(predict_bars.symbol_list, gain_json, strategy_config)
+        target_idlist, target_vallist = self.get_target_backrisk_list(predict_bars.symbol_list, gain_json,
+                                                                      strategy_config, pred_list_json)
         print("target_idlist: n天，列表:band_idex")
         print(target_idlist)
         # 2. 统计值
@@ -360,9 +266,8 @@ class Portfolio(object):
         costs = basicost + (stamp_in * mount_in + stamp_out * mount_out) * price_c * hand_unit
         return costs
 
-    def get_target_every_list(self, symbol_list, gain_json, strategy_config):
+    def get_target_list(self, symbol_list, gain_json, strategy_config):
         # gain_json 已经按band换算成单日: symbols , band_n, n天
-        target_list = []
         target_idlist = []
         target_vallist = []
         datalenth = len(gain_json[self.symbol_list[0]][0])
@@ -374,9 +279,56 @@ class Portfolio(object):
             # 2. 每个 symbol 选 最大的bband_n做 目标值
             for s in symbol_list:
                 # 不同均线筛选
-                rank_list = [i2[i1] if not np.isnan(i2[i1]) else 0.0 for i2 in gain_json[s]]
-                tmp_vlaue = max(rank_list)
-                max_bbandid.append(rank_list.index(tmp_vlaue))
+                gain_list = [i2[i1] if not np.isnan(i2[i1]) else 0.0 for i2 in gain_json[s]]
+                tmp_vlaue = max(gain_list)
+                max_bbandid.append(gain_list.index(tmp_vlaue))
+                max_list.append(tmp_vlaue)
+            element_indexs = np.argsort(-np.array(max_list), axis=0)  # 对a按每行中元素从小到大排序, 列表加-号，即降序
+            tmpvalobj = {}
+            tmpidobj = {}
+            # 截断 小于等于 symbel 列表
+            element_indexs = element_indexs[0:target_use_num]
+            for id2, i2 in enumerate(element_indexs):
+                # if id2 > target_use_num:
+                #     break
+                day_max_val = max_list[i2]
+                if day_max_val > strategy_config["thresh_low"] and day_max_val < strategy_config["thresh_high"]:
+                    symblname = symbol_list[i2]
+                else:
+                    symblname = "没有"
+                tmpvalobj[symblname] = day_max_val
+                tmpidobj[symblname] = max_bbandid[i2]
+            target_idlist.append(tmpidobj)
+            target_vallist.append(tmpvalobj)
+        return target_idlist, target_vallist
+
+    def get_target_backrisk_list(self, symbol_list, gain_json, strategy_config, pred_list_json):
+        # gain_json 已经按band换算成单日: symbols , band_n, n天
+        # pred_list: y_reta, y_reth, y_retl, y_stdup, y_stddw, y_drawup, y_drawdw
+        target_idlist = []
+        target_vallist = []
+        datalenth = len(gain_json[self.symbol_list[0]][0])
+        target_use_num = min([len(symbol_list), strategy_config["oper_num"]])
+        for i1 in range(0, datalenth):
+            # 1. 每日筛选
+            max_bbandid = []
+            max_list = []
+            # 2. 每个 symbol 选 最大的bband_n做 目标值
+            for s in symbol_list:
+                # todo： 核心 不同均线筛选 + back draw risk
+                print(i1,s)
+                risk_list = [(i2 - 1.0) / self.bband_list[id2] + 1.0 if not np.isnan(i2) else 1.0 for id2, i2 in
+                             enumerate(pred_list_json[s][-1][i1])]
+                benefit_list = [(i2 - 1.0) / self.bband_list[id2] + 1.0 if not np.isnan(i2) else 1.0 for id2, i2 in
+                                enumerate(pred_list_json[s][-2][i1])]
+                gain_list = [i2[i1] if not np.isnan(i2[i1]) else 0.0 for i2 in gain_json[s]]
+                expect_gain_list = [risk_list[id2] * benefit_list[id2] for id2, i2 in enumerate(self.bband_list)]
+                print(risk_list)
+                print(benefit_list)
+                # expect_gain_list = [risk_list[id2] * benefit_list[id2] * gain_list[id2] for id2, i2 in enumerate(self.bband_list)]
+                # print(expect_gain_list)
+                tmp_vlaue = max(expect_gain_list)
+                max_bbandid.append(expect_gain_list.index(tmp_vlaue))
                 max_list.append(tmp_vlaue)
             element_indexs = np.argsort(-np.array(max_list), axis=0)  # 对a按每行中元素从小到大排序, 列表加-号，即降序
             tmpvalobj = {}
@@ -527,7 +479,7 @@ class Portfolio(object):
         all_positions = []
         all_ratios = []
         all_oper_price = []
-        # todo: 1. 为什么每次随机？ 2. 起始计数归一化。
+        # TODO: 1. 为什么每次随机？ 2. 起始计数归一化。
         datalenth = len(f_ratio_json[predict_bars.symbol_list[0]][0])
         barlenth = len(predict_bars.symbol_ori_data[predict_bars.symbol_list[0]]["close"])
         date_from = date_range[0] if date_range[0] >= 0 else barlenth + date_range[0]

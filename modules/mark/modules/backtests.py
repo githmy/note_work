@@ -100,15 +100,15 @@ class LoadBacktest(object):
             predict_bars.get_some_current_net_csv2files()
             predict_bars.open_convert_csv_files()
         predict_bars.generate_b_derivative()
-        # 2. 预测投资比例
+        # predict_bars.generate_a_derivative(predict_bars.uband_list)
+        # 2. 预测数据表现
         print("data full lenth: {}".format(len(predict_bars.symbol_ori_data[self.symbol_list[0]]["close"].index)))
         pred_list_json = self._strategy.predict_probability_signals(predict_bars, self.ave_list, self.uband_list,
                                                                     self.date_range, model_paras=self.model_paras,
                                                                     args=None)
         print("data used lenth: {}".format(len(pred_list_json[self.symbol_list[0]][0])))
         print("pred_list_json: m个指标[y_reta, y_reth, y_retl, y_stdup, y_stddw, y_drawup, y_drawdw]，n天，ave_n")
-        print(pred_list_json)
-        # 3. 投资回测结果 此处不需要指定date range 因为预测数据已经在此范围内
+        # 3. 投资回测结果 每一天
         all_holdings, all_positions, all_ratios, \
         all_oper_price = self._portfolio.components_res_every_predict(predict_bars, pred_list_json, policy_config,
                                                                       strategy_config, self.date_range)

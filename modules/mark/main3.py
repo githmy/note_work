@@ -175,14 +175,14 @@ def main(paralist):
             "data_ori": {
                 "split": 0.8,
                 # 不使用生成的特征数据
-                # "newdata": 1,
-                "newdata": 0,
-                # "func_type": "网络获取数据",
+                "newdata": 1,
+                # "newdata": 0,
+                "func_type": "网络获取数据",
                 # "func_type": "train",
-                "func_type": "backtest",
+                # "func_type": "backtest",
                 # "func_type": "lastday",
-                # "data_type": "general_train_type",
-                "data_type": "plate_train_type",
+                "data_type": "general_train_type",
+                # "data_type": "plate_train_type",
                 # "data_type": "symbol_train_type",
                 "date_range": [0, None],
                 # "date_range": [-4, None],
@@ -223,8 +223,8 @@ def main(paralist):
             },
             "assist_option": {
                 # "email_list": ["a1593572007@126.com", "619041014@qq.com"],
-                "email_list": ["a1593572007@126.com"],
-                # "email_list": [],
+                # "email_list": ["a1593572007@126.com"],
+                "email_list": [],
             },
             "policy_config": {
                 "hand_unit": 100,

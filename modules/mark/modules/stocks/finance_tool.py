@@ -163,11 +163,13 @@ class ElementTool(object):
                 if tmpsec[t] > tmpmax:
                     tmpmax = tmpsec[t]
                     tmpdrawdown.append(tmpdrawdown[-1])
-                    tmpdrawup.append((tmpmax - tmpmin) / tmpmin)
+                    # tmpdrawup.append((tmpmax - tmpmin) / tmpmin)
+                    tmpdrawup.append(tmpmax / tmpmin)
                 elif tmpsec[t] <= tmpmin:
                     tmpmin = tmpsec[t]
                     tmpdrawup.append(tmpdrawup[-1])
-                    tmpdrawdown.append((tmpmax - tmpmin) / tmpmax)
+                    # tmpdrawdown.append((tmpmax - tmpmin) / tmpmax)
+                    tmpdrawdown.append(tmpmin / tmpmax)
                 else:
                     pass
             maxfallret[i] = min(tmpdrawdown)
