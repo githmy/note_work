@@ -176,8 +176,8 @@ def main(paralist):
                 # 不使用生成的特征数据
                 "newdata": 1,
                 # "newdata": 0,
-                "func_type": "网络获取数据",
-                # "func_type": "train",
+                # "func_type": "网络获取数据",
+                "func_type": "train",
                 # "func_type": "backtest",
                 # "func_type": "lastday",
                 "data_type": "general_train_type",
