@@ -174,8 +174,8 @@ def main(paralist):
             "data_ori": {
                 "split": 0.8,
                 # 不使用生成的特征数据
-                "newdata": 1,
-                # "newdata": 0,
+                # "newdata": 1,
+                "newdata": 0,
                 # "func_type": "网络获取数据",
                 "func_type": "train",
                 # "func_type": "backtest",
@@ -211,7 +211,8 @@ def main(paralist):
                 # "bband_list": [1, 5, 19, 37],
                 # "bband_list": [5, 19, 37],
                 # "exclude_list": ["000002_D"],
-                "uband_list": [1, 2, 3, 4, 5, 6, 7, 19, 37],
+                # "uband_list": [1, 2, 3, 4, 5, 6, 7, 19, 37],
+                "uband_list": [4, 5, 6, 7, 19, 37],
                 "exclude_list": [],
             },
             "stratgey": {
@@ -276,7 +277,7 @@ def main(paralist):
                     "discount": 0.8,
                     "start_date": "2013-08-26",
                     "end_date": "2025-08-25",
-                    "learn_rate": 1e-5,
+                    "learn_rate": 1e-3,
                     "early_stop": 10000000,
                     "sudden_death": -1.0,
                     "scope": 60,

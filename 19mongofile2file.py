@@ -20,7 +20,8 @@ def main():
     ins_old = MongoDB(config_old)
     res_map_old = ins_old.exec_require(quire_list)
     config_new = {
-        'host': "192.168.1.52",
+        # 'host': "192.168.1.52",
+        'host': "127.0.0.1",
         'port': 27017,
         'database': "thinking2ht",
         'col': "examples",
@@ -45,7 +46,7 @@ def main():
                     break
     for typecol in quire_list:
         ttpu = pd.DataFrame({"_id": changemap_idlist[typecol], "mainReviewPoints": changemap_pointlist[typecol]})
-        ttpu.to_csv(os.path.join(outpath, '{}.txt'.format(typecol)), encoding="utf-8")
+        ttpu.to_csv(os.path.join(outpath, '{}.txt'.format(typecol)), index=False, encoding="utf-8")
     print("end")
 
 
