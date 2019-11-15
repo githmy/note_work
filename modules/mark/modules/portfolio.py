@@ -18,7 +18,7 @@ class Portfolio(object):
     holdings DataFrame存储特定时间索引对应代码的现金和总市场持仓价值，以及资产组合总量的百分比变化
     """
 
-    def __init__(self, bars, events, start_date, ave_list, bband_list, initial_capital=100000.0):
+    def __init__(self, bars, events, start_date, ave_list, bband_list, uband_list, initial_capital=100000.0):
         """
         根据价位和事件 起始时间 资产额， 初始化 资产组合 
         Parameters:
@@ -33,6 +33,7 @@ class Portfolio(object):
         self.start_date = start_date
         self.ave_list = ave_list
         self.bband_list = bband_list
+        self.uband_list = uband_list
         self.initial_capital = initial_capital
         # 初始化所有 标的 量
         self.all_positions = self.construct_all_positions()
@@ -316,16 +317,13 @@ class Portfolio(object):
             # 2. 每个 symbol 选 最大的bband_n做 目标值
             for s in symbol_list:
                 # todo： 核心 不同均线筛选 + back draw risk
-                print(i1,s)
-                risk_list = [(i2 - 1.0) / self.bband_list[id2] + 1.0 if not np.isnan(i2) else 1.0 for id2, i2 in
+                risk_list = [(i2 - 1.0) / self.uband_list[id2] + 1.0 if not np.isnan(i2) else 1.0 for id2, i2 in
                              enumerate(pred_list_json[s][-1][i1])]
-                benefit_list = [(i2 - 1.0) / self.bband_list[id2] + 1.0 if not np.isnan(i2) else 1.0 for id2, i2 in
+                benefit_list = [(i2 - 1.0) / self.uband_list[id2] + 1.0 if not np.isnan(i2) else 1.0 for id2, i2 in
                                 enumerate(pred_list_json[s][-2][i1])]
                 gain_list = [i2[i1] if not np.isnan(i2[i1]) else 0.0 for i2 in gain_json[s]]
-                expect_gain_list = [risk_list[id2] * benefit_list[id2] for id2, i2 in enumerate(self.bband_list)]
-                print(risk_list)
-                print(benefit_list)
-                # expect_gain_list = [risk_list[id2] * benefit_list[id2] * gain_list[id2] for id2, i2 in enumerate(self.bband_list)]
+                # expect_gain_list = [risk_list[id2] * benefit_list[id2] for id2, i2 in enumerate(self.uband_list)]
+                expect_gain_list = [gain_list[id2] for id2, i2 in enumerate(self.uband_list)]
                 # print(expect_gain_list)
                 tmp_vlaue = max(expect_gain_list)
                 max_bbandid.append(expect_gain_list.index(tmp_vlaue))
@@ -334,10 +332,9 @@ class Portfolio(object):
             tmpvalobj = {}
             tmpidobj = {}
             # 截断 小于等于 symbel 列表
-            element_indexs = element_indexs[0:target_use_num]
+            nn = 0
+            element_indexs = element_indexs[nn:nn + target_use_num]
             for id2, i2 in enumerate(element_indexs):
-                # if id2 > target_use_num:
-                #     break
                 day_max_val = max_list[i2]
                 if day_max_val > strategy_config["thresh_low"] and day_max_val < strategy_config["thresh_high"]:
                     symblname = symbol_list[i2]
@@ -541,10 +538,12 @@ class Portfolio(object):
                 #
                 ideal_outprice = price_pre * (pred_price_c + (pred_price_h - pred_price_c) * move_out_percent)
                 move_out_price = price_c if ideal_outprice > price_c_h else ideal_outprice
-                ideal_inprice = price_pre * (pred_price_l + (pred_price_c - pred_price_l) * move_in_percent)
+                ideal_inprice = price_pre * (pred_price_c - (pred_price_c - pred_price_l) * move_in_percent)
                 move_in_price = price_c if ideal_inprice < price_c_l else ideal_inprice
-                price_c_out_json[i2] = move_out_price
-                price_c_in_json[i2] = move_in_price
+                # price_c_out_json[i2] = move_out_price
+                # price_c_in_json[i2] = move_in_price
+                price_c_out_json[i2] = price_c
+                price_c_in_json[i2] = price_c
                 # 清空折现
                 if mount_pre > 0:
                     # 大于零时 平仓
@@ -652,7 +651,7 @@ class Portfolio(object):
         return all_holdings, all_positions, all_ratios, all_oper_price
 
     # 基于预测结果 盈利测试
-    def calculate_probability_every_signals(self, bband_list, pred_list):
+    def calculate_probability_every_signals(self, uband_list, pred_list):
         """kelly_formula"""
         system_risk = 0.0001  # 系统归零概率
         system_move = 1  # 上下概率平移系数
@@ -663,8 +662,8 @@ class Portfolio(object):
         f_ratio = []
         gain = []
         inst = TradeTool()
-        llenth = len(bband_list)
-        for id1, aven in enumerate(bband_list):
+        llenth = len(uband_list)
+        for id1, aven in enumerate(uband_list):
             fixratio = system_ram_vari / aven
             fw = pred_list[1][:, id1] - 1.0
             fw = fw * fixratio

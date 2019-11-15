@@ -7,6 +7,92 @@ import math
 import tensorflow as tf
 from utils.log_tool import *
 from utils.sdata_helper import batch_iter_list
+import keras
+import keras.backend as K
+import keras.layers as KL
+import keras.engine as KE
+import keras.models as KM
+
+
+class BatchNorm(KL.BatchNormalization):
+    """Extends the Keras BatchNormalization class to allow a central place
+    to make changes if needed.
+    Batch normalization has a negative effect on training if batches are small
+    so this layer is often frozen (via setting in Config class) and functions
+    as linear layer.
+    """
+
+    def call(self, inputs, training=None):
+        """
+        Note about training values:
+            None: Train BN layers. This is the normal mode
+            False: Freeze BN layers. Good when batch size is small
+            True: (don't use). Set layer in training mode even when making inferences
+        """
+        return super(self.__class__, self).call(inputs, training=training)
+
+
+def identity_block(input_tensor, kernel_size, filters, stage, block,
+                   use_bias=True, train_bn=True):
+    """The identity_block is the block that has no conv layer at shortcut
+    # Arguments
+        input_tensor: input tensor
+        kernel_size: default 3, the kernel size of middle conv layer at main path
+        filters: list of integers, the nb_filters of 3 conv layer at main path
+        stage: integer, current stage label, used for generating layer names
+        block: 'a','b'..., current block label, used for generating layer names
+        use_bias: Boolean. To use or not use a bias in conv layers.
+        train_bn: Boolean. Train or freeze Batch Norm layers
+    """
+    nb_filter1, nb_filter2, nb_filter3 = filters
+    conv_name_base = 'res' + str(stage) + block + '_branch'
+    bn_name_base = 'bn' + str(stage) + block + '_branch'
+    x = KL.Conv2D(nb_filter1, (1, 1), name=conv_name_base + '2a', use_bias=use_bias)(input_tensor)
+    x = BatchNorm(name=bn_name_base + '2a')(x, training=train_bn)
+    x = KL.Activation('relu')(x)
+    x = KL.Conv2D(nb_filter2, (kernel_size, kernel_size), padding='same', name=conv_name_base + '2b',
+                  use_bias=use_bias)(x)
+    x = BatchNorm(name=bn_name_base + '2b')(x, training=train_bn)
+    x = KL.Activation('relu')(x)
+    x = KL.Conv2D(nb_filter3, (1, 1), name=conv_name_base + '2c', use_bias=use_bias)(x)
+    x = BatchNorm(name=bn_name_base + '2c')(x, training=train_bn)
+    x = KL.Add()([x, input_tensor])
+    x = KL.Activation('relu', name='res' + str(stage) + block + '_out')(x)
+    return x
+
+
+def conv_block(input_tensor, kernel_size, filters, stage, block,
+               strides=(2, 2), use_bias=True, train_bn=True):
+    """conv_block is the block that has a conv layer at shortcut
+    # Arguments
+        input_tensor: input tensor
+        kernel_size: default 3, the kernel size of middle conv layer at main path
+        filters: list of integers, the nb_filters of 3 conv layer at main path
+        stage: integer, current stage label, used for generating layer names
+        block: 'a','b'..., current block label, used for generating layer names
+        use_bias: Boolean. To use or not use a bias in conv layers.
+        train_bn: Boolean. Train or freeze Batch Norm layers
+    Note that from stage 3, the first conv layer at main path is with subsample=(2,2)
+    And the shortcut should have subsample=(2,2) as well
+    """
+    nb_filter1, nb_filter2, nb_filter3 = filters
+    conv_name_base = 'res' + str(stage) + block + '_branch'
+    bn_name_base = 'bn' + str(stage) + block + '_branch'
+    x = KL.Conv2D(nb_filter1, (1, 1), strides=strides, name=conv_name_base + '2a', use_bias=use_bias)(input_tensor)
+    x = BatchNorm(name=bn_name_base + '2a')(x, training=train_bn)
+    x = KL.Activation('relu')(x)
+    x = KL.Conv2D(nb_filter2, (kernel_size, kernel_size), padding='same', name=conv_name_base + '2b',
+                  use_bias=use_bias)(x)
+    x = BatchNorm(name=bn_name_base + '2b')(x, training=train_bn)
+    x = KL.Activation('relu')(x)
+    x = KL.Conv2D(nb_filter3, (1, 1), name=conv_name_base + '2c', use_bias=use_bias)(x)
+    x = BatchNorm(name=bn_name_base + '2c')(x, training=train_bn)
+    shortcut = KL.Conv2D(nb_filter3, (1, 1), strides=strides, name=conv_name_base + '1', use_bias=use_bias)(
+        input_tensor)
+    shortcut = BatchNorm(name=bn_name_base + '1')(shortcut, training=train_bn)
+    x = KL.Add()([x, shortcut])
+    x = KL.Activation('relu', name='res' + str(stage) + block + '_out')(x)
+    return x
 
 
 # This is abstract class. You need to implement yours.
@@ -277,6 +363,7 @@ class CRNNevery(AbstractModeltensor):
             "cnn_dense_more": self._cnn_dense_more_model,
             "cnn_dense_less": self._cnn_dense_less_model,
             "cnn_dense_lossave_more": self._cnn_dense_lossave_more_model,
+            "cnn_pure_model": self._cnn_pure_model,
         }
         self.ydim = 1
         self.keep_prob_ph = config["dropout"]
@@ -426,6 +513,79 @@ class CRNNevery(AbstractModeltensor):
             concat1 = tf.concat([self.input_p, dense1], 1, name='concat1')
             denseo1 = tf.nn.dropout(concat1, keep_prob=self.keep_prob_ph)
             # tf.summary.histogram('layer_dense1', dense1)  # 记录标量的变化
+            dense2 = tf.layers.dense(inputs=denseo1, units=512, activation=tf.nn.elu, name="layer_dense2")
+            concat2 = tf.concat([self.input_p, dense1, dense2], 1, name='concat2')
+            denseo2 = tf.nn.dropout(concat2, keep_prob=self.keep_prob_ph)
+            dense3 = tf.layers.dense(inputs=denseo2, units=256, activation=tf.nn.elu, name="layer_dense3")
+            concat3 = tf.concat([self.input_p, dense1, dense2, dense3], 1, name='concat3')
+            denseo3 = tf.nn.dropout(concat3, keep_prob=self.keep_prob_ph)
+            dense4 = tf.layers.dense(inputs=denseo3, units=128, activation=tf.nn.elu, name="layer_dense4")
+            denseo4 = tf.nn.dropout(dense4, keep_prob=self.keep_prob_ph)
+            # tf.summary.histogram('layer_dense2', dense2)  # 记录标量的变化
+            y_reta = tf.layers.dense(inputs=denseo4, units=self.out_dim, activation=None, name="y_reta")
+            y_reth = tf.layers.dense(inputs=denseo4, units=self.out_dim, activation=None, name="y_reth")
+            y_retl = tf.layers.dense(inputs=denseo4, units=self.out_dim, activation=None, name="y_retl")
+            y_stdup = tf.layers.dense(inputs=denseo4, units=self.out_dim, activation=None, name="y_stdup")
+            y_stddw = tf.layers.dense(inputs=denseo4, units=self.out_dim, activation=None, name="y_stddw")
+            y_drawup = tf.layers.dense(inputs=denseo4, units=self.out_dim, activation=None, name="y_drawup")
+            y_drawdw = tf.layers.dense(inputs=denseo4, units=self.out_dim, activation=None, name="y_drawdw")
+            tf.summary.histogram('y_reta', y_reta)  # 记录标量的变化
+            tf.summary.histogram('y_reth', y_reth)  # 记录标量的变化
+            tf.summary.histogram('y_retl', y_retl)  # 记录标量的变化
+            tf.summary.histogram('y_stdup', y_stdup)  # 记录标量的变化
+            tf.summary.histogram('y_stddw', y_stddw)  # 记录标量的变化
+            tf.summary.histogram('y_drawup', y_drawup)  # 记录标量的变化
+            tf.summary.histogram('y_drawdw', y_drawdw)  # 记录标量的变化
+            # 损失返回值
+            y_loss_reta = tf.sqrt(tf.reduce_mean(
+                tf.square(y_reta - self.reta) / tf.cast(tf.constant(self.uband_list), tf.float32)),
+                name="y_loss_reta")
+            y_loss_reth = tf.sqrt(tf.reduce_mean(
+                tf.square(y_reth - self.reth) / tf.cast(tf.constant(self.uband_list), tf.float32)),
+                name="y_loss_reth")
+            y_loss_retl = tf.sqrt(tf.reduce_mean(
+                tf.square(y_retl - self.retl) / tf.cast(tf.constant(self.uband_list), tf.float32)),
+                name="y_loss_retl")
+            y_loss_stdup = tf.sqrt(tf.reduce_mean(
+                tf.square(y_stdup - self.stdup) / tf.cast(tf.constant(self.uband_list), tf.float32)),
+                name="y_loss_stdup")
+            y_loss_stddw = tf.sqrt(tf.reduce_mean(
+                tf.square(y_stddw - self.stddw) / tf.cast(tf.constant(self.uband_list), tf.float32)),
+                name="y_loss_stddw")
+            y_loss_drawup = tf.sqrt(tf.reduce_mean(
+                tf.square(y_drawup - self.drawup) / tf.cast(tf.constant(self.uband_list), tf.float32)),
+                name="y_loss_drawup")
+            y_loss_drawdw = tf.sqrt(tf.reduce_mean(
+                tf.square(y_drawdw - self.drawdw) / tf.cast(tf.constant(self.uband_list), tf.float32)),
+                name="y_loss_drawdw")
+            # 猜错的获取 实际盈利值的负数
+            # self.learn_rate = tf.Variable(self.learn_rate_p, name="lr", trainable=False)
+            # self.update_lr = tf.assign(self.learn_rate, tf.multiply(self.lr_decay, self.learn_rate))
+            self.train_list = [y_loss_reta, y_loss_reth, y_loss_retl, y_loss_stdup, y_loss_stddw, y_loss_drawup,
+                               y_loss_drawdw]
+            self.valid_list = [y_loss_reta, y_loss_reth, y_loss_retl, y_loss_stdup, y_loss_stddw, y_loss_drawup,
+                               y_loss_drawdw]
+            self.pred_list = [y_reta, y_reth, y_retl, y_stdup, y_stddw, y_drawup, y_drawdw]
+            # 打印信息
+            tf.summary.scalar('y_loss_reta', y_loss_reta)  # 记录标量的变化
+            tf.summary.scalar('y_loss_reth', y_loss_reth)  # 记录标量的变化
+            tf.summary.scalar('y_loss_retl', y_loss_retl)  # 记录标量的变化
+            tf.summary.scalar('y_loss_stdup', y_loss_stdup)  # 记录标量的变化
+            tf.summary.scalar('y_loss_stddw', y_loss_stddw)  # 记录标量的变化
+            tf.summary.scalar('y_loss_drawup', y_loss_drawup)  # 记录标量的变化
+            tf.summary.scalar('y_loss_drawdw', y_loss_drawdw)  # 记录标量的变化
+            tf.summary.scalar('lr', self.learn_rate_p)  # 记录标量的变化
+
+    def _cnn_pure_model(self):
+        with self.graph.as_default():
+            # 部分1，预测值
+            dense1 = tf.expand_dims(self.input_p, -1, name="layer_dense1")
+            # w = tf.constant(1, tf.float32, (5, 3, 32))
+            full_filter = tf.Variable(tf.random_normal(shape=[self.input_dim, 1, 128]))
+            conv1 = tf.nn.conv1d(dense1, full_filter, 1, 'VALID')  # 1为步长
+            concat1 = tf.concat([self.input_p, dense1], 1, name='concat1')
+            denseo1 = tf.nn.dropout(concat1, keep_prob=self.keep_prob_ph)
+
             dense2 = tf.layers.dense(inputs=denseo1, units=512, activation=tf.nn.elu, name="layer_dense2")
             concat2 = tf.concat([self.input_p, dense1, dense2], 1, name='concat2')
             denseo2 = tf.nn.dropout(concat2, keep_prob=self.keep_prob_ph)
