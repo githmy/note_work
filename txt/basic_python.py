@@ -424,13 +424,17 @@ def nlp资料():
     # 104. 基于医药知识图谱的智能问答系统 https://github.com/YeYzheng/KGQA-Based-On-medicine
     # 105. 京东商品知识图谱 https://github.com/liuhuanyong/ProductKnowledgeGraph
     # 基于京东网站的1300种商品上下级概念，约10万商品品牌，约65万品牌销售关系，商品描述维度等知识库，基于该知识库可以支持商品属性库构建，商品销售问答，品牌物品生产等知识查询服务，也可用于情感分析等下游应用．
-    # 106. 基于mongodb存储的军事领域知识图谱问答项目 https://github.com/liuhuanyong/QAonMilitaryKG
+    # *106. 基于mongodb存储的军事领域知识图谱问答项目 https://github.com/liuhuanyong/QAonMilitaryKG
     # 基于mongodb存储的军事领域知识图谱问答项目，包括飞行器、太空装备等8大类，100余小类，共计5800项的军事武器知识库，该项目不使用图数据库进行存储，通过jieba进行问句解析，问句实体项识别，基于查询模板完成多类问题的查询，主要是提供一种工业界的问答思想demo。
+    # nlp工具 https://liuhuanyong.github.io./
+    # 医药知识图谱的自动问答 https://github.com/liuhuanyong/QASystemOnMedicalKG.git
+    # 抽象知识图谱 https://github.com/liuhuanyong/AbstractKnowledgeGraph.git
     # 107. 基于远监督的中文关系抽取 https://github.com/xiaolalala/Distant-Supervised-Chinese-Relation-Extraction
     # 108. 语音情感分析 https://github.com/MITESHPUTHRANNEU/Speech-Emotion-Analyzer
     # 109. 中文ULMFiT 情感分析 文本分类 语料及模型 https://github.com/bigboNed3/chinese_ulmfit
     # 110. 一个拍照做题程序。输入一张包含数学计算题的图片，输出识别出的数学计算式以及计算结果 https://github.com/Roujack/mathAI
     # 110. 打印公式识别：https://github.com/LinXueyuanStdio/LaTeX_OCR
+    # 110. 打印公式识别：https://github.com/LinXueyuanStdio/LaTeX_OCR_PRO.git
     # 110. 打印公式识别：https://github.com/kullaheyo/LaTeX_OCR_PRO.git
     # 110. yolo原理与实现：https://blog.csdn.net/qq8993174/article/details/90038730
     # 111. 世界各国大规模人名库 https://github.com/philipperemy/name-dataset
@@ -475,7 +479,7 @@ def nlp资料():
     # 中文与阿拉伯数字混合的情况，在开发中
     # 135. 百度知道问答语料库 https://github.com/liuhuanyong/MiningZhiDaoQACorpus
     # 超过580万的问题，938万的答案，5800个分类标签。基于该问答语料库，可支持多种应用，如闲聊问答，逻辑挖掘
-    # 136. 基于知识图谱的问答系统 https://github.com/WenRichard/KBQA-BERT
+    # *136. 基于知识图谱的问答系统 https://github.com/WenRichard/KBQA-BERT
     # BERT做命名实体识别和句子相似度，分为online和outline模式
     # 137. jieba_fast 加速版的jieba https://github.com/deepcs233/jieba_fast
     # 使用cpython重写了jieba分词库中计算DAG和HMM中的vitrebi函数，速度得到大幅提升

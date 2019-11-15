@@ -183,3 +183,9 @@ np.expm1(x)
 
 # 过滤修改
 data[:, 1][data[:, 1] < 5] = 5  # 对第2列小于 5 的替换为5
+
+# mask
+arr = np.random.randint(1, 10, size=[1, 5, 5])
+mask = arr<5
+arr[mask] = 0 # 把标记为True的值记为0
+print(arr)

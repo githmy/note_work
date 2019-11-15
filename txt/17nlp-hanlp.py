@@ -1,5 +1,10 @@
 from pyhanlp import *
+import nltk
 
+
+#  wget https://github.com/nltk/nltk_data/archive/gh-pages.zip
+#  unzip gh-pages.zip
+# mv nltk_data-gh-pages/packages /$PATH_TO_NLTK_DATA
 
 def main():
     print(HanLP.segment('你好，欢迎在Python中调用HanLP的API'))
