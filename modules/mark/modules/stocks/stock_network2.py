@@ -32,8 +32,7 @@ class BatchNorm(KL.BatchNormalization):
         return super(self.__class__, self).call(inputs, training=training)
 
 
-def identity_block(input_tensor, kernel_size, filters, stage, block,
-                   use_bias=True, train_bn=True):
+def identity1_block(input_tensor, kernel_size, filters, stage, block, use_bias=True, train_bn=True):
     """The identity_block is the block that has no conv layer at shortcut
     # Arguments
         input_tensor: input tensor
@@ -47,22 +46,20 @@ def identity_block(input_tensor, kernel_size, filters, stage, block,
     nb_filter1, nb_filter2, nb_filter3 = filters
     conv_name_base = 'res' + str(stage) + block + '_branch'
     bn_name_base = 'bn' + str(stage) + block + '_branch'
-    x = KL.Conv2D(nb_filter1, (1, 1), name=conv_name_base + '2a', use_bias=use_bias)(input_tensor)
+    x = KL.Conv1D(nb_filter1, 1, name=conv_name_base + '2a', use_bias=use_bias)(input_tensor)
     x = BatchNorm(name=bn_name_base + '2a')(x, training=train_bn)
-    x = KL.Activation('relu')(x)
-    x = KL.Conv2D(nb_filter2, (kernel_size, kernel_size), padding='same', name=conv_name_base + '2b',
-                  use_bias=use_bias)(x)
+    x = KL.Activation('selu')(x)
+    x = KL.Conv1D(nb_filter2, kernel_size, padding='same', name=conv_name_base + '2b', use_bias=use_bias)(x)
     x = BatchNorm(name=bn_name_base + '2b')(x, training=train_bn)
-    x = KL.Activation('relu')(x)
-    x = KL.Conv2D(nb_filter3, (1, 1), name=conv_name_base + '2c', use_bias=use_bias)(x)
+    x = KL.Activation('selu')(x)
+    x = KL.Conv1D(nb_filter3, 1, name=conv_name_base + '2c', use_bias=use_bias)(x)
     x = BatchNorm(name=bn_name_base + '2c')(x, training=train_bn)
     x = KL.Add()([x, input_tensor])
-    x = KL.Activation('relu', name='res' + str(stage) + block + '_out')(x)
+    x = KL.Activation('selu', name='res' + str(stage) + block + '_out')(x)
     return x
 
 
-def conv_block(input_tensor, kernel_size, filters, stage, block,
-               strides=(2, 2), use_bias=True, train_bn=True):
+def conv1_block(input_tensor, kernel_size, filters, stage, block, strides=1, use_bias=True, train_bn=True):
     """conv_block is the block that has a conv layer at shortcut
     # Arguments
         input_tensor: input tensor
@@ -78,20 +75,18 @@ def conv_block(input_tensor, kernel_size, filters, stage, block,
     nb_filter1, nb_filter2, nb_filter3 = filters
     conv_name_base = 'res' + str(stage) + block + '_branch'
     bn_name_base = 'bn' + str(stage) + block + '_branch'
-    x = KL.Conv2D(nb_filter1, (1, 1), strides=strides, name=conv_name_base + '2a', use_bias=use_bias)(input_tensor)
+    x = KL.Conv1D(nb_filter1, 1, strides=strides, name=conv_name_base + '2a', use_bias=use_bias)(input_tensor)
     x = BatchNorm(name=bn_name_base + '2a')(x, training=train_bn)
-    x = KL.Activation('relu')(x)
-    x = KL.Conv2D(nb_filter2, (kernel_size, kernel_size), padding='same', name=conv_name_base + '2b',
-                  use_bias=use_bias)(x)
+    x = KL.Activation('selu')(x)
+    x = KL.Conv1D(nb_filter2, kernel_size, padding='same', name=conv_name_base + '2b', use_bias=use_bias)(x)
     x = BatchNorm(name=bn_name_base + '2b')(x, training=train_bn)
-    x = KL.Activation('relu')(x)
-    x = KL.Conv2D(nb_filter3, (1, 1), name=conv_name_base + '2c', use_bias=use_bias)(x)
+    x = KL.Activation('selu')(x)
+    x = KL.Conv1D(nb_filter3, 1, name=conv_name_base + '2c', use_bias=use_bias)(x)
     x = BatchNorm(name=bn_name_base + '2c')(x, training=train_bn)
-    shortcut = KL.Conv2D(nb_filter3, (1, 1), strides=strides, name=conv_name_base + '1', use_bias=use_bias)(
-        input_tensor)
+    shortcut = KL.Conv1D(nb_filter3, 1, strides=strides, name=conv_name_base + '1', use_bias=use_bias)(input_tensor)
     shortcut = BatchNorm(name=bn_name_base + '1')(shortcut, training=train_bn)
     x = KL.Add()([x, shortcut])
-    x = KL.Activation('relu', name='res' + str(stage) + block + '_out')(x)
+    x = KL.Activation('selu', name='res' + str(stage) + block + '_out')(x)
     return x
 
 
@@ -386,6 +381,7 @@ class CRNNevery(AbstractModeltensor):
                 self.drawdw = tf.placeholder(dtype=tf.float32, shape=[None, self.out_dim])
 
     def buildModel(self):
+        tf.reset_default_graph()
         with self.graph.as_default():
             # 不同选择加载
             self.modeldic[self.config["modelname"]]()
@@ -398,6 +394,7 @@ class CRNNevery(AbstractModeltensor):
             # 同一保存加载
             self.saver = tf.train.Saver(tf.global_variables())
             # return self.saver
+            [print(n.name) for n in tf.get_default_graph().as_graph_def().node]
 
     def _cnn_dense_less_model(self):
         with self.graph.as_default():
@@ -578,30 +575,27 @@ class CRNNevery(AbstractModeltensor):
 
     def _cnn_pure_model(self):
         with self.graph.as_default():
+            train_bn = True
+            kernalsize = 1
             # 部分1，预测值
-            dense1 = tf.expand_dims(self.input_p, -1, name="layer_dense1")
-            # w = tf.constant(1, tf.float32, (5, 3, 32))
-            full_filter = tf.Variable(tf.random_normal(shape=[self.input_dim, 1, 128]))
-            conv1 = tf.nn.conv1d(dense1, full_filter, 1, 'VALID')  # 1为步长
-            concat1 = tf.concat([self.input_p, dense1], 1, name='concat1')
-            denseo1 = tf.nn.dropout(concat1, keep_prob=self.keep_prob_ph)
+            x = dense1 = tf.expand_dims(self.input_p, -1, name="layer_dense1")
+            x = KL.Conv1D(64, self.input_dim, strides=1, name='conv1', use_bias=True)(x)
+            x = BatchNorm(name='bn_conv1')(x, training=train_bn)
+            C1 = x = KL.Activation('selu')(x)
+            # Stage 2
+            for itern in range(2):
+                x = conv1_block(x, kernalsize, [64, 64, 256], stage=itern, block='a', strides=1, train_bn=train_bn)
+                x = identity1_block(x, kernalsize, [64, 64, 256], stage=itern, block='b', train_bn=train_bn)
+                x = identity1_block(x, kernalsize, [64, 64, 256], stage=itern, block='c', train_bn=train_bn)
+            denseo4 = tf.reshape(x, (-1, 256))
 
-            dense2 = tf.layers.dense(inputs=denseo1, units=512, activation=tf.nn.elu, name="layer_dense2")
-            concat2 = tf.concat([self.input_p, dense1, dense2], 1, name='concat2')
-            denseo2 = tf.nn.dropout(concat2, keep_prob=self.keep_prob_ph)
-            dense3 = tf.layers.dense(inputs=denseo2, units=256, activation=tf.nn.elu, name="layer_dense3")
-            concat3 = tf.concat([self.input_p, dense1, dense2, dense3], 1, name='concat3')
-            denseo3 = tf.nn.dropout(concat3, keep_prob=self.keep_prob_ph)
-            dense4 = tf.layers.dense(inputs=denseo3, units=128, activation=tf.nn.elu, name="layer_dense4")
-            denseo4 = tf.nn.dropout(dense4, keep_prob=self.keep_prob_ph)
-            # tf.summary.histogram('layer_dense2', dense2)  # 记录标量的变化
-            y_reta = tf.layers.dense(inputs=denseo4, units=self.out_dim, activation=None, name="y_reta")
-            y_reth = tf.layers.dense(inputs=denseo4, units=self.out_dim, activation=None, name="y_reth")
-            y_retl = tf.layers.dense(inputs=denseo4, units=self.out_dim, activation=None, name="y_retl")
-            y_stdup = tf.layers.dense(inputs=denseo4, units=self.out_dim, activation=None, name="y_stdup")
-            y_stddw = tf.layers.dense(inputs=denseo4, units=self.out_dim, activation=None, name="y_stddw")
-            y_drawup = tf.layers.dense(inputs=denseo4, units=self.out_dim, activation=None, name="y_drawup")
-            y_drawdw = tf.layers.dense(inputs=denseo4, units=self.out_dim, activation=None, name="y_drawdw")
+            y_reta = KL.Dense(self.out_dim, activation=None, name="y_reta")(denseo4)
+            y_reth = KL.Dense(self.out_dim, activation=None, name="y_reth")(denseo4)
+            y_retl = KL.Dense(self.out_dim, activation=None, name="y_retl")(denseo4)
+            y_stdup = KL.Dense(self.out_dim, activation=None, name="y_stdup")(denseo4)
+            y_stddw = KL.Dense(self.out_dim, activation=None, name="y_stddw")(denseo4)
+            y_drawup = KL.Dense(self.out_dim, activation=None, name="y_drawup")(denseo4)
+            y_drawdw = KL.Dense(self.out_dim, activation=None, name="y_drawdw")(denseo4)
             tf.summary.histogram('y_reta', y_reta)  # 记录标量的变化
             tf.summary.histogram('y_reth', y_reth)  # 记录标量的变化
             tf.summary.histogram('y_retl', y_retl)  # 记录标量的变化
