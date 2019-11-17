@@ -581,13 +581,14 @@ class CRNNevery(AbstractModeltensor):
             x = dense1 = tf.expand_dims(self.input_p, -1, name="layer_dense1")
             x = KL.Conv1D(64, self.input_dim, strides=1, name='conv1', use_bias=True)(x)
             x = BatchNorm(name='bn_conv1')(x, training=train_bn)
+            x = KL.Add()([x, self.input_p])
             C1 = x = KL.Activation('selu')(x)
             # Stage 2
             for itern in range(2):
-                x = conv1_block(x, kernalsize, [64, 64, 256], stage=itern, block='a', strides=1, train_bn=train_bn)
-                x = identity1_block(x, kernalsize, [64, 64, 256], stage=itern, block='b', train_bn=train_bn)
-                x = identity1_block(x, kernalsize, [64, 64, 256], stage=itern, block='c', train_bn=train_bn)
-            denseo4 = tf.reshape(x, (-1, 256))
+                x = conv1_block(x, kernalsize, [64, 64, 64], stage=itern, block='a', strides=1, train_bn=train_bn)
+                x = identity1_block(x, kernalsize, [64, 64, 64], stage=itern, block='b', train_bn=train_bn)
+                x = identity1_block(x, kernalsize, [64, 64, 64], stage=itern, block='c', train_bn=train_bn)
+            denseo4 = tf.reshape(x, (-1, 64))
 
             y_reta = KL.Dense(self.out_dim, activation=None, name="y_reta")(denseo4)
             y_reth = KL.Dense(self.out_dim, activation=None, name="y_reth")(denseo4)
