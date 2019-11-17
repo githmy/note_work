@@ -100,8 +100,8 @@ class LoadBacktest(object):
         predict_bars = self._data_handler
         print("get_startdate:", get_startdate)
         if get_startdate is not None:
-            # predict_bars.get_some_net_csv2files(get_startdate=get_startdate)
-            # predict_bars.get_some_current_net_csv2files()
+            predict_bars.get_some_net_csv2files(get_startdate=get_startdate)
+            predict_bars.get_some_current_net_csv2files()
             predict_bars.open_convert_csv_files()
         predict_bars.generate_b_derivative()
         # predict_bars.generate_a_derivative(predict_bars.uband_list)

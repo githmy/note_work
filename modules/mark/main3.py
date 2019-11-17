@@ -174,8 +174,8 @@ def main(paralist):
             "data_ori": {
                 "split": 0.8,
                 # 不使用生成的特征数据
-                # "newdata": 1,
-                "newdata": 0,
+                "newdata": 1,
+                # "newdata": 0,
                 # "func_type": "网络获取数据",
                 "func_type": "train",
                 # "func_type": "backtest",
