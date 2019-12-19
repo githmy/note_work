@@ -35,6 +35,94 @@ def audio_demo():
     p.terminate()
 
 
+def opencv_prepare():
+    """
+    """
+    import os
+    import matplotlib.pyplot as plt
+
+    # 直方图均衡化实例
+    def equalizeHist():
+        tmpfile = os.path.join("C:\project\data\latexhand\hand\images\images_test", "62.png")
+        img = cv2.imread(tmpfile, 0)
+        # 第二步: 使用cv2.equalizeHist实现像素点的均衡化
+        ret = cv2.equalizeHist(img)
+        # 第三步：使用plt.hist绘制像素直方图
+        plt.subplot(121)
+        plt.hist(img.ravel(), 256)
+        plt.subplot(122)
+        plt.hist(ret.ravel(), 256)
+        plt.show()
+        # 第四步：绘值均衡化的图像
+        plt.imshow(np.hstack((img, ret)), interpolation='nearest')
+        plt.show()
+
+    # 使用自适应直方图均衡化
+    # 不会使细节消失
+    def createCLAHE():
+        tmpfile = os.path.join("C:\project\data\latexhand\hand\images\images_test", "62.png")
+        # 使用自适应直方图均衡化
+        image = cv2.imread(tmpfile, 0)
+        # 第一步：实例化自适应直方图均衡化函数
+        clahe = cv2.createCLAHE(clipLimit=2.0, tileGridSize=(8, 8))
+        # 第二步：进行自适应直方图均衡化
+        clahe = clahe.apply(image)
+        # 第三步：使用plt.hist绘制像素直方图
+        plt.subplot(121)
+        plt.hist(image.ravel(), 256)
+        plt.subplot(122)
+        plt.hist(clahe.ravel(), 256)
+        plt.show()
+        # 第四步：绘值均衡化的图像
+        plt.imshow(np.hstack((image, clahe)), interpolation='nearest')
+        plt.show()
+
+    equalizeHist()
+    createCLAHE()
+
+
+def opencv_basic():
+    image = cv2.imread(tmpfile, 0)
+    # 1. 尺寸resize
+    image = cv2.resize(image, (int(tw * 0.5), int(th * 0.4)), interpolation=cv2.INTER_LINEAR)
+    # 2. padding
+    top = 0
+    bottom = th * 9
+    left = 0
+    right = tw * 9
+    image = cv2.copyMakeBorder(image, top, bottom, left, right, cv2.BORDER_CONSTANT, value=255)
+    # 3. 高斯模糊
+    blur = cv2.GaussianBlur(img, kernel_size, 0)
+    # 4. 得出轮廓 输入必须是bool, true为轮廓筛选的目标
+    from skimage import morphology
+    skele = morphology.skeletonize(image.astype(np.bool))
+    # 4. 得出轮廓 方式2 # 二值图，即黑白的（不是灰度图）,轮廓的检索模式，轮廓的近似办法
+    #  cv2.RETR_EXTERNAL表示只检测外轮廓
+    # cv2.RETR_LIST检测的轮廓不建立等级关系
+    # cv2.RETR_CCOMP建立两个等级的轮廓，上面的一层为外边界，里面的一层为内孔的边界信息。如果内孔内还有一个连通物体，这个物体的边界也在顶层。
+    # cv2.RETR_TREE建立一个等级树结构的轮廓。
+    # cv2.CHAIN_APPROX_NONE存储所有的轮廓点，相邻的两个点的像素位置差不超过1，即max（abs（x1 - x2），abs（y2 - y1）） == 1
+    # cv2.CHAIN_APPROX_SIMPLE压缩水平方向，垂直方向，对角线方向的元素，只保留该方向的终点坐标，例如一个矩形轮廓只需4个点来保存轮廓信息
+    # cv2.CHAIN_APPROX_TC89_L1，CV_CHAIN_APPROX_TC89_KCOS使用teh - Chinl chain 近似算法
+    contours, hierarchy = cv2.findContours(image, mode=cv2.RETR_EXTERNAL, method=cv2.CHAIN_APPROX_NONE)
+    # 一个是轮廓本身，还有一个是每条轮廓对应的属性。hierarchy[i][0] ~hierarchy[i][3]，分别表示后一个轮廓、前一个轮廓、父轮廓、内嵌轮廓的索引编号，如果没有对应项，则该值为负数。
+    # 5. 二值化 方式1 固定阈值二值化 thresh： 阈值 maxval： 当像素值超过了阈值（或者小于阈值，根据type来决定），所赋予的值
+    ret, img_thresh1 = cv2.threshold(img, 127, 255, cv2.THRESH_BINARY)
+    ret, img_thresh2 = cv2.threshold(img, 127, 255, cv2.THRESH_BINARY_INV)
+    ret, img_thresh3 = cv2.threshold(img, 127, 255, cv2.THRESH_TRUNC)
+    ret, img_thresh4 = cv2.threshold(img, 127, 255, cv2.THRESH_TOZERO)
+    ret, img_thresh5 = cv2.threshold(img, 127, 255, cv2.THRESH_TOZERO_INV)
+    # 5. 二值化 方式2
+    # maxval： 当像素值超过了阈值（或者小于阈值，根据type来决定），所赋予的值
+    # thresh_type： 阈值的计算方法，包含以下2种类型：cv2.ADAPTIVE_THRESH_MEAN_C； cv2.ADAPTIVE_THRESH_GAUSSIAN_C
+    # type：二值化操作的类型，与固定阈值函数相同，包含以下5种类型： cv2.THRESH_BINARY； cv2.THRESH_BINARY_INV； cv2.THRESH_TRUNC； cv2.THRESH_TOZERO；cv2.THRESH_TOZERO_INV.
+    # Block Size： 图片中分块的大小
+    # C：阈值计算方法中的常数项
+    img_th = cv2.adaptiveThreshold(img, 255, adaptive_method, adaptive_thrstype, 11, 5)
+    # 6. 图片合并
+    img_add = cv2.addWeighted(t_img, alpha, n_img, beta, gamma)
+
+
 def opencv_demo():
     """
     非压缩格式的AVI文件 MPEG1格式

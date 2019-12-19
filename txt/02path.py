@@ -91,3 +91,20 @@ shutil.move("C:\\a\\c", "C:\\b")
 shutil.move("C:\\a\\2.txt", "C:\\a\\new2.txt")
 # 重命名文件夹
 shutil.move("C:\\a\\d", "C:\\a\\new_d")
+
+# 获取文件大小Byte为单位的大小。
+path = '/hha/dd.k'
+sz = os.path.getsize(path)
+
+
+def getSize(fileobject):
+    fileobject.seek(0, 2)  # move the cursor to the end of the file
+    size = fileobject.tell()
+    return size
+
+
+file = open('myfile.bin', 'rb')
+print(getSize(file))
+
+path = '/aaa/bbb.ccc'
+sz = os.stat(path).st_size

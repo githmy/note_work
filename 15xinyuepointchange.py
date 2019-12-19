@@ -5,8 +5,74 @@ import operator
 import pandas as pd
 from utils.connect_mongo import MongoDB
 from utils.path_tool import makesurepath
+import demjson
+import json
 
 outpath = os.path.join("..", "data", "mongofiles")
+
+
+def get_file_js():
+    ori_fold = os.path.join("..", "ht_data", "prod")
+    # 3. 获取老文件信息
+    file_names = os.listdir(ori_fold)
+    # file_names.remove('example_class7A.js')
+    # file_names.remove('example_class7B.js')
+    # file_names.remove('example_class8A.js')
+    # file_names.remove('example_class8B.js')
+    # file_names.remove('example_class9A.js')
+    # file_names.remove('example_class9B.js')
+    # file_names.remove('example_cofm.js')
+    # file_names.remove('example_zhongkao.js')
+    # file_names.remove('question_0820.js')
+    # file_names.remove('question_class5B.js')
+    # file_names.remove('question_podupojiao.js')
+    # file_names.remove('question_fcbds.js')
+    # file_names.remove('question_hanshu.js')
+    # file_names.remove('question_sdzc.js')
+    # file_names.remove('question_sjfx.js')
+    # file_names.remove('question_thinking.js')
+    # file_names.remove('question_tjgl.js')
+    # #
+    # file_names.remove('assignment_htexam.js')
+    # file_names.remove('example_04A.js')
+    # file_names.remove('example_07A.js')
+    # file_names.remove('example_08A.js')
+    # file_names.remove('example_09A.js')
+    # file_names.remove('example_09B.js')
+    # file_names.remove('example_class6.js')
+    # file_names.remove('example_class6789.js')
+    # file_names.remove('example_demo.js')
+    # file_names.remove('example_zkb.js')
+    # file_names.remove('question_0903.js')
+    # file_names.remove('question_4A.js')
+    # file_names.remove('question_class3A.js')
+    # file_names.remove('question_class3B.js')
+    # file_names.remove('question_class4A.js')
+    # file_names.remove('question_class4B.js')
+    # file_names.remove('question_class5A.js')
+    # file_names.remove('question_class6.js')
+    # file_names.remove('question_cofm.js')
+    # file_names.remove('question_demo.js')
+    # file_names.remove('question_enteranceExam.js')
+    # file_names.remove('question_exam_ht.js')
+    # file_names.remove('question_shuyshi.js')
+    # file_names.remove('example_rttat.js')
+    # file_names.remove('question_enteranceExamB.js')
+    # file_names.remove('question_rttat.js')
+    # file_names.remove('question_txdbh.js')
+    # file_names.remove('question_txdxz.js')
+    file_names = ["question_thinking.js", "question_lesson_class9A.js", "question_lesson_class9B.js"]
+    print(file_names)
+    # 5. 生成老文件
+    new_contents = []
+    for token in file_names:
+        print(token)
+        with open(os.path.join(ori_fold, token), 'rt', encoding="utf8") as f:
+            getstrs = "".join(f.readlines()).replace("module.exports =", "")
+            # print(type(demjson.decode(getstrs)))
+            new_contents.append(demjson.decode(getstrs))
+            # new_contents += json.loads(getstrs, encoding="utf-8")
+    return new_contents
 
 
 def main():
@@ -118,17 +184,24 @@ def main():
     print("end")
 
 
-def test():
-    import demjson
-    import json
-    ff = open(os.path.join("e:\\", "project", "ht_data", "prod", "question_podupojiao.js"), encoding="utf-8")
-    contents = ff.readlines()
-    getstrs = "".join(contents).replace("module.exports =", "")
-    objres = demjson.decode(getstrs)
-    strsres = json.dumps(objres, ensure_ascii=False)  # From Python to JSON
+def find_keys_injs(keys):
+    new_contents = get_file_js()
+    id3s = []
+    for onefile in new_contents:
+        id3s.append([oneline['_id'] for oneline in onefile])
+    save_ids = []
+    save_ids.append([i1 for i1 in id3s[1] if i1 not in id3s[0]])
+    save_ids.append([i1 for i1 in id3s[2] if i1 not in id3s[0]])
+    new_contents[1] = [i1 for i1 in new_contents[1] if i1["_id"] in save_ids[0]]
+    new_contents[2] = [i1 for i1 in new_contents[2] if i1["_id"] in save_ids[1]]
+    parafile = os.path.join("..", "ht_data", "prod", "z_question_lesson_class9A.js")
+    json.dump(new_contents[1], open(parafile, mode='w', encoding="utf-8"), ensure_ascii=False, indent=2)
+    parafile = os.path.join("..", "ht_data", "prod", "z_question_lesson_class9B.js")
+    json.dump(new_contents[2], open(parafile, mode='w', encoding="utf-8"), ensure_ascii=False, indent=2)
 
 
 if __name__ == "__main__":
-    test()
+    keys = ["比例的性质", "百分比", "射影定理"]
+    find_keys_injs(keys)
     exit()
     main()

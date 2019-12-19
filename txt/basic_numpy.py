@@ -87,7 +87,8 @@ np.max(grade) - np.min(grade)
 # 为空的 bool 列
 np.isnan(test1)
 delpreaftsig = np.logical_or(delpresig, delaftsig)
-x = x( ~ isnan(x)); 更快的做法
+x = x(~ isnan(x));
+更快的做法
 print(ychara_list[-1][~delpreaftsig])
 
 # numpy 转pandas
@@ -186,6 +187,12 @@ data[:, 1][data[:, 1] < 5] = 5  # 对第2列小于 5 的替换为5
 
 # mask
 arr = np.random.randint(1, 10, size=[1, 5, 5])
-mask = arr<5
-arr[mask] = 0 # 把标记为True的值记为0
+mask = arr < 5
+arr[mask] = 0  # 把标记为True的值记为0
 print(arr)
+
+# 每个元素
+image.ravel()
+
+# 统计 直方图
+res = np.histogram(image, bins=256, range=(0, 255))

@@ -347,6 +347,7 @@ df_ac = pd.concat(chunks, ignore_index=True)
 # pddata = pddata[(~pddata["评论内容"].isnull())]
 # pddata = pddata[(~pddata["评论内容"].notnull())]
 pdobj = pdobj[pdobj["domain"].isin(domain_list)]
+pdobj = pdobj[~pdobj["domain"].isin(domain_list)]
 # print(df['2013'].head(2)) # 获取2013年的数据
 # print(df['2013'].take([2,4,0])) # 索引行
 # print(df['2013'].tail(2)) # 获取2013年的数据
