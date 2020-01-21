@@ -92,7 +92,7 @@ def list_deal():
     print("retE is: ", retE)
 
     dict_data = {6: 109, 10: 105, 3: 211, 8: 102, 7: 106}
-    # 比较数组是否相同
+    # 比较数组是否相同 对比
     import operator
     operator.ne(set(old_id["mainReviewPoints"]), set(new_id["mainReviewPoints"]))
 

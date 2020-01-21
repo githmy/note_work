@@ -3,8 +3,24 @@ import json
 import operator
 import pandas as pd
 from utils.connect_mongo import MongoDB
+import re
 
 outpath = os.path.join("..", "data", "mongofiles")
+
+
+def iterjson(source):
+    reslist = []
+    if type(source) is dict:
+        for v in source.values():
+            reslist += iterjson(v)
+    elif type(source) is list:
+        for v in source:
+            reslist += iterjson(v)
+    elif type(source) is str:
+        reslist = [item.strip("$") for item in re.findall(r"\$.*?\$", source, re.U | re.M)]
+    else:
+        pass
+    return reslist
 
 
 def main():
