@@ -3,7 +3,6 @@ import numpy as np
 import re
 
 
-
 def iterjson(source):
     reslist = []
     if type(source) is dict:
@@ -32,12 +31,15 @@ def main():
     ins_new = MongoDB(config_new)
     res_map_new = ins_new.exec_require(quire_list)
     contente = iterjson(list(res_map_new["examples"]))
-    print(len(contente))
     contentq = iterjson(list(res_map_new["questions"]))
-    print(len(contentq))
-    print(contente + contentq)
-    print(len(contente + contentq))
-    print(len(set(contente + contentq)))
+    contenta = contente + contentq
+    contenta = [i1.strip() for i1 in contenta]
+    contenta = list(set(contenta))
+    contenta.sort()
+    print(234)
+    print(len(contenta))
+    print(222)
+    print(contenta[0:20])
     pass
 
 

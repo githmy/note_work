@@ -1,5 +1,14 @@
 import cv2
+import os
 import numpy as np
+import matplotlib.pyplot as plt
+
+def cv2色差():
+    tmpfile = os.path.join("..", "data", "maskpaper", "val", "image00291.jpg")
+    image = cv2.imread(tmpfile)
+    # 色差变换
+    plt.imshow(image[:, :, [2, 1, 0]], interpolation='nearest')
+    plt.show()
 
 
 def dim2_code():

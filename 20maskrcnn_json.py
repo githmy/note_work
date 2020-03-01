@@ -1,6 +1,7 @@
 import pandas as pd
 import numpy as np
 import re
+import copy
 import json
 import os
 
@@ -68,13 +69,22 @@ def interpoints(arrayin):
 
 
 def denseold():
-    baspth = os.path.join("c:\\", "project", "data", "maskpaper")
-    train_json = json.load(open(os.path.join(baspth, "train.json"), encoding="utf8"))
+    baspth = os.path.join("c:\\", "project", "data", "testpaper")
+    train_json = json.load(open(os.path.join(baspth, "train_bak.json"), encoding="utf8"))
     for key, imgval in train_json["_via_img_metadata"].items():
+        newrgion = []
+        print(key)
         for regon in imgval["regions"]:
-            regon["shape_attributes"]["all_points_x"] = interpoints(regon["shape_attributes"]["all_points_x"])
-            regon["shape_attributes"]["all_points_y"] = interpoints(regon["shape_attributes"]["all_points_y"])
-    insertfile = os.path.join(baspth, "train_insert.json")
+            print(regon["region_attributes"]["markr"])
+            # if not regon["region_attributes"]["markr"].startswith("hand"):
+            if regon["region_attributes"]["markr"].startswith("title"):
+                regon["shape_attributes"]["all_points_x"] = interpoints(regon["shape_attributes"]["all_points_x"])
+                regon["shape_attributes"]["all_points_y"] = interpoints(regon["shape_attributes"]["all_points_y"])
+                newrgion.append(copy.deepcopy(regon))
+            # regon["shape_attributes"]["all_points_x"] = interpoints(regon["shape_attributes"]["all_points_x"])
+            # regon["shape_attributes"]["all_points_y"] = interpoints(regon["shape_attributes"]["all_points_y"])
+        imgval["regions"] = newrgion
+    insertfile = os.path.join(baspth, "train-insert.json")
     json.dump(train_json, open(insertfile, mode='w', encoding="utf-8"), ensure_ascii=False, indent=2)
 
 
@@ -112,9 +122,9 @@ def get_hw():
 
 
 if __name__ == "__main__":
-    get_hw()
-    pass
-    # denseold()
+    # get_hw()
+    # pass
+    denseold()
     # get_ramdom()
     # main()
     # findnotin()
