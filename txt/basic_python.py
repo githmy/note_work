@@ -10,6 +10,10 @@ warnings.filterwarnings(action='ignore', category=FutureWarning)
 # !pip install goto-statement
 from goto import with_goto
 
+def garbage_collector():
+    # 垃圾回收
+    import gc
+    gc.collect()
 
 def propertys():
     变量名称 = 3
