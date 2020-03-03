@@ -3,6 +3,16 @@ import numpy as np
 import pandas as pd
 import tensorflow as tf
 
+def GPU_device():
+    import os
+
+    os.environ["CUDA_VISIBLE_DEVICES"] = "0"
+    config = tf.ConfigProto(allow_soft_placement=True)
+    gpu_options = tf.GPUOptions(per_process_gpu_memory_fraction=0.5)
+    config.gpu_options.allow_growth = True
+    sess0 = tf.InteractiveSession(config=config)
+
+
 def csv_read():
     """
     
