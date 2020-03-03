@@ -39,6 +39,10 @@ stock_name = '../input/EURUSD/EURUSD1440.csv'
 
 start = time.time()
 
+def graph_manipulate():
+    g3 = tf.get_default_graph()
+    with g3.as_default():
+        basemodel.load_weights(modelPath)
 
 def get_stock_data(stock_name, inicio='2012', final='2016', normalize=True):
     df = pd.read_csv(stock_name, names=['Date', 'Open', 'High', 'Low', 'Close'], usecols=[0, 2, 3, 4, 5], index_col=[0])
