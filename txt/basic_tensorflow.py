@@ -3,6 +3,7 @@ import numpy as np
 import pandas as pd
 import tensorflow as tf
 
+
 def GPU_device():
     import os
 
@@ -19,6 +20,7 @@ def csv_read():
     :return: 
     """
     pass
+
 
 def read_tfrecord(example_proto):
     """
@@ -188,6 +190,26 @@ def neurous_network(label_pd, batch_size=10):
     #     matrix1 = tf.constant([[3., 3.]])
     #     matrix2 = tf.constant([[2.], [2.]])
     #     product = tf.matmul(matrix1, matrix2)
+
+
+def tf_auc():
+    one = tf.ones_like(label)
+    zero = tf.zeros_like(label)
+    label = tf.where(label < 0.5, x=zero, y=one)
+
+    auc_value, auc_op = tf.metrics.auc(label_tensor, prediction_tensor, num_thresholds=2000)
+    tf.metrics.auc(labels, predictions, weights=None, num_thresholds=200, metrics_collections=None,
+                   updates_collections=None, curve='ROC', name=None, summation_method='trapezoidal')
+
+    initializer = tf.group(tf.global_variables_initializer(), tf.local_variables_initializer())
+    # restore也要重新sess.run(tf.local_variables_initializer())
+    # self.saver.restore(sess, latest_ckpt)
+    # sess.run(tf.local_variables_initializer())
+    with tf.Session() as sess:
+        sess.run(initializer)
+        # 要先运行sess.run(auc_op)后再运行计算auc的值
+        sess.run(auc_op, feed_dict=feed_dict_t)
+        accu = sess.run(auc_value)
 
 
 def tmp_test():
