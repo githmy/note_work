@@ -1,5 +1,13 @@
 # 保存
 
+def reload_model(self):
+    while True:
+        keras.backend.clear_session()
+        self.model = keras.models.load_model('./test_model%d.h5' % i)
+        self.model._make_predict_function()
+        print('reload successful')
+        time.sleep(10)
+
 # Json文件格式
 def json_save():
     # serialize model to JSON

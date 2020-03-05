@@ -7,8 +7,24 @@ import tensorflow as tf
 import numpy as np
 from tensorflow.python import pywrap_tensorflow
 
+grapht = tf.get_default_graph()
+sesst = tf.Session(graph=grapht)
 
-# 命令行参数接收
+
+def modelpredict(content):
+    # keras.backend.clear_session()
+    global grapht
+    global sesst
+    with sesst.as_default():
+        with grapht.as_default():
+            keras.model.predict()
+
+
+with sesst.as_default():
+    with grapht.as_default():
+        detections, _ = keras_model.predict([molded_images])
+
+        # 命令行参数接收
 def argv_paras():
     # python tt.py --str_name test_str --int_name 99 --bool_name True
     flags = tf.flags
