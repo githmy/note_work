@@ -31,6 +31,15 @@ plt.ion()
 plt.ioff()
 
 
+def 保存图片():
+    import matplotlib.image
+    import skimage
+    skimage.io.imsave('/tmp/test.jpg', image)
+    matplotlib.image.imsave('name0.png', image)
+    plt.imsave('name.png', image)
+    # Image.fromarray(image).save('WordCloud.png')
+
+
 def pandas_candlestick_ohlc(stock_data, otherseries=None):
     # 设置绘图参数，主要是坐标轴
     mondays = WeekdayLocator(MONDAY)
