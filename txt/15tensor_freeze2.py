@@ -56,6 +56,162 @@ def freeze_graph(model_folder):
         print("%d ops in the final graph." % len(output_graph_def.node))
 
 
+def tf2onnx():
+    # pip install -U tf2onnx
+    # https://blog.csdn.net/u012328159/article/details/81101074
+    import tensorflow as tf
+    # model_path = "pnet_frozen_model.pb"
+    import sys
+    model_path = sys.argv[1]
+    with tf.gfile.GFile(model_path, "rb") as f:
+        graph_def = tf.GraphDef()
+        graph_def.ParseFromString(f.read())
+    with tf.Graph().as_default() as graph:  #
+        tf.import_graph_def(graph_def, name="")
+        for op in graph.get_operations():  #
+            print(op.name, op.values())
+
+    with open("graph.proto", "wb") as file:
+        graph = tf.get_default_graph().as_graph_def(add_shapes=True)
+        file.write(graph.SerializeToString())
+
+    # python -m tf2onnx.convert\
+    #     --input tests/models/fc-layers/frozen.pb\
+    #     --inputs X:0\
+    #     --outputs output:0\
+    #     --output tests/models/fc-layers/model.onnx\
+    #     --verbose
+    # 自定义的
+    # python -m tf2onnx.convert --input path/frozen_graph.pb --inputs input_image:0 --outputs cls_prob:0,bbox_pred:0,landmark_pred:0 --output path/pnet.onnx --verbose --custom-ops AdjustContrastv2,AdjustHue,AdjustSaturation
+
+# def tf2onnx():
+#     pass
+
+def tf2pb():
+    import tensorflow as tf
+    import os
+    from tensorflow.python.framework import graph_util
+
+    pb_file_path = os.getcwd()
+
+    with tf.Session(graph=tf.Graph()) as sess:
+        x = tf.placeholder(tf.int32, name='x')
+        y = tf.placeholder(tf.int32, name='y')
+        b = tf.Variable(1, name='b')
+        xy = tf.multiply(x, y)
+        # 这里的输出需要加上name属性
+        op = tf.add(xy, b, name='op_to_store')
+
+        sess.run(tf.global_variables_initializer())
+
+        # convert_variables_to_constants 需要指定output_node_names，list()，可以多个
+        constant_graph = graph_util.convert_variables_to_constants(sess, sess.graph_def, ['op_to_store'])
+
+        # 测试 OP
+        feed_dict = {x: 10, y: 3}
+        print(sess.run(op, feed_dict))
+
+        # 写入序列化的 PB 文件
+        with tf.gfile.FastGFile(pb_file_path + 'model.pb', mode='wb') as f:
+            f.write(constant_graph.SerializeToString())
+            # 输出
+            # INFO:tensorflow:Froze 1 variables.
+            # Converted 1 variables to const ops.
+            # 31
+
+
+def pb2tf():
+    from tensorflow.python.platform import gfile
+
+    sess = tf.Session()
+    with gfile.FastGFile(pb_file_path + 'model.pb', 'rb') as f:
+        graph_def = tf.GraphDef()
+        graph_def.ParseFromString(f.read())
+        sess.graph.as_default()
+        tf.import_graph_def(graph_def, name='')  # 导入计算图
+
+    # 需要有一个初始化的过程
+    sess.run(tf.global_variables_initializer())
+
+    # 需要先复原变量
+    print(sess.run('b:0'))
+    # 1
+
+    # 输入
+    input_x = sess.graph.get_tensor_by_name('x:0')
+    input_y = sess.graph.get_tensor_by_name('y:0')
+
+    op = sess.graph.get_tensor_by_name('op_to_store:0')
+
+    ret = sess.run(op, feed_dict={input_x: 5, input_y: 5})
+    print(ret)
+    # 输出 26
+
+
+def tf2pb2file():
+    import tensorflow as tf
+    import os
+    from tensorflow.python.framework import graph_util
+
+    pb_file_path = os.getcwd()
+
+    with tf.Session(graph=tf.Graph()) as sess:
+        x = tf.placeholder(tf.int32, name='x')
+        y = tf.placeholder(tf.int32, name='y')
+        b = tf.Variable(1, name='b')
+        xy = tf.multiply(x, y)
+        # 这里的输出需要加上name属性
+        op = tf.add(xy, b, name='op_to_store')
+
+        sess.run(tf.global_variables_initializer())
+
+        # convert_variables_to_constants 需要指定output_node_names，list()，可以多个
+        constant_graph = graph_util.convert_variables_to_constants(sess, sess.graph_def, ['op_to_store'])
+
+        # 测试 OP
+        feed_dict = {x: 10, y: 3}
+        print(sess.run(op, feed_dict))
+
+        # 写入序列化的 PB 文件
+        with tf.gfile.FastGFile(pb_file_path + 'model.pb', mode='wb') as f:
+            f.write(constant_graph.SerializeToString())
+
+        # INFO:tensorflow:Froze 1 variables.
+        # Converted 1 variables to const ops.
+        # 31
+
+
+        # 官网有误，写成了 saved_model_builder
+        builder = tf.saved_model.builder.SavedModelBuilder(pb_file_path + 'savemodel')
+        # 构造模型保存的内容，指定要保存的 session，特定的 tag,
+        # 输入输出信息字典，额外的信息
+        builder.add_meta_graph_and_variables(sess, ['cpu_server_1'])
+
+    # 添加第二个 MetaGraphDef
+    # with tf.Session(graph=tf.Graph()) as sess:
+    #  ...
+    #  builder.add_meta_graph([tag_constants.SERVING])
+    # ...
+
+    builder.save()  # 保存 PB 模型
+
+
+def pb2file2tf():
+    with tf.Session(graph=tf.Graph()) as sess:
+        tf.saved_model.loader.load(sess, ['cpu_1'], pb_file_path + 'savemodel')
+        sess.run(tf.global_variables_initializer())
+
+        input_x = sess.graph.get_tensor_by_name('x:0')
+        input_y = sess.graph.get_tensor_by_name('y:0')
+
+        op = sess.graph.get_tensor_by_name('op_to_store:0')
+
+        ret = sess.run(op, feed_dict={input_x: 5, input_y: 5})
+        print(ret)
+        # 只需要指定要恢复模型的 session，模型的 tag，模型的保存路径即可,使用起来更加简单
+        # 不知道tensor name的情况下使用呢，实现彻底的解耦呢？ 给add_meta_graph_and_variables方法传入第三个参数，signature_def_map即可
+
+
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument("--model_folder", type=str, help="Model folder to export")

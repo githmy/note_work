@@ -25,6 +25,8 @@ with sesst.as_default():
         detections, _ = keras_model.predict([molded_images])
 
         # 命令行参数接收
+
+
 def argv_paras():
     # python tt.py --str_name test_str --int_name 99 --bool_name True
     flags = tf.flags
@@ -398,18 +400,6 @@ def array_var_manipulation():
     print(grad[0])
     grad_2 = tf.gradients(ys=grad[0], xs=a)  # 二阶导
     grad_3 = tf.gradients(ys=grad_2[0], xs=a)  # 三阶导
-
-
-# GPU操作
-def gpu_setting():
-    init = tf.global_variables_initializer()
-    # 设置tensorflow对GPU的使用按需分配
-    config = tf.ConfigProto()
-    config.gpu_options.allow_growth = True
-    # 2.启动图 (graph)
-    sess = tf.Session(config=config)
-    # sess = tf.InteractiveSession(config=config)
-    sess.run(init)
 
 
 # 会话的两种方式
@@ -945,6 +935,44 @@ def model_name():
         results = sess.run("predicty:0", {"input:0": x_test_batch})
         print(results)
 
+
+def check_pb():
+    import tensorflow as tf
+
+    model = 'acc.pb'  # 请将这里的model.pb文件路径改为自己的
+    graph = tf.get_default_graph()
+    graph_def = graph.as_graph_def()
+    graph_def.ParseFromString(tf.gfile.FastGFile(model, 'rb').read())
+    tf.import_graph_def(graph_def, name='graph')
+    summaryWriter = tf.summary.FileWriter('testlog/', graph)
+    # summaryWriter.close()
+    # tensorboard --logdir=log/ --port=6006
+
+def pb_predict():
+    import tensorflow as tf
+    import numpy as np
+    '''
+    下载训练好的pb文件
+    'http://download.tensorflow.org/models/image/imagenet/inception-2015-12-05.tgz'
+    '''
+    pb_path = r"D:\TensorFlow-model\inception-2015-12-05\classify_image_graph_def.pb"
+    with tf.gfile.FastGFile(pb_path, 'rb') as f:
+        graph_def = tf.GraphDef()
+        graph_def.ParseFromString(f.read())
+        tf.import_graph_def(graph_def, name='')
+    with tf.Session() as session:
+        # 获取pb文件中模型的所有op，主要是为了获得input与output
+        print(tf.get_default_graph().get_operations())
+        image = "D:\TensorFlow-model\inception-2015-12-05\cropped_panda.jpg"
+        # 解码图片作为inference的输入
+        image_data = tf.gfile.FastGFile(image, 'rb').read()
+
+        session.run(tf.global_variables_initializer())
+        softmax_tensor = session.graph.get_tensor_by_name('softmax:0')
+        predictions = session.run(softmax_tensor,
+                                  {'DecodeJpeg/contents:0': image_data})
+        index = np.argmax(predictions, 1)
+        print(index)
 
 # 多模型加载
 def load_one_layer():

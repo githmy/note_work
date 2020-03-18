@@ -14,6 +14,28 @@ def GPU_device():
     sess0 = tf.InteractiveSession(config=config)
 
 
+# GPU操作
+def gpu_setting():
+    init = tf.global_variables_initializer()
+    # 设置tensorflow对GPU的使用按需分配
+    config = tf.ConfigProto()
+    config.gpu_options.allow_growth = True
+    # 2.启动图 (graph)
+    sess = tf.Session(config=config)
+    # sess = tf.InteractiveSession(config=config)
+    sess.run(init)
+    # #
+    gpu_options = tf.GPUOptions(per_process_gpu_memory_fraction=0.333)
+    sess = tf.Session(config=tf.ConfigProto(gpu_options=gpu_options))
+    # #
+    config = tf.ConfigProto()
+    config.gpu_options.allow_growth = True
+    config.gpu_options.per_process_gpu_memory_fraction = 0.95
+    config.allow_soft_placement = True
+    with tf.Session(config=config) as sess:
+        pass
+
+
 def csv_read():
     """
     

@@ -185,6 +185,7 @@ np.expm1(x)
 # 过滤修改
 data[:, 1][data[:, 1] < 5] = 5  # 对第2列小于 5 的替换为5
 case[np.isnan(case)] = 3 # 清洗nan
+np.isinf()
 # mask
 arr = np.random.randint(1, 10, size=[1, 5, 5])
 mask = arr < 5
