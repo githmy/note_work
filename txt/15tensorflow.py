@@ -808,6 +808,9 @@ def name_scope_func():
 def save_model():
     # 3. 保存模型。
     saver = tf.train.Saver()  # 声明ta.train.Saver()类用于保存.
+    # 保存静态参数
+    tf.train.export_meta_graph()
+    # 保存动态参数
     save_path = saver.save(sess, 'save/filename.ckpt', global_step=5)  # 保存路径为相对路径的save文件夹,保存名为filename.ckpt
     # tf.Saver([tensors_to_be_saved]) 中可以传入一个 list，把要保存的 tensors 传入，如果没有给定这个list的话，他会默认保存当前所有的 tensors。
 
@@ -838,7 +841,9 @@ def load_model1():
 
 def load_model2():
     # 方式一  不需要重新定义网络结构
+    # 加载静态数据
     saver = tf.train.import_meta_graph('save/filename.meta')
+    # 加载动态数据
     saver.restore(tf.get_default_session(), 'save/filename.ckpt-16000')
 
 
@@ -938,7 +943,7 @@ def model_name():
 
 def check_pb():
     import tensorflow as tf
-
+    # 方法一
     model = 'acc.pb'  # 请将这里的model.pb文件路径改为自己的
     graph = tf.get_default_graph()
     graph_def = graph.as_graph_def()
@@ -947,32 +952,42 @@ def check_pb():
     summaryWriter = tf.summary.FileWriter('testlog/', graph)
     # summaryWriter.close()
     # tensorboard --logdir=log/ --port=6006
+    # 方法二
+    # python -m tensorflow.python.tools.import_pb_to_tensorboard \
+    #   --model_dir="your_path/model.pb"
+    #   --log_dir="your_log_path"
+    # tensorboard --logdir="your_log_path" #启动tensorboard
+    # 方法三
+    # from tensorflow.python.tools.import_pb_to_tensorboard import import_to_tensorboard
+    # model = os.path.join(model_dir, 'tensorflow_inception_graph.pb')
+    # import_to_tensorboard(model_dir=model, log_dir='log/')
+    # #命令行
+    # tensorboard --logdir="your_log_path" #启动tensorboard
+
 
 def pb_predict():
     import tensorflow as tf
     import numpy as np
-    '''
-    下载训练好的pb文件
-    'http://download.tensorflow.org/models/image/imagenet/inception-2015-12-05.tgz'
-    '''
-    pb_path = r"D:\TensorFlow-model\inception-2015-12-05\classify_image_graph_def.pb"
-    with tf.gfile.FastGFile(pb_path, 'rb') as f:
-        graph_def = tf.GraphDef()
-        graph_def.ParseFromString(f.read())
-        tf.import_graph_def(graph_def, name='')
-    with tf.Session() as session:
-        # 获取pb文件中模型的所有op，主要是为了获得input与output
-        print(tf.get_default_graph().get_operations())
-        image = "D:\TensorFlow-model\inception-2015-12-05\cropped_panda.jpg"
-        # 解码图片作为inference的输入
-        image_data = tf.gfile.FastGFile(image, 'rb').read()
+    pb_path = "acc.pb"
+    with tf.Graph().as_default() as graph:
+        sesspb = tf.Session(graph=graph)
+        with tf.gfile.FastGFile(pb_path, 'rb') as f:
+            graph_def = tf.GraphDef()
+            graph_def.ParseFromString(f.read())
+            tf.import_graph_def(graph_def, name="newpb")
+            sesspb.graph.as_default()
+    input_image = sesspb.graph.get_tensor_by_name('newpb/input_image:0')
+    input_image_meta = sesspb.graph.get_tensor_by_name('newpb/input_image_meta:0')
+    input_anchors = sesspb.graph.get_tensor_by_name('newpb/input_anchors:0')
 
-        session.run(tf.global_variables_initializer())
-        softmax_tensor = session.graph.get_tensor_by_name('softmax:0')
-        predictions = session.run(softmax_tensor,
-                                  {'DecodeJpeg/contents:0': image_data})
-        index = np.argmax(predictions, 1)
-        print(index)
+    res_detection = sesspb.graph.get_tensor_by_name('newpb/mrcnn_detection/Reshape_1:0')
+    detections = sesspb.run(
+        [res_detection, res_mrcnn_mask], {
+            input_image: molded_images,
+            input_image_meta: image_metas,
+            input_anchors: anchors,
+        })
+
 
 # 多模型加载
 def load_one_layer():
@@ -983,6 +998,7 @@ def load_one_layer():
 
 # 多模型加载
 def load_multi_graph():
+    # https://www.cnblogs.com/wmr95/p/7806744.html
     g1 = tf.Graph()  # 加载到Session 1的graph
     g2 = tf.Graph()  # 加载到Session 2的graph
     sess1 = tf.Session(graph=g1)  # Session1
@@ -993,6 +1009,10 @@ def load_multi_graph():
         with g1.as_default():
             tf.global_variables_initializer().run()
             model_saver = tf.train.Saver(tf.global_variables())
+            # 局部加载变量
+            # saver=tf.train.Saver([v1])
+            # 加载重命名
+            # saver = tf.train.Saver({"v1": v1, "v2": v2})
             model_ckpt = tf.train.get_checkpoint_state("model1/save/path")
             model_saver.restore(sess, model_ckpt.model_checkpoint_path)
     # 加载第二个模型
