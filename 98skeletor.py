@@ -141,7 +141,8 @@ def lgb():
     import re
     import time
 
-    %matplotlib inline
+    % matplotlib
+    inline
     import matplotlib.pyplot as plt
     import seaborn as sns
 
@@ -204,7 +205,6 @@ def lgb():
     # 试过 rolling + diff 效果比只用一种要差, 我还没搞清楚, 可以多尝试
     for i in [4, 6, 8, 10, 12]:
         df[f't_diff_last_{i}'] = df.groupby('event_id')['t'].diff(periods=i).fillna(0)
-
 
     # 位置与中心位置的比例?
     df['x_div_xcmc'] = df['x'] / (df['event_id_xcmc'] + 0.01)
@@ -321,6 +321,70 @@ def lgb():
     submission.to_csv(f'submissions/submission_lgb_{score}_threshold_{best_threshold}.csv',
                       index=False)  # 线上 54.600440509
     submission.flag_pred.value_counts()
+
+
+def deeplea():
+    from keras.models import Model
+    from keras.layers import multiply
+    from keras.layers import Dense, Embedding, Input, Flatten
+    from keras.layers import LSTM, Bidirectional, GlobalMaxPool1D, Dropout
+    from keras.preprocessing import text, sequence
+    from keras.callbacks import EarlyStopping, ModelCheckpoint, TensorBoard
+    from keras.layers.wrappers import TimeDistributed
+    from sklearn.metrics import roc_auc_score
+    import tensorflow as tf
+    import time
+
+    def auroc(y_true, y_pred):
+        return tf.py_func(roc_auc_score, (y_true, y_pred), tf.double)
+
+    def get_model():
+        timestep = 1000
+        embed_size = 300
+        memn = 50
+        # 时间步 = maxlen
+
+        inp = tf.keras.Input(shape=[timestep, embed_size])
+        masked_inputs = tf.keras.layers.Masking()(inp)
+        # inp = Input(shape=(timestep, embed_size))
+        x = Bidirectional(LSTM(memn, return_sequences=True))(masked_inputs)
+        x = Dense(timestep, activation='relu')(x)
+        x = Bidirectional(LSTM(memn / 2, return_sequences=True))(x)
+        a_probs = Dense(timestep, activation='sigmoid')(x)
+        model = Model(inputs=inp, outputs=a_probs)
+        model.compile(loss='binary_crossentropy',
+                      optimizer='adam',
+                      metrics=['accuracy', auroc])
+        return model
+
+    batch_size = 32
+    epochs = 100
+    model_path = ""
+    tensor_path = ""
+    checkpoint = ModelCheckpoint(model_path, monitor='val_loss', verbose=1, save_best_only=True, mode='min')
+    tensorb = TensorBoard(log_dir=tensor_path, histogram_freq=10, write_graph=True, write_images=True,
+                          embeddings_freq=0,
+                          embeddings_layer_names=None, embeddings_metadata=None)
+    early = EarlyStopping(monitor="val_loss", mode="min", patience=200)
+    callbacks_list = [checkpoint, early, tensorb]  # early
+
+    model = get_model()
+    print(model.summary())
+
+    # In[8]:
+
+
+    start = time.time()
+    model.fit(X_t, y, batch_size=batch_size, epochs=epochs, validation_split=0.2, callbacks=callbacks_list)
+    end = time.time()
+    print("outbatch: " + str(end - start))
+
+    # In[9]:
+
+    model.load_weights(model_path)
+    y_test = model.predict(X_te)
+
+    sample_submission = pd.read_csv(test_file)
 
 
 def main():
