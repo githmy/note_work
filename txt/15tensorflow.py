@@ -402,6 +402,11 @@ def array_var_manipulation():
     grad_3 = tf.gradients(ys=grad_2[0], xs=a)  # 三阶导
 
 
+# 数据shuffle
+def zip_shuffle():
+    fpath, text_length, text = tf.train.slice_input_producer([fpaths, text_lengths, texts], shuffle=True)
+
+
 # 会话的两种方式
 def session_2way():
     # 1.
@@ -479,6 +484,10 @@ def check_var_func():
     char_lookup.read_value()
     char_lookup.assign(emb_weights)
 
+    # 查看参数数量
+    all_vars = tf.trainable_variables()
+    print('Parameters {:.3f} Million.'.format(np.sum([np.prod(v.get_shape().as_list()) for v in all_vars])))
+    
 
 # 可训练方式
 def trainable_func():
@@ -963,6 +972,14 @@ def check_pb():
     # import_to_tensorboard(model_dir=model, log_dir='log/')
     # #命令行
     # tensorboard --logdir="your_log_path" #启动tensorboard
+    # 方法四
+    # pip install netron
+    # vim view_node.py
+    import netron
+    modelPath = "acc.pb"
+    netron.start(modelPath, host="0.0.0.0", port=8080)
+    # python view_node.py
+    # http://localhost:8080
 
 
 def pb_predict():
