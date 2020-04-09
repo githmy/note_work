@@ -273,7 +273,25 @@ for name, group in df1.groupby('key1'):
     print()
 
 # 列值排序的序号
+# 'min':两人并列第 1 名，下一个人是第 3 名。
+# 'max':两人并列第 2 名，下一个人是第 3 名。
+# 'average' （默认设置）:那么这两个人就占据了前两名，分不出谁第 1，谁第 2，就把两人的名次算个平均数，都算 1.5 名，这样下一个人就是第3名。
+# 'dense':两人并列第 1 名，但下一个人是第 2 名。
+# 'first':那么试卷先被改出来的人是第 1 名，试卷后被改出来的是第 2 名。按照本来序列的显示顺序先后来排名
 # orderl_pd[i] = liquids_pd[i].rank(ascending=1, method='first')
+# obj = pd.Series([7,-5,7,4,2,0,4])
+# obj.rank()
+# obj.rank(axis=0) z'z
+# 0    6.5
+# 1    1.0
+# 2    6.5
+# 3    4.5
+# 4    3.0
+# 5    2.0
+# 6    4.5
+
+# df["Percent_of_Order"] = df["ext price"] / df.groupby('order')["ext price"].transform('sum')
+# df['event_id_t_min'] = df.groupby('event_id')['t'].transform('min')
 
 # # 添加增列
 # datalists[i1].insert(1, "liquid", 1.0)
