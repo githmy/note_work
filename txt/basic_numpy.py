@@ -88,7 +88,7 @@ np.max(grade) - np.min(grade)
 np.isnan(test1)
 delpreaftsig = np.logical_or(delpresig, delaftsig)
 x = x(~ isnan(x));
-更快的做法
+# 更快的做法
 print(ychara_list[-1][~delpreaftsig])
 
 # numpy 转pandas
@@ -172,6 +172,9 @@ np.median(c)
 # 类型转化
 a = np.array([1, 2, 3, 4, 5, 6, 7, 8, 9], dtype='float32');
 c = a.astype(np.float32)
+
+# 附近的整数
+np.rint(c)
 
 # np.corrcoef()方法计算数据皮尔逊积矩相关系数
 x = np.vstack((a, b, c))
