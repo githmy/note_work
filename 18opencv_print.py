@@ -252,7 +252,7 @@ def moviepy_trans(infile, outfile):
               .resize(width=logosize[0], height=logosize[1])
               .set_pos((frame_fromx - 20, frame_fromy + 5)))
     # 4. 输出
-    # result = CompositeVideoClip([ori_video], size=moviesize)
+    # result = CompositeVideoClip([ori_video], size=moviesize)  尺寸裁剪，不是缩放
     result = CompositeVideoClip([ori_video, screen], size=moviesize)
     result.set_duration(ori_video.duration).write_videofile(outfile, fps=ori_video.fps)
 
