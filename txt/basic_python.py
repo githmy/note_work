@@ -1,6 +1,6 @@
 import jieba
 import pandas as pd
-
+import jsonpatch
 # 警告过滤
 import warnings
 
@@ -10,10 +10,12 @@ warnings.filterwarnings(action='ignore', category=FutureWarning)
 # !pip install goto-statement
 from goto import with_goto
 
+
 def garbage_collector():
     # 垃圾回收
     import gc
     gc.collect()
+
 
 def color():
     print("\033[1;30m 字体颜色：白色\033[0m")
@@ -41,6 +43,7 @@ def color():
     print('\033[0;35;46m 字体有色，且有背景色 \033[0m')  # 无高亮
     print('不换行', end='')
     print('换行')
+
 
 def propertys():
     变量名称 = 3
@@ -126,6 +129,7 @@ def list_deal():
     # 比较数组是否相同 对比
     import operator
     operator.ne(set(old_id["mainReviewPoints"]), set(new_id["mainReviewPoints"]))
+
 
 def list_transpose():
     def transpose(matrix):
@@ -262,9 +266,18 @@ def itertools():
     batchbetch_all.update(batchbetch1)
 
 
+def json_compare():
+    src = {'numbers': [1, 3, 4, 8], 'foo': 'bar'}
+    dst = {'foo': 'bar', 'numbers': [1, 3, 8]}
+    patch = jsonpatch.JsonPatch.from_diff(src, dst)
+    print(patch)
+
+
 def json_manipulate():
     import json
     tmpjson = {"a": 1, "b": 2}
+    # 删除
+    del tmpjson['foo']
     # 不用ascii编码，缩进4格
     jsonstr = json.dumps(tmpjson, ensure_ascii=False, indent=4)
     # 用utf-8编码，缩进4格
@@ -282,6 +295,11 @@ def uuid_demo():
     print(uuid.uuid4())
     print(uuid.uuid5(namespace, name))
     print(uuid.uuid1("2"))
+
+
+def 判断是否是汉字():
+    if u'\u4e00' <= ch <= u'\u9fff':
+        return True
 
 
 def nlp资料():
