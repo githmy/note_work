@@ -391,6 +391,12 @@ df5.drop_duplicates(['c2'])
 df5.duplicates()
 df5.duplicates(['c2'])
 
+# 随机
+sampler = np.random.permutation(5)
+df.take(sampler)
+# 随机采样，取前三行
+df.take(np.random.permutation(len(df))[:3])
+
 # 特征统计
 # 1. 序列处理，平移
 # ts_lag = ts.shift()

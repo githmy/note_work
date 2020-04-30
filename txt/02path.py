@@ -61,6 +61,12 @@ os.path.abspath(__file__)
 # 相对路径
 os.path.realpath(__file__)
 
+# 规范大小写
+os.path.normcase('c:/WINDOWS\\system32\\')
+
+# 规范 .. \\ /
+os.path.normpath('c://windows\\System32\\../Temp/')
+
 # 文件操作
 import shutil, os
 

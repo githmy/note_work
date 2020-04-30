@@ -81,6 +81,27 @@ def plot_line_scatter_demo(x, y):
     plt.show()
 
 
+# 画图改坐标轴
+def plot_curve(x, y):
+    y = y
+    yin = np.array(y)
+    xin = np.arange(0, len(y))
+    # 长 宽 背景颜色
+    plt.figure(figsize=(24, 12), facecolor='w')
+    # plt.figure(facecolor='w')
+    plt.plot(xin, yin, color='r', linestyle='-', linewidth=1.2, marker="*", markersize=7, markerfacecolor='b',
+             markeredgecolor='g')
+    plt.xlabel("tokenid", verticalalignment="top")
+    plt.ylabel("数量", rotation=0, horizontalalignment="right")
+    # xticks = ["今天", "周五", "周六", "周日", "周一"]
+    plt.xticks(xin, x)
+    yticks = np.arange(0, 500, 10)
+    plt.yticks(yticks)
+
+    plt.grid(b=True)
+    plt.show()
+
+
 # plot_single(ts['2014-01-01':'2015-12-31'], 20, title='test_org')
 # 股票均值
 def plot_line_stock(ts, w, title='time_sequence'):

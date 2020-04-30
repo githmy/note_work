@@ -88,7 +88,7 @@ np.max(grade) - np.min(grade)
 np.isnan(test1)
 delpreaftsig = np.logical_or(delpresig, delaftsig)
 x = x(~ isnan(x));
-更快的做法
+# 更快的做法
 print(ychara_list[-1][~delpreaftsig])
 
 # numpy 转pandas
