@@ -173,6 +173,9 @@ np.median(c)
 a = np.array([1, 2, 3, 4, 5, 6, 7, 8, 9], dtype='float32');
 c = a.astype(np.float32)
 
+# 附近的整数
+np.rint(c)
+
 # np.corrcoef()方法计算数据皮尔逊积矩相关系数
 x = np.vstack((a, b, c))
 r = np.corrcof(x)
