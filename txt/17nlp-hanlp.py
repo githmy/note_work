@@ -29,7 +29,25 @@ def main():
     print(HanLP.extractSummary(document, 3))
     # 依存句法分析
     print(HanLP.parseDependency("徐先生还具体帮助他确定了把画雄鹰、松鼠和麻雀作为主攻目标。"))
-
+    # 分词 词性
+    s_hanlp = HanLP.segment(sentence)
+    for term in s_hanlp:
+        print(term.word, term.nature)
+    sentence = HanLP.parseDependency(sentence)
+    for word in sentence.iterator():
+        print("%s --(%s)--> %s" % (word.LEMMA, word.DEPREL, word.HEAD.LEMMA))
+    word_array = sentence.getWordArray()
+    for word in word_array:
+        print("%s --(=%s=)--> %s" % (word.LEMMA, word.DEPREL, word.HEAD.LEMMA))
+    print()
+    CoNLLWord = JClass("com.hankcs.hanlp.corpus.dependency.CoNll.CoNLLWord")
+    head = word_array[12]
+    while head.HEAD:
+        head = head.HEAD
+        if (head == CoNLLWord.ROOT):
+            print(head.LEMMA)
+        else:
+            print("%s -+-(%s)-+-> " % (head.LEMMA, head.DEPREL))
 
 if __name__ == '__main__':
     main()
