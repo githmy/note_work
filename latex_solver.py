@@ -1,6 +1,13 @@
 from sympy import *
 import re
 import sympy as sy
+import itertools
+import string
+import os
+import json
+
+baspath = os.path.join("..", "data", "wordvector")
+latex_json = json.load(open(os.path.join(baspath, 'vocab.json'), encoding="utf-8"))
 
 operator_precedence = {
     '=': -1,
@@ -31,6 +38,8 @@ pmlist = ["+", "-", "*", "/", "^", "(", "{", "=", "\\div", "\\cdot", "\\times", 
 symblist = ["\\blacksquare", "\\triangle", "\\angle", "\\square", "\\bigodot", "\\diamondsuit", "\\Box"]
 alpaist = ["\\gamma", "\\omega", "\\phi", "\\cos", "\\sin", "\\lambda", "\\zeta", "\\theta", "\\Omega", "\\pi", "\\rho",
            "\\tan"]
+step_alist = ["\\because", "已知"]
+step_blist = ["\\therefore", "\\Rightarrow", "\\rightarrow"]
 
 
 def is_numberj(s):
@@ -38,7 +47,111 @@ def is_numberj(s):
         return float(s)
 
 
+def latex2space(instr):
+    listtk = {}
+    for i1 in latex_json.keys():
+        tt = i1.replace(" ", "")
+        tlsit = []
+        for i2 in tt:
+            tlsit.append(i2)
+        listtk[" ".join(tlsit)] = len(" ".join(tlsit))
+    contenta = sorted(listtk.items(), key=lambda x: -x[1])
+    contenta = [i1[0] for i1 in contenta]
+    contento = [i1.replace(" ", "") for i1 in contenta]
+
+    def splitt(strin):
+        lists = []
+        for i1 in str(strin):
+            lists.append(i1)
+        tstr = " ".join(lists)
+        for s, n in zip(contenta, contento):
+            tstr = tstr.replace(s, n)
+        tstr = tstr.replace("  ", " ").replace("  ", " ")
+        return tstr
+
+    outstr = splitt(instr)
+    return outstr
+
+
 def postfix_convert(explist):
+    '''
+    将表达式list，转为后缀表达式list
+    '''
+    stack = []  # 运算符栈，存放运算符
+    postfix = []  # 后缀表达式栈
+    # print(explist)
+    for chars in explist:
+        # print(chars, stack, postfix)
+        if chars not in operator_precedence:  # 非运算符号，直接进栈
+            postfix.append(chars)
+        else:
+            if len(stack) == 0:  # 若是运算符栈啥也没有，直接将运算符进栈
+                stack.append(chars)
+            else:
+                if chars == "(":
+                    stack.append(chars)
+                elif chars == ")":  # 遇到了右括号，运算符出栈到postfix中，并且将左括号出栈
+                    while stack[-1] != "(":
+                        postfix.append(stack.pop())
+                    stack.pop()
+                elif chars == "{":
+                    stack.append(chars)
+                elif chars == "}":  # 遇到了右括号，运算符出栈到postfix中，并且将左括号出栈
+                    while stack[-1] != "{":
+                        postfix.append(stack.pop())
+                    stack.pop()
+                elif chars == "\{":
+                    stack.append(chars)
+                elif chars == "\}":  # 遇到了右括号，运算符出栈到postfix中，并且将左括号出栈
+                    while stack[-1] != "\{":
+                        postfix.append(stack.pop())
+                    stack.pop()
+                elif chars == "[":
+                    stack.append(chars)
+                elif chars == "]":  # 遇到了右括号，运算符出栈到postfix中，并且将左括号出栈
+                    while stack[-1] != "[":
+                        postfix.append(stack.pop())
+                    stack.pop()
+                elif chars == "\\sqrt":
+                    if stack[-1] == "^":
+                        stack.pop()
+                    stack.append(chars)
+                elif operator_precedence[chars] >= operator_precedence[stack[-1]]:
+                    # 只要优先级数字大，那么就继续追加
+                    # print(operator_precedence[chars], operator_precedence[stack[-1]])
+                    # print(chars)
+                    stack.append(chars)
+                else:
+                    while len(stack) != 0:
+                        # 运算符栈一直出栈，直到遇到了左括号或者长度为0
+                        if stack[-1] == "(" or stack[-1] == "{" or stack[-1] == "\{" or stack[-1] == "[" or stack[
+                            -1] == "=":
+                            break
+                        postfix.append(stack.pop())  # 将运算符栈的运算符，依次出栈放到表达式栈里面
+                    stack.append(chars)  # 并且将当前符号追放到符号栈里面
+    while len(stack) != 0:  # 如果符号站里面还有元素，就直接将其出栈到表达式栈里面
+        postfix.append(stack.pop())
+    # print(postfix)
+    # print("out stack")
+    # 3. 正则冗余表达
+    postfix = normal_explist(postfix)
+    # 4. 结合律
+    tmlenth = len(postfix) - 1
+    for i1 in range(tmlenth):
+        if postfix[i1 + 1] == "-":
+            if postfix[i1] == "-":
+                postfix[i1] = "+"
+            elif postfix[i1] == "+":
+                postfix[i1] = "-"
+        if postfix[i1 + 1] == "/":
+            if postfix[i1] == "/":
+                postfix[i1] = "*"
+            elif postfix[i1] == "*":
+                postfix[i1] = "/"
+    return postfix
+
+
+def postfix_convert_P(explist):
     '''
     将表达式list，转为后缀表达式list
     '''
@@ -398,6 +511,276 @@ def latex2list(instr, varlist=[]):
     # varlist = ["acd", "bc", "cdef"]
     # varlist需要通过题干解析 1. 字母组连接 2. 数字缩并 3. 字母间算符 4. 单位换算 5. 分数 6. pm mp 符号补全
     # 1. 带空格的latex， 数字缩并，
+    instr = latex2unit(instr, varlist=varlist)
+    # instr = instr.strip()
+    # instr = " " + instr + " "
+    # # 1. 字母组数连接 ×
+    # vardic = {i1: len(i1) for i1 in varlist}
+    # varitem = [i1[0] for i1 in sorted(vardic.items(), key=lambda s: s[1], reverse=True)]
+    # for i1 in varitem:
+    #     instr = instr.replace(" " + " ".join([i2 for i2 in i1]) + " ", " " + i1 + " ")
+    # instr = instr.strip()
+    inlist = instr.split(" ")
+    orilenth = len(inlist)
+    # 2. 处理 单组数字 含义
+    for i1 in range(orilenth - 1, -1, -1):
+        if i1 > 0 and inlist[i1][0] in "0123456789." and inlist[i1 - 1][0] in "0123456789.":
+            inlist[i1 - 1] = inlist[i1 - 1] + inlist[i1]
+            del inlist[i1]
+        # 处理 函数 简写
+        elif i1 > 0 and inlist[i1] in funclist and inlist[i1 - 1][0] in "0123456789.(){}":
+            singl_cout = 0
+            numcout = 0
+            endnum = 0
+            if inlist[i1 + 1] != "{":
+                raise Exception("match sig error.")
+            for i2 in range(i1 + 1, orilenth):
+                if inlist[i2] == "{":
+                    singl_cout += 1
+                elif inlist[i2] == "}":
+                    singl_cout -= 1
+                if singl_cout == 0:
+                    numcout += 1
+                    if numcout == 1:
+                        endnum = i2 + 1
+                        break
+            if numcout != 1:
+                raise Exception("match num error.")
+            # 后插入
+            inlist.insert(endnum, ")")
+            # 前插入
+            inlist.insert(i1, "(")
+            inlist.insert(i1, "\\times")
+    # 3. 字母间算符
+    orilenth = len(inlist)
+    for i1 in range(orilenth - 1, -1, -1):
+        # print(inlist[i1 - 1])
+        if i1 > 0 and (inlist[i1][0].isalpha() or inlist[i1] in symblist + alpaist) \
+                and (inlist[i1 - 1][0].isalpha() or inlist[i1 - 1] in alpaist):
+            inlist.insert(i1, "\\cdot")
+        elif i1 > 0 and (inlist[i1][0].isalpha() or inlist[i1] in symblist + alpaist) \
+                and (inlist[i1 - 1] not in ["+", "-", "\\pm", "\\mp"] and is_numberj(inlist[i1 - 1])):
+            inlist.insert(i1, "\\cdot")
+    # 4. 单位换算 角度
+    orilenth = len(inlist)
+    for i1 in range(orilenth - 1, -1, -1):
+        # 处理 单组数字 含义
+        if i1 > 0 and (inlist[i1][0] in ["'", "\""] or " ".join(inlist[i1 - 2:i1 + 2]) == "^ { \\circ }"):
+            if inlist[i1][0] in "'":
+                del inlist[i1]
+                inlist.insert(i1, "\\pi")
+                inlist.insert(i1, "\\times")
+                inlist.insert(i1, "180")
+                inlist.insert(i1, "/")
+                inlist.insert(i1, "60")
+                inlist.insert(i1, "/")
+            elif inlist[i1][0] in "\"":
+                del inlist[i1]
+                inlist.insert(i1, "\\pi")
+                inlist.insert(i1, "\\times")
+                inlist.insert(i1, "180")
+                inlist.insert(i1, "/")
+                inlist.insert(i1, "60")
+                inlist.insert(i1, "/")
+                inlist.insert(i1, "60")
+                inlist.insert(i1, "/")
+            elif " ".join(inlist[i1 - 2:i1 + 2]) == "^ { \\circ }":
+                del inlist[i1 - 2]
+                del inlist[i1 - 2]
+                del inlist[i1 - 2]
+                del inlist[i1 - 2]
+                inlist.insert(i1 - 2, "\\pi")
+                inlist.insert(i1 - 2, "\\times")
+                inlist.insert(i1 - 2, "180")
+                inlist.insert(i1 - 2, "/")
+    # 5. 处理 分数
+    orilenth = len(inlist)
+    for i1 in range(orilenth - 1, -1, -1):
+        # 遍历 分数
+        if i1 > 0 and inlist[i1] in addtypelist and is_numberj(inlist[i1 - 1]):
+            singl_cout = 0
+            numcout = 0
+            endnum = 0
+            if inlist[i1 + 1] != "{":
+                raise Exception("match sig error.")
+            for i2 in range(i1 + 1, orilenth):
+                if inlist[i2] == "{":
+                    singl_cout += 1
+                elif inlist[i2] == "}":
+                    singl_cout -= 1
+                if singl_cout == 0:
+                    numcout += 1
+                    if numcout == 2:
+                        endnum = i2 + 1
+                        break
+            if numcout != 2:
+                raise Exception("match num error.")
+            # 后插入
+            inlist.insert(endnum, ")")
+            # 前插入
+            inlist.insert(i1, "+")
+            inlist.insert(i1 - 1, "(")
+    # 6. 根下处理
+    orilenth = len(inlist)
+    for i1 in range(orilenth - 1, -1, -1):
+        if inlist[i1] == "\\sqrt" and inlist[i1 + 1] == "{":
+            # 后插入
+            singl_cout = 0
+            numcout = 0
+            endnum = i1
+            for i2 in range(i1 + 1, orilenth):
+                if inlist[i2] == "{":
+                    singl_cout += 1
+                elif inlist[i2] == "}":
+                    singl_cout -= 1
+                if singl_cout == 0:
+                    numcout += 1
+                    if numcout == 1:
+                        endnum = i2 + 1
+                        break
+            if numcout != 1:
+                raise Exception("match end num error.")
+            # 前插入
+            singl_cout = 0
+            numcout = 0
+            startnum = i1
+            for i2 in range(i1 - 1, 0, -1):
+                if inlist[i2] == "}":
+                    singl_cout += 1
+                elif inlist[i2] == "{":
+                    singl_cout -= 1
+                if singl_cout == 0:
+                    if inlist[i2 - 1] == "^":
+                        numcout += 1
+                        if numcout == 1:
+                            startnum = i2 - 1
+                            break
+                    else:
+                        break
+            inlist.insert(endnum, ")")
+            # 不匹配从零插添加二次项，匹配从算好的插
+            if numcout == 1:
+                inlist.insert(startnum, "(")
+            else:
+                inlist.insert(startnum, "}")
+                inlist.insert(startnum, "2")
+                inlist.insert(startnum, "{")
+                inlist.insert(startnum, "^")
+                inlist.insert(startnum, "(")
+    # 7. +- 缩并
+    orilenth = len(inlist)
+    for i1 in range(orilenth - 1, -1, -1):
+        if i1 > 0 and inlist[i1] in ["+", "-", "\\pm", "\\mp"] and inlist[i1 - 1] in pmlist:
+            if inlist[i1 + 1] in funclist + ["(", "{", "\\frac", "\\sqrt"]:
+                # 后面的意义单元为 函数 或 平衡符号组
+                if inlist[i1 + 1] == "\\frac":
+                    stop_num = 2
+                else:
+                    stop_num = 1
+                typestartsig = ""
+                typeendsig = ""
+                singl_cout = 0
+                numcout = 0
+                endnum = 0
+                for i2 in range(i1 + 1, orilenth):
+                    if typestartsig == "":
+                        if inlist[i2] == "{":
+                            typestartsig = "{"
+                            typeendsig = "}"
+                            singl_cout += 1
+                        elif inlist[i2] == "(":
+                            typestartsig = "("
+                            typeendsig = ")"
+                            singl_cout += 1
+                    else:
+                        if inlist[i2] == typestartsig:
+                            singl_cout += 1
+                        elif inlist[i2] == typeendsig:
+                            singl_cout -= 1
+                        if singl_cout == 0:
+                            numcout += 1
+                            if numcout == stop_num:
+                                endnum = i2 + 1
+                                break
+                if numcout != stop_num:
+                    raise Exception("match num error.")
+                # 后插入
+                inlist.insert(endnum, ")")
+                # 前插入
+                inlist.insert(i1, "0")
+                inlist.insert(i1, "(")
+            else:
+                # i1+1 为数字 插入数字后为 i1+2
+                # 后插入
+                inlist.insert(i1 + 2, ")")
+                # 前插入
+                inlist.insert(i1, "0")
+                inlist.insert(i1, "(")
+            # elif inlist[i1 + 1] in funclist + ["(", "{"]:
+            #     if inlist[i1] == "+" and inlist[i1 - 1] in pmlist:
+            #         del inlist[i1]
+            #     elif inlist[i1] == "-" and inlist[i1 - 1] in pmlist:
+            #         if inlist[i1 - 1] == "-":
+            #             del inlist[i1]
+            #             del inlist[i1 - 1]
+            #             inlist.insert(i1 - 1, "+")
+            #         elif inlist[i1 - 1] == "+":
+            #             del inlist[i1 - 1]
+            #         elif inlist[i1 - 1] == "\\pm":
+            #             inlist[i1 - 1] = "\\mp"
+            #             del inlist[i1]
+            #         elif inlist[i1 - 1] == "\\mp":
+            #             inlist[i1 - 1] = "\\pm"
+            #             del inlist[i1]
+            #         elif inlist[i1 - 1] in ["*", "/", "^", "\\div", "\\cdot", "\\times"] and inlist[
+            #                     i1 + 1] in funclist + [
+            #             "(", "{"]:
+            #             # 后面的意义单元为 函数 或 平衡符号组
+            #             typestartsig = ""
+            #             typeendsig = ""
+            #             singl_cout = 0
+            #             numcout = 0
+            #             endnum = 0
+            #             for i2 in range(i1 + 1, orilenth):
+            #                 if typestartsig == "":
+            #                     if inlist[i2] == "{":
+            #                         typestartsig = "{"
+            #                         typeendsig = "}"
+            #                         singl_cout += 1
+            #                     elif inlist[i2] == "(":
+            #                         typestartsig = "("
+            #                         typeendsig = ")"
+            #                         singl_cout += 1
+            #                 else:
+            #                     if inlist[i2] == typestartsig:
+            #                         singl_cout += 1
+            #                     elif inlist[i2] == typeendsig:
+            #                         singl_cout -= 1
+            #                     if singl_cout == 0:
+            #                         numcout += 1
+            #                         if numcout == 1:
+            #                             endnum = i2 + 1
+            #                             break
+            #             if numcout != 1:
+            #                 raise Exception("match num error.")
+            #             # 后插入
+            #             inlist.insert(endnum, ")")
+            #             # 前插入
+            #             inlist.insert(i1, "0")
+            #             inlist.insert(i1, "(")
+            #         elif inlist[i1 - 1] in "({":
+            #             inlist.insert(i1, "0")
+            #         elif inlist[i1 - 1] in ["*", "/", "^", "\\div", "\\cdot", "\\times"]:
+            #             # 后面的意义单元为数字
+            #             inlist.insert(i1 + 1, ")")
+            #             inlist.insert(i1, "0")
+            #             inlist.insert(i1, "(")
+            pass
+    return inlist
+
+
+def latex2unit(instr, varlist=[]):
+    """概念单元 去空格"""
     instr = instr.strip()
     instr = " " + instr + " "
     # 1. 字母组数连接 ×
@@ -406,6 +789,14 @@ def latex2list(instr, varlist=[]):
     for i1 in varitem:
         instr = instr.replace(" " + " ".join([i2 for i2 in i1]) + " ", " " + i1 + " ")
     instr = instr.strip()
+    return instr
+
+
+def latex2list_P(instr, varlist=[]):
+    # varlist = ["acd", "bc", "cdef"]
+    # varlist需要通过题干解析 1. 字母组连接 2. 数字缩并 3. 字母间算符 4. 单位换算 5. 分数 6. pm mp 符号补全
+    # 1. 带空格的latex， 数字缩并，
+    instr = latex2unit(instr, varlist=varlist)
     inlist = instr.split(" ")
     orilenth = len(inlist)
     # 2. 处理 单组数字 含义
@@ -759,9 +1150,13 @@ def solve_latex_equation(expstr, varlist=["x", "y"], const_dic={"\\pi": "3.14"})
     # 2. latex单元到列表
     equaoutlist = []
     for i1 in equalist:
+        print(i1)
         tmplist = latex2list(i1, varlist=varlist)
+        print(tmplist)
         # # 3. 解析堆栈形式
         postfix = postfix_convert(tmplist)
+        print(postfix)
+        exit()
         # # 4. 常数替换
         postfix = constance_explist(postfix, const_dic=const_dic)
         exprestion = cal_equation_tree(postfix, vardic)
