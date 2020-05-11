@@ -49,6 +49,7 @@ import matplotlib.dates
 import matplotlib as mpl
 import datetime, time
 import copy
+import random
 
 mpl.rcParams[u'font.sans-serif'] = u'SimHei'
 mpl.rcParams[u'axes.unicode_minus'] = False
@@ -114,14 +115,13 @@ class FutureShow(object):
     def __init__(self):
         """已知:可查询数据如下"""
         self.datajson = {
-            "月嫂日增期望": 10,  # todo: 待完成
-            "月嫂日增标准差": 3,  # todo: 待完成
+            "月嫂日增期望": 10,  # todo: 统计 星级 地域 当前工资 报名加入日期(含培训期) 当天工资分享数量（可得2周内）
+            "月嫂日增标准差": 3,  # todo: 统计 星级 地域 当前工资 报名加入日期(含培训期) 当天工资分享数量（可得2周内）
             # "月嫂初始数": 2000,
             "月嫂初始数": 200,
             "月嫂预留百分数": 0.1,  # 未排班的订单为基数
-            "客户日增期望": 1,  # 昨天的倍数 1 相当于持平
-            "客户日增标准差": 0.01,  # 浮动百分数
-            "客户初始数": 10000,
+            "订单销售速度期望": 10000,  # 昨天的倍数 1 相当于持平  # todo: 统计 订单详情(星级 地域 服务等待期 当天订单价格 预售期日期 等待期日期) 订单销售速度 销售排行状态
+            "订单销售速度标准差": 0,  # 浮动百分数         # todo: 统计 订单详情(星级 地域 服务等待期 当天订单价格 预售期日期 等待期日期) 订单销售速度 销售排行状态
             "原价订单": 8000,
             # "订单折扣": 0.7,
             "订单折扣": 1,
@@ -142,8 +142,8 @@ class FutureShow(object):
             "平台开销": 0,
             # "日期偏移标准差": 0,
             # "日期偏移期望": 0,
-            "日期偏移标准差": 4,
-            "日期偏移期望": -3,
+            "日期偏移标准差": 4,  # todo: 统计订单的 初始日期 和 最后落实日期
+            "日期偏移期望": -3,  # todo: 统计订单的 初始日期 和 最后落实日期
             # "日期偏移标准差": 5,
             # "日期偏移期望": -4,
             "活期利率": 0.02,
@@ -180,13 +180,26 @@ class FutureShow(object):
             ["2020-07-18", -10000],
         ]
 
-    def get_sale_std(self, ordertype):
-        """根据产品类型，获得 销售的期望数量和标准差"""
+    def get_employ_std(self, ordertype):
+        """统计 星级 地域 当前工资 报名加入日期(含培训期) 当天工资分享数量（可得2周内）"""
         # todo: 函数参数待统计
-        # 星级 价格 等待期 服务起始日期
-        sale_expect = 10000 * self.datajson["客户日增期望"]
-        sale_std = sale_expect * self.datajson["客户日增标准差"]
+        employ_expect = self.datajson["月嫂日增期望"]
+        employ_std = self.datajson["月嫂日增标准差"]
+        return employ_expect, employ_std
+
+    def get_sale_std(self, ordertype):
+        """统计 订单详情(星级 地域 服务等待期 当天订单价格 预售期日期 等待期日期) 订单销售速度 销售排行状态"""
+        # todo: 函数参数待统计
+        sale_expect = self.datajson["订单销售速度期望"]
+        sale_std = self.datajson["订单销售速度标准差"]
         return sale_expect, sale_std
+
+    def get_service_shift_std(self, ordertype):
+        """统计订单的 初始日期 和 最后落实日期"""
+        # todo: 函数参数待统计
+        service_shift_expect = self.datajson["日期偏移期望"]
+        service_shift_std = self.datajson["日期偏移标准差"]
+        return service_shift_expect, service_shift_std
 
     def get_day_borrow(self, dateid):
         datestr = int2date(dateid).strftime("%Y-%m-%d")
@@ -197,15 +210,39 @@ class FutureShow(object):
         return borrow_num
 
     def get_day_sao_list(self, today_date):
+        # todo: 一次性生成字典，随时取
         # 1. 每天请假月嫂列表
         dellist = [i1["saoid"] for i1 in self.sao_vacation_list if self.sao_vacation_list if
                    today_date >= i1["start"] and today_date <= i1["end"]]
         # print("dellist", dellist)
         # 2. 每天的预增月嫂
-        sao_addnum = sum([i1["num"] for i1 in self.sao_today_addlist if today_date >= i1["add_date"]])
+        # sao_addnum = sum([i1["num"] for i1 in self.sao_today_addlist if today_date >= i1["add_date"]])
+        employ_expect, employ_std = self.get_employ_std(ordertype=None)
+        diffdate = datediff(self.today_date, today_date)
+        sao_addnum = int(round(sum(np.random.normal(loc=employ_expect, scale=employ_std, size=diffdate))))
         # print("addnum", sao_addnum)
-        sao_add_list = ["addsao{}".format(i1) for i1 in range(sao_addnum)]
+        if sao_addnum > 0:
+            sao_add_list = ["{}_{}".format(today_date, i1) for i1 in range(sao_addnum)]
+        else:
+            dellist += random.sample(self.sao_nowlist, -sao_addnum)
+            sao_add_list = []
         # 3. 每天可用的月嫂列表
+        sao_today_totallist = []
+        add_length = len(sao_add_list)
+        counter = 0
+        # 清空时 先用新增的补缺额
+        # for i1 in self.sao_nowlist:
+        #     if i1 not in dellist:
+        #         sao_today_totallist.append(i1)
+        #     else:
+        #         for i2 in self.order_today_alllist:
+        #             if i2["saoid"] == i1:
+        #                 if counter < add_length:
+        #                     i2["saoid"] = sao_add_list[counter]
+        #                     counter += 1
+        #                 else:
+        #                     i2["saoid"] = ""
+        #                 break
         sao_today_totallist = [i1 for i1 in self.sao_nowlist if i1 not in dellist]
         sao_today_totallist += sao_add_list
         return sao_today_totallist
@@ -270,7 +307,8 @@ class FutureShow(object):
         self.order_today_sale_list = []
         if sale_final > 0:
             # 6.1. 直接模拟卖出了 未来等待期的 原始订单。未来变更，直接现在修改
-            randshifts = np.random.normal(loc=self.datajson["日期偏移期望"], scale=self.datajson["日期偏移标准差"], size=sale_final)
+            service_shift_expect, service_shift_std = self.get_service_shift_std(ordertype=None)
+            randshifts = np.random.normal(loc=service_shift_expect, scale=service_shift_std, size=sale_final)
             shiftsstart = [int(round(rn) + self.futurestart_int) for rn in randshifts]
             shiftsstart = [rn if rn > 0 else 1 for rn in shiftsstart]
             shiftsend = [rn + self.datajson["服务期"] for rn in shiftsstart]
