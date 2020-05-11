@@ -33,6 +33,11 @@ if __name__ == '__main__':
     print(timeArray)
     tmstemp = time.mktime(timeArray)
     print(tmstemp)
+    # 5. datetime 转 时间戳
+    un_time = time.mktime(dtime.timetuple())
+    # 6. datetime 转字符串
+    tst = (datetime.datetime.strptime(datestr, "%Y-%m-%d") + datetime.timedelta(days=num)).timetuple()
+    time.strftime("%Y-%m-%d", tst)
 
     # 5. 计时
     from timeit import Timer

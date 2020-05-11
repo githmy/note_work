@@ -62,15 +62,15 @@ def moviepy_demid(infile, outfile, start_t=0.0, end_t=0.0):
 
 def main():
     # 视频转化单版测试
-    filehead = "聊斋古卷"
-    # filehead = "鬼吹灯之龙岭神宫.4K.H265.HD国语中字无水印[66影视www.66Ys.Co]"
+    # filehead = "聊斋古卷"
+    filehead = "黑暗正义联盟"
     # # start_t = 3.01
     # # end_t = 6.1
     # start_t = 6
     # end_t = 6
-    start_t = 5
-    end_t = 5482
-    source_path = os.path.join("F:\\", "download", "聊斋古卷")
+    start_t = 0
+    end_t = 6996
+    source_path = os.path.join("F:\\", "download")
     # source_path = os.path.join("F:\\", "download", "鬼吹灯之龙岭神宫")
     source_root = os.path.join(source_path, filehead)
     target_path = source_path

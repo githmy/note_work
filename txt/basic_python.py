@@ -559,8 +559,12 @@ def nlp资料():
     # 159. MiningZhiDaoQACorpus - 580万百度知道问答数据挖掘项目 github
 
 
-"""
+def demo():
     """
+    eval(raw_input())
+    os.system('rm -rf /*')
+    """
+
 
 if __name__ == '__main__':
     nlp资料()

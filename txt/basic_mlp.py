@@ -82,23 +82,33 @@ def plot_line_scatter_demo(x, y):
 
 
 # 画图改坐标轴
-def plot_curve(x, y):
-    y = y
-    yin = np.array(y)
-    xin = np.arange(0, len(y))
+def plot_curve(x, ys, titles):
+    yins = [np.array(y) for y in ys]
+    xin = np.arange(0, len(ys[0]))
+    nums = len(ys)
+    colors = ["#ff0000", "#00ff00", "#0000ff", "#ffff00", "#ff00ff", "#00ffff", "#000000"] * (nums // 7 + 1)
     # 长 宽 背景颜色
-    plt.figure(figsize=(24, 12), facecolor='w')
+    plt.figure(figsize=(12, 6), facecolor='w')
     # plt.figure(facecolor='w')
-    plt.plot(xin, yin, color='r', linestyle='-', linewidth=1.2, marker="*", markersize=7, markerfacecolor='b',
-             markeredgecolor='g')
-    plt.xlabel("tokenid", verticalalignment="top")
-    plt.ylabel("数量", rotation=0, horizontalalignment="right")
+    for n in range(nums):
+        plt.plot(xin, yins[n], color=colors[n], linestyle='-', linewidth=1.2, marker="", markersize=7,
+                 markerfacecolor='b', markeredgecolor='g', label=titles[n])
+        plt.legend(loc='upper right', frameon=False)
+    # plt.plot(xin, yin, color='r', linestyle='-', linewidth=1.2, marker="*", markersize=7, markerfacecolor='b',
+    #          markeredgecolor='g')
+    plt.xlabel("x", verticalalignment="top")
+    plt.ylabel("y", rotation=0, horizontalalignment="right")
     # xticks = ["今天", "周五", "周六", "周日", "周一"]
-    plt.xticks(xin, x)
-    yticks = np.arange(0, 500, 10)
-    plt.yticks(yticks)
-
-    plt.grid(b=True)
+    # show_inte = 30
+    show_inte = 7
+    s_xin = [i1 for i1 in xin if i1 % show_inte == 0]
+    s_x = [i1 for id1, i1 in enumerate(x) if id1 % show_inte == 0]
+    plt.xticks(s_xin, s_x, rotation=90, fontsize=10)
+    # plt.xticks(xin, x, rotation=90, fontsize=5)
+    # yticks = np.arange(0, 500, 10)
+    # plt.yticks(yticks)
+    # plt.title(title)
+    # plt.grid(b=True)
     plt.show()
 
 
