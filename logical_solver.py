@@ -407,6 +407,9 @@ class NLPtool(object):
         if strlist[0] in step_blist:
             key_type.append("导出")
             key_index.append(0)
+        elif strlist[0] in questiontype and strlist[0] not in quest_notype:
+            key_type.append("求")
+            key_index.append(0)
         else:
             key_type.append("已知")
             key_index.append(0)
@@ -416,6 +419,9 @@ class NLPtool(object):
                 key_index.append(i1)
             elif strlist[i1] in step_blist:
                 key_type.append("导出")
+                key_index.append(i1)
+            elif strlist[i1] in questiontype and strlist[i1] not in quest_notype:
+                key_type.append("求")
                 key_index.append(i1)
         lenth = len(key_index)
         for i1 in range(lenth - 1, 0, -1):
