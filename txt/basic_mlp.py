@@ -83,6 +83,10 @@ def plot_line_scatter_demo(x, y):
 
 # 画图改坐标轴
 def plot_curve(x, ys, titles):
+    # titles = ["资金池增量", "双头补金额增量", "借贷增量", "工资增量", "创始人收益增量"]
+    # ys = [fs_ins.y_capital_change, fs_ins.y_subsidy_change, fs_ins.y_borrow_change, fs_ins.y_salary_change,
+    #       fs_ins.y_creater_change]
+    # plot_curve(fs_ins.x_label, ys, titles)
     yins = [np.array(y) for y in ys]
     xin = np.arange(0, len(ys[0]))
     nums = len(ys)
@@ -110,6 +114,61 @@ def plot_curve(x, ys, titles):
     # plt.title(title)
     # plt.grid(b=True)
     plt.show()
+
+def bar3dplot(data):
+    # titles = ["月嫂总量", "资金池累计", "订单总容量"]
+    # ys = [np.array(fs_ins.y_sao_total) / max(fs_ins.y_sao_total), np.array(fs_ins.y_capital) / max(fs_ins.y_capital),
+    #       np.array(fs_ins.y_order_total) / max(fs_ins.y_order_total)]
+    # bar3dplot([fs_ins.x_label, titles, list(itertools.chain(*ys))])
+    m = data
+    X = np.array(range(len(m[0])))
+    Y = np.array(range(len(m[1])))
+    z = m[2]
+    fig = plt.figure()
+    ax = fig.add_subplot(111, projection='3d')  # 此处因为是要和其他的图像一起展示，用的add_subplot，如果只是展示一幅图的话，可以用subplot即可
+
+    xx, yy = np.meshgrid(X, Y)  # 网格化坐标
+    x, y = xx.ravel(), yy.ravel()  # 矩阵扁平化
+
+    # 更改柱形图的颜色，这里没有导入第四维信息，可以用z来表示了
+    xlength = len(X)
+    ylength = len(Y)
+    colors = ["#ff0000", "#00ff00", "#0000ff", "#ffff00", "#ff00ff", "#00ffff", "#000000"] * (ylength // 7 + 1)
+    C = [[colors[i1]] * xlength for i1 in range(ylength)]
+    C = list(itertools.chain(*C))
+    # C = []
+    # for a in range(z):
+    #     if a < 10:
+    #         C.append('b')
+    #     elif a < 20:
+    #         C.append('c')
+    #     elif a < 30:
+    #         C.append('m')
+    #     elif a < 40:
+    #         C.append('pink')
+    #     elif a > 39:
+    #         C.append('r')
+
+    # 此处dx，dy，dz是决定在3D柱形图中的柱形的长宽高三个变量
+    dx = 0.6 * np.ones(len(x))
+    dy = 0.2 * np.ones(len(y))
+    dz = z
+    z = np.zeros_like(z)
+
+    # 设置三个维度的标签
+    ax.set_xlabel('Xlabel')
+    ax.set_ylabel('Ylabel')
+    ax.set_zlabel('Amplitude')
+
+    show_inte = 30
+    s_xin = [i1 for i1 in X if i1 % show_inte == 0]
+    s_x = [i1 for id1, i1 in enumerate(m[0]) if id1 % show_inte == 0]
+    plt.xticks(s_xin, s_x, rotation=90, fontsize=10)
+    plt.yticks(Y, m[1])
+
+    ax.bar3d(x, y, z, dx, dy, dz, color=C, zsort='average', shade=True)
+    plt.show()
+
 
 
 # plot_single(ts['2014-01-01':'2015-12-31'], 20, title='test_org')
