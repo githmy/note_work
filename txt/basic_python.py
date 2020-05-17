@@ -106,10 +106,15 @@ def list_deal():
     # # 元素的序号
     your_list.index('your_item')
     your_list.sort(cmp=None, key=None, reverse=False)
+    # 插入
+    list1.insert(0, 'x')
     # 删除元素
     # your_list.remove('your_item')
     # your_list.pop(-1)
     # del (your_list[0])
+    # 交集
+    ret = [i for i in a if i not in b]
+    ret = list(set(a) ^ set(b))
     # 交集
     retA = [i for i in listA if i in listB]
     retB = list(set(listA).intersection(set(listB)))
@@ -249,6 +254,10 @@ def regex():
     re.split(r'[; |, |\*|\n]', "asdfdsdfgdff")
     # 6. 正则常用
     # \s 包含空白 \t|\r\n
+    # 7. 递归 索引
+    rword = "\\because".replace("\\", "\\\\")
+    for tm in re.finditer(rword, "假如 \\because a \\neq b"):
+        print([tm.start(), tm.end()])
 
 
 def itertools():
