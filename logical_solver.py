@@ -97,6 +97,7 @@ from pyhanlp import *
 from latex_solver import latex2list_P, postfix_convert_P, latex2space, latex2unit
 from latex_solver import latex_json, baspath, step_alist, step_blist, symblist, pmlist, addtypelist, funclist, operlist
 import os
+import copy
 
 # pd.set_option('display.max_columns', None)
 cmd_path = os.getcwd()
@@ -1077,9 +1078,20 @@ class LogicalInference(object):
         """推理流程: 三元组 到 三元组"""
         field_name = "数学"
         scene_name = "解题"
-        space_name = "basic"
+        space_name = "customer"
         space_ins = self.gstack.readspace(space_name, scene_name, field_name)
+        old_space_ins = space_ins
         # 查找 具体 属性值
+        step_counter = 0
+        while True:
+            # 推演步骤 打印出 用到的集合元素属性 和 集合元素属性导出的结果。
+            # 根据最终结论，倒寻相关的属性概念。根据年级，忽略非考点的属性，即评判的结果。
+            step_counter += 1
+            new_space_ins = copy.deepcopy(old_space_ins)
+            Steps()
+            if old_space_ins=new_space_ins:
+                break
+            old_space_ins = new_space_ins
         res = space_ins.find_obj_property_value(obj="矩形", property="面积")
         print(res)
         # 猜谜查找具体 实体
