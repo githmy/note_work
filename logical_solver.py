@@ -845,193 +845,90 @@ class LogicalInference(object):
         # [[['已知'], ['v']], ['{线段@PQ}', '=', '{线段@BP}'], ['{线段@MN}', '\\parallel', '{线段@BC}'], ['{角@BPQ}', '=', '9', '0', '^', '{ \\circ }'], [['求证'], ['v']], ['{线段@BP}', '=', '{线段@PQ}']]
         print("deriv_relationelement")
         print(analist)
-        stepa_json = []
-        stepb_json = []
         purpose_json = []
-        tmp_json = []
         # 0. 文本latex标记
-        type_index = []
-        # 1. 非因为所以id列表
-        step_index = []
-        # 2. 等值id列表
-        equvalue_index = []
-        # 3. 平行id列表
-        para_index = []
-        para_json = []
-        # 4. 垂直id列表
-        vert_index = []
-        # 5. 表达式id列表
-        express_index = []
-        # 6. 全等id列表
-        fullequal_index = []
-        # 7. 相似id列表
-        similia_index = []
-        # 8. 等腰id列表
-        equ2_index = []
-        # 9. 等边id列表
-        equ3_index = []
         length = len(analist)
-        step_list = step_alist + step_blist
         for i1 in range(length):
-            if not isinstance(analist[i1][0], list):
-                type_index.append(-1)
-            else:
-                type_index.append(1)
-            step_index.append([])
-            equvalue_index.append([])
-            para_index.append([])
-            vert_index.append([])
-            express_index.append([])
-            fullequal_index.append([])
-            similia_index.append([])
-            equ2_index.append([])
-            equ3_index.append([])
+            typesig = "因为"
+            if isinstance(analist[i1][0], list):
+                if analist[i1][0][0] in ["求证"]:
+                    # typesig = "所以"
+                    typesig = "求证"
             # 每一组只能容纳一个类型
-            for id2, i2 in enumerate(analist[i1]):
-                if i2 in step_list:
-                    step_index[-1].append(id2)
+            subjectlist = []
+            setstr = ""
+            isstr = "是"
+            tmp_json = []
+            for i2 in range(len(analist[i1])):
+                sigmatch = 0
+                if analist[i1][i2] in step_alist:
+                    typesig = "因为"
+                    sigmatch = 1
+                    tmp_json = []
+                elif analist[i1][i2] in step_blist:
+                    typesig = "所以"
+                    sigmatch = 1
+                    tmp_json = []
                 else:
-                    step_index[-1].append(-1)
-                if i2 in ["=", "等值", '等于']:
-                    equvalue_index[-1].append(id2)
-                else:
-                    equvalue_index[-1].append(-1)
-                if i2 in ['\\parallel', '平行']:
-                    para_index[-1].append(id2)
-                else:
-                    para_index[-1].append(-1)
-                if i2 in ['\\perp', '垂直']:
-                    vert_index[-1].append(id2)
-                else:
-                    vert_index[-1].append(-1)
-                # # if i2 in ["表达式"]:
-                # if i2 in pmlist:
-                #     express_index[-1].append(id2)
-                # else:
-                #     express_index[-1].append(-1)
-                if i2 in ['\\cong', '全等']:
-                    fullequal_index[-1].append(id2)
-                else:
-                    fullequal_index[-1].append(-1)
-                if i2 in ["相似"]:
-                    similia_index[-1].append(id2)
-                else:
-                    similia_index[-1].append(-1)
-                if i2 in ["等腰"]:
-                    equ2_index[-1].append(id2)
-                else:
-                    equ2_index[-1].append(-1)
-                if i2 in ["等边"]:
-                    equ3_index[-1].append(id2)
-                else:
-                    equ3_index[-1].append(-1)
-
-            for i2 in range(len(step_index[-1]) - 1, -1, 1):
-                if para_index[-1][i2] != -1:
-                    tlist = copy.deepcopy(analist[i1])
-                    del tlist[i2]
-                    tmp_json.append([tlist, "属于", "平行集合"])
-                    break
-                if vert_index[-1][i2] != -1:
-                    tlist = copy.deepcopy(analist[i1])
-                    del tlist[i2]
-                    tmp_json.append([tlist, "属于", "垂直集合"])
-                    break
-                if fullequal_index[-1][i2] != -1:
-                    tlist = copy.deepcopy(analist[i1])
-                    del tlist[i2]
-                    tmp_json.append([tlist, "属于", "全等集合"])
-                    break
-                if equvalue_index[-1][i2] != -1:
-                    tlist = copy.deepcopy(analist[i1])
-                    del tlist[i2]
-                    tmp_json.append([tlist, "属于", "平行集合"])
-                    break
-                    print(i2)
-            if type_index[-1] == -1:
-                print(-1)
-                print(analist[i1])
-            else:
-                print(1)
-                print(analist[i1])
-                purpose_json += tmp_json
-                tmp_json = []
-        print("purpose_json", purpose_json)
-        raise "ww"
-        write_json = []
-        newoutlist = []
-        # for i1 in analist:
-        # if not isinstance(i1[0], list):
-        #         outlist, outjson = self.language.latex_default_property(i1)
-        #         write_json += outjson
-        #         newoutlist.append(outlist)
-        #     else:
-        #         newoutlist.append(i1)
-        print(newoutlist)
-        print(write_json)
-        # 1. 字符串 得出索引
-        elemindexlist = []
-        alllist = set(step_alist + step_blist + symblist + pmlist + addtypelist + funclist + operlist)
-        legth = len(inlist)
-        for i1 in range(legth):
-            if inlist[i1] not in alllist and re.match("^({\s[a-zA-Z]|[a-zA-Z])", inlist[i1]):
-                elemindexlist.append(i1)
-        # 2. 根据连续性得出默认的 线段 点 属性,三点以上必有说明，在前一步已经赋值。
-        lengindex = len(elemindexlist)
-        write_json = []
-        # 先遍历非最后一个，最后单独考虑
-        #  大于一的结尾处理
-        if lengindex > 1:
-            if elemindexlist[-2] + 1 == elemindexlist[-1]:
-                # 线段后续会已处理，略过
-                pass
-            else:
-                tnewstr = "{ 点@" + inlist[elemindexlist[-1]] + " }"
-                tnewstr = self.name_normal(tnewstr)
-                write_json.append([tnewstr, "是", "点"])
-                inlist[elemindexlist[-1]] = tnewstr
-        if lengindex > 2:
-            # 至少3个元素
-            for i1 in range(lengindex - 2, 0, -1):
-                if elemindexlist[i1] + 1 != elemindexlist[i1 + 1] and elemindexlist[i1 - 1] + 1 != elemindexlist[i1]:
-                    tnewstr = "{ 点@" + inlist[elemindexlist[i1]] + " }"
-                    tnewstr = self.name_normal(tnewstr)
-                    inlist[elemindexlist[i1]] = tnewstr
-                    write_json.append([tnewstr, "是", "点"])
-                elif elemindexlist[i1] + 1 == elemindexlist[i1 + 1]:
-                    # { 角@A B C }
-                    tnewstr = "{ 线段@" + " ".join(inlist[elemindexlist[i1]:elemindexlist[i1] + 2]) + " }"
-                    tnewstr = self.name_normal(tnewstr)
-                    inlist[elemindexlist[i1]] = tnewstr
-                    del inlist[elemindexlist[i1] + 1]
-                    write_json.append([tnewstr, "是", "线段"])
-                else:
+                    # 默认为
                     pass
-        # 大于一的起始处理
-        if lengindex > 1:
-            if elemindexlist[0] + 1 == elemindexlist[1]:
-                tnewstr = "{ 线段@" + " ".join(inlist[elemindexlist[0]:elemindexlist[0] + 2]) + " }"
-                tnewstr = self.name_normal(tnewstr)
-                inlist[elemindexlist[0]] = tnewstr
-                del inlist[elemindexlist[0] + 1]
-                write_json.append([tnewstr, "是", "线段"])
-            else:
-                tnewstr = "{ 点@" + inlist[elemindexlist[0]] + " }"
-                tnewstr = self.name_normal(tnewstr)
-                write_json.append([tnewstr, "是", "点"])
-                inlist[elemindexlist[0]] = tnewstr
-        if lengindex == 1:
-            # 只能是点
-            tnewstr = "{ 点@" + inlist[elemindexlist[0]] + " }"
-            tnewstr = self.name_normal(tnewstr)
-            write_json.append([tnewstr, "是", "点"])
-            inlist[elemindexlist[0]] = tnewstr
-        else:
-            # 等于0 或已处理的情况
-            pass
-        return inlist, write_json
-
-        return newoutlist, write_json
+                if analist[i1][i2] in ["=", "等值", '等于']:
+                    sigmatch = 1
+                    if setstr == "等值集合" or setstr == "":
+                        setstr = "等值集合"
+                    else:
+                        raise Exception("等值集合!={}".format(setstr))
+                if analist[i1][i2] in ['\\parallel', '平行']:
+                    sigmatch = 1
+                    if setstr == "平行集合" or setstr == "":
+                        setstr = "平行集合"
+                    else:
+                        raise Exception("平行集合!={}".format(setstr))
+                if analist[i1][i2] in ['\\perp', '垂直']:
+                    sigmatch = 1
+                    if setstr == "垂直集合" or setstr == "":
+                        setstr = "垂直集合"
+                    else:
+                        raise Exception("垂直集合!={}".format(setstr))
+                if analist[i1][i2] in ['\\cong', '全等']:
+                    sigmatch = 1
+                    if setstr == "全等集合" or setstr == "":
+                        setstr = "全等集合"
+                    else:
+                        raise Exception("全等集合!={}".format(setstr))
+                if analist[i1][i2] in ["相似"]:
+                    sigmatch = 1
+                    if setstr == "相似集合" or setstr == "":
+                        setstr = "相似集合"
+                    else:
+                        raise Exception("相似集合!={}".format(setstr))
+                if analist[i1][i2] in ["等腰三角形"]:
+                    sigmatch = 1
+                    if setstr == "等腰三角形集合" or setstr == "":
+                        setstr = "等腰三角形集合"
+                    else:
+                        raise Exception("等腰三角形集合!={}".format(setstr))
+                if analist[i1][i2] in ["等边三角形"]:
+                    sigmatch = 1
+                    if setstr == "等边三角形集合" or setstr == "":
+                        setstr = "等边三角形集合"
+                    else:
+                        raise Exception("等边三角形集合!={}".format(setstr))
+                if 1 != sigmatch:
+                    tmp_json.append(analist[i1][i2])
+                else:
+                    subjectlist.append(tmp_json)
+                    tmp_json = []
+            subjectlist = [[" ".join(i2) for i2 in subjectlist], isstr, setstr]
+            if typesig == "因为":
+                pass
+            elif typesig == "所以":
+                pass
+            elif typesig == "求证":
+                pass
+            purpose_json.append({typesig: subjectlist})
+        # print("purpose_json", purpose_json)
+        return purpose_json
 
     def get_allkeyproperty(self, analist):
         """text latex 句子间合并, 写入概念属性json，返回取出主题概念的列表"""
@@ -1093,9 +990,18 @@ class LogicalInference(object):
         self.language.json2space(write_json, basic_space_ins, space_ins)
         print(space_ins._setobj)
         # 4. 语法提取 字面关系
-        outlatex, propertyjson = self.deriv_relationelement(outlatex)
+        propertyjson = self.deriv_relationelement(outlatex)
+        write_json = {
+            "add": {
+                "properobj": {}, "triobj": propertyjson,
+                "quest_properobj": {}, "quest_triobj": {},
+            },
+            "dele": {"properobj": {}, "triobj": [], "quest_properobj": {}, "quest_triobj": []},
+        }
+        self.language.json2space(write_json, basic_space_ins, space_ins)
         print(space_ins._setobj)
         print("check ok")
+        raise "check ok"
         return outlatex
 
     def sentence2normal(self, analist):
