@@ -82,22 +82,20 @@
 ]
 
 """
-import re
-import jieba.posseg as pseg
-import jieba
-import json
-import logging
+import copy
+import itertools
 import logging.handlers
-from utils.path_tool import makesurepath
+import os
+import re
+
+import jieba.posseg as pseg
 # !pip install jsonpatch
 import jsonpatch
-import itertools
-from meta_property import triobj, properobj
-from pyhanlp import *
+
 from latex_solver import latex2list_P, postfix_convert_P, latex2space, latex2unit
 from latex_solver import latex_json, baspath, step_alist, step_blist, symblist, pmlist, addtypelist, funclist, operlist
-import os
-import copy
+from meta_property import triobj, properobj, setobj
+from utils.path_tool import makesurepath
 
 # pd.set_option('display.max_columns', None)
 cmd_path = os.getcwd()
@@ -215,12 +213,13 @@ class BasicalSpace(object):
         self.scene_name = scene_name
         # 1. 加载属性, 加载关系 只有作为逻辑的基类才会加载。
         if space_name == "basic":
-            self._proper_keys, self._proper_trip, self._relation_trip = self.storage_oper("r")
+            self._proper_keys, self._proper_trip, self._relation_trip, self._setobj = self.storage_oper("r")
         else:
             self._proper_keys, self._proper_trip = {}, {}
             self._relation_trip = {}
             self._questproperbj = {}
             self._questtriobj = {}
+            self._setobj = {}
 
     def storage_oper(self, operstr):
         """硬件：存储交互操作"""
@@ -234,7 +233,7 @@ class BasicalSpace(object):
                     proper_trip[str(couindex)] = [i1, "有属性", i2, properobj[i1][i2]]
             proper_keys = list(properobj.keys())
             relation_trip = {str(id1): i1 for id1, i1 in enumerate(triobj)}
-            return proper_keys, proper_trip, relation_trip
+            return proper_keys, proper_trip, relation_trip, setobj
         elif operstr == "w":
             return True
 
@@ -294,6 +293,40 @@ class BasicalSpace(object):
                     del oritriple[orikey]
                     break
         return oritriple
+
+    def tri2set_oper(self, basic_set, setobj, addc=[], delec=[]):
+        """内存：triple交互操作"""
+        keydic = {i1.rstrip("集合"): i1 for i1 in basic_set}
+        for onetri in addc:
+            if onetri[2] in keydic:
+                if keydic[onetri[2]] not in setobj:
+                    if basic_set[keydic[onetri[2]]]["结构形式"] == "一级集合":
+                        setobj[keydic[onetri[2]]] = set()
+                    elif basic_set[keydic[onetri[2]]]["结构形式"] == "一级列表":
+                        setobj[keydic[onetri[2]]] = []
+                    elif basic_set[keydic[onetri[2]]]["结构形式"] == "一级列表二级集合":
+                        setobj[keydic[onetri[2]]] = []
+                    else:
+                        print(onetri)
+                        raise Exception("没有考虑的情况")
+                if basic_set[keydic[onetri[2]]]["结构形式"] == "一级集合":
+                    setobj[keydic[onetri[2]]].add(onetri[0])
+                elif basic_set[keydic[onetri[2]]]["结构形式"] == "一级列表":
+                    setobj[keydic[onetri[2]]].append(onetri[0])
+                elif basic_set[keydic[onetri[2]]]["结构形式"] == "一级列表二级集合":
+                    setobj[keydic[onetri[2]]].append(set())
+                    print(onetri[0])
+                    for i1 in onetri[0]:
+                        setobj[keydic[onetri[2]]][-1].add(i1)
+                else:
+                    print(onetri)
+                    raise Exception("没有考虑的情况")
+            else:
+                print(onetri)
+                raise Exception("没有考虑的情况")
+        # for onetri in delec:
+        #     onetri
+        return setobj
 
     def get_child(self, obj):
         waitelist = [obj]
@@ -515,7 +548,10 @@ class NLPtool(object):
         return outlist
 
     def latex_default_property(self, inlist):
+        '[tnewstr, "是", "点"]'
         # 1. 字符串 得出索引
+        # print("latex_default_property")
+        # print(inlist)
         elemindexlist = []
         alllist = set(step_alist + step_blist + symblist + pmlist + addtypelist + funclist + operlist)
         legth = len(inlist)
@@ -581,6 +617,7 @@ class NLPtool(object):
         """单句： 空格标准分组后 返还 去掉抽象概念的实体latex"""
         # 1. token 预处理
         tinlist = re.split(',|，|\n|\t', latex2space(instr))
+        # tinlist = re.split(',|，|\n|\t', instr)
         # 2. 每个断句
         latexlist = []
         outjson = []
@@ -596,19 +633,40 @@ class NLPtool(object):
             latexlist.append(tstr)
         return latexlist, outjson
 
-    def json2space(self, write_json, space_ins):
+    def latex_extract_word(self, instr):
+        """单句： 空格标准分组后 返还 去掉抽象概念的实体latex"""
+        # 1. token 预处理
+        tinlist = re.split(',|，|、|\n|\t', latex2space(instr))
+        # 2. 每个断句
+        latexlist = []
+        for i1 in tinlist:
+            # 3.1 分割 关键词 索引。句意级。
+            tstr = i1
+            for word in self.latex_map:
+                # 每个 属性词
+                if "n" == self.nominal[self.latex_map[word]]:
+                    tstrli = latex_fenci(tstr)
+                    tstr = " ".join(tstrli)
+            latexlist.append(tstr)
+        return latexlist
+
+    def json2space(self, write_json, basic_space_ins, space_ins):
         # 1. 先写属性
         space_ins.property_oper(space_ins._proper_trip, addc=write_json["add"]["properobj"],
                                 delec=write_json["dele"]["properobj"])
         logger1.info("write property: %s" % write_json["add"]["properobj"])
         # 2. 修正元组实体
-        varlist = space_ins._proper_keys
-        write_json["add"]["triobj"] = [
-            [latex2unit(online[0], varlist=varlist), online[1], latex2unit(online[2], varlist=varlist)] for online in
-            write_json["add"]["triobj"]]
+        print(113)
+        print(write_json["add"]["triobj"])
+        # write_json["add"]["triobj"] = [
+        #     [latex2unit(online[0], varlist=varlist), online[1], latex2unit(online[2], varlist=varlist)] for online in
+        #     write_json["add"]["triobj"]]
+        # print(write_json["add"]["triobj"])
         # 3. 再写元组
-        space_ins.triple_oper(space_ins._proper_trip, addc=write_json["add"]["triobj"],
-                              delec=write_json["dele"]["triobj"])
+        space_ins.tri2set_oper(basic_space_ins._setobj, space_ins._setobj, addc=write_json["add"]["triobj"],
+                               delec=write_json["dele"]["triobj"])
+        # space_ins.triple_oper(space_ins._proper_trip, addc=write_json["add"]["triobj"],
+        #                       delec=write_json["dele"]["triobj"])
         logger1.info("write triple: %s" % write_json["add"]["triobj"])
         # space_ins.property_oper(space_ins._properobj, addc=write_json["add"]["properobj"], delec=write_json["dele"]["properobj"])
         # space_ins.triple_oper(space_ins._triobj, addc=write_json["add"]["triobj"], delec=write_json["dele"]["triobj"])
@@ -700,7 +758,7 @@ class NLPtool(object):
         write_json = self.fenci2triple(stand_fenci_list, basic_space_ins)
         logger1.info("json write: %s" % write_json)
         # 5. 写入空间, 先写 属性再根据属性 合并 三元组
-        self.json2space(write_json, space_ins)
+        self.json2space(write_json, basic_space_ins, space_ins)
         print(basic_space_ins._proper_trip)
         print(basic_space_ins._relation_trip)
         print(space_ins._proper_trip)
@@ -762,6 +820,7 @@ class LogicalInference(object):
     def deriv_basicelement(self, analist):
         # 衍生一级元素
         # 1. 生成汉语法列表
+        # print("deriv_basicelement")
         newlist = []
         for i1 in analist:
             if isinstance(i1, list):
@@ -771,6 +830,7 @@ class LogicalInference(object):
         # 2. 生成语法的内存属性实体、生成语法的关系三元组
         write_json = []
         newoutlist = []
+        # print(newlist)
         for i1 in newlist:
             if not isinstance(i1[0], list):
                 outlist, outjson = self.language.latex_default_property(i1)
@@ -781,9 +841,14 @@ class LogicalInference(object):
         return newoutlist, write_json
 
     def deriv_relationelement(self, analist):
-        # 提取所有关系
+        # 提取所有 已知或求证 的关系
+        # [[['已知'], ['v']], ['{线段@PQ}', '=', '{线段@BP}'], ['{线段@MN}', '\\parallel', '{线段@BC}'], ['{角@BPQ}', '=', '9', '0', '^', '{ \\circ }'], [['求证'], ['v']], ['{线段@BP}', '=', '{线段@PQ}']]
         print("deriv_relationelement")
         print(analist)
+        stepa_json = []
+        stepb_json = []
+        purpose_json = []
+        tmp_json = []
         # 0. 文本latex标记
         type_index = []
         # 1. 非因为所以id列表
@@ -792,6 +857,7 @@ class LogicalInference(object):
         equvalue_index = []
         # 3. 平行id列表
         para_index = []
+        para_json = []
         # 4. 垂直id列表
         vert_index = []
         # 5. 表达式id列表
@@ -820,47 +886,78 @@ class LogicalInference(object):
             similia_index.append([])
             equ2_index.append([])
             equ3_index.append([])
-            for i2 in analist[i1]:
+            # 每一组只能容纳一个类型
+            for id2, i2 in enumerate(analist[i1]):
                 if i2 in step_list:
-                    step_index[-1].append(i2)
+                    step_index[-1].append(id2)
                 else:
                     step_index[-1].append(-1)
-                if i2 in ["=", '等于']:
-                    equvalue_index[-1].append(i2)
+                if i2 in ["=", "等值", '等于']:
+                    equvalue_index[-1].append(id2)
                 else:
                     equvalue_index[-1].append(-1)
                 if i2 in ['\\parallel', '平行']:
-                    para_index[-1].append(i2)
+                    para_index[-1].append(id2)
                 else:
                     para_index[-1].append(-1)
                 if i2 in ['\\perp', '垂直']:
-                    vert_index[-1].append(i2)
+                    vert_index[-1].append(id2)
                 else:
                     vert_index[-1].append(-1)
-                if i2 in ["表达式"]:
-                    express_index[-1].append(i2)
-                else:
-                    express_index[-1].append(-1)
+                # # if i2 in ["表达式"]:
+                # if i2 in pmlist:
+                #     express_index[-1].append(id2)
+                # else:
+                #     express_index[-1].append(-1)
                 if i2 in ['\\cong', '全等']:
-                    fullequal_index[-1].append(i2)
+                    fullequal_index[-1].append(id2)
                 else:
                     fullequal_index[-1].append(-1)
                 if i2 in ["相似"]:
-                    similia_index[-1].append(i2)
+                    similia_index[-1].append(id2)
                 else:
                     similia_index[-1].append(-1)
                 if i2 in ["等腰"]:
-                    equ2_index[-1].append(i2)
+                    equ2_index[-1].append(id2)
                 else:
                     equ2_index[-1].append(-1)
                 if i2 in ["等边"]:
-                    equ3_index[-1].append(i2)
+                    equ3_index[-1].append(id2)
                 else:
                     equ3_index[-1].append(-1)
-            outlist, outjson = self.language.latex_default_property(i1)
-            write_json += outjson
-            newoutlist.append(outlist)
-            print(analist[i1])
+
+            for i2 in range(len(step_index[-1]) - 1, -1, 1):
+                if para_index[-1][i2] != -1:
+                    tlist = copy.deepcopy(analist[i1])
+                    del tlist[i2]
+                    tmp_json.append([tlist, "属于", "平行集合"])
+                    break
+                if vert_index[-1][i2] != -1:
+                    tlist = copy.deepcopy(analist[i1])
+                    del tlist[i2]
+                    tmp_json.append([tlist, "属于", "垂直集合"])
+                    break
+                if fullequal_index[-1][i2] != -1:
+                    tlist = copy.deepcopy(analist[i1])
+                    del tlist[i2]
+                    tmp_json.append([tlist, "属于", "全等集合"])
+                    break
+                if equvalue_index[-1][i2] != -1:
+                    tlist = copy.deepcopy(analist[i1])
+                    del tlist[i2]
+                    tmp_json.append([tlist, "属于", "平行集合"])
+                    break
+                    print(i2)
+            if type_index[-1] == -1:
+                print(-1)
+                print(analist[i1])
+            else:
+                print(1)
+                print(analist[i1])
+                purpose_json += tmp_json
+                tmp_json = []
+        print("purpose_json", purpose_json)
+        raise "ww"
         write_json = []
         newoutlist = []
         # for i1 in analist:
@@ -939,18 +1036,23 @@ class LogicalInference(object):
     def get_allkeyproperty(self, analist):
         """text latex 句子间合并, 写入概念属性json，返回取出主题概念的列表"""
         # 1. 展成 同级 list
+        print("in get_allkeyproperty")
         analist = list(itertools.chain(*analist))
         keylist = [list(sentence.keys())[0] for sentence in analist]
         contlist = [list(sentence.values())[0].strip() for sentence in analist]
         olenth = len(contlist)
         field_name = "数学"
         scene_name = "解题"
+        space_name = "basic"
+        basic_space_ins = self.gstack.readspace(space_name, scene_name, field_name)
         space_name = "customer"
         space_ins = self.gstack.readspace(space_name, scene_name, field_name)
         outlatex = []
         # 2. 提取自带显示属性
         for idn in range(olenth):
             if keylist[idn] == "latex":
+                # print("latex")
+                # print(contlist[idn])
                 latexlist, propertyjson = self.language.latex_extract_property(contlist[idn])
                 outlatex += latexlist
                 write_json = {
@@ -960,8 +1062,10 @@ class LogicalInference(object):
                     },
                     "dele": {"properobj": {}, "triobj": [], "quest_properobj": {}, "quest_triobj": []},
                 }
-                self.language.json2space(write_json, space_ins)
+                self.language.json2space(write_json, basic_space_ins, space_ins)
             else:
+                # print("text")
+                # print(contlist[idn])
                 # sentence = HanLP.parseDependency(contlist[idn])
                 # word_array =[]
                 # for word in sentence.iterator():
@@ -976,8 +1080,8 @@ class LogicalInference(object):
                         tlist.append([[word.word], [word.flag]])
                 outlatex += tlist
         # 3. 提取默认 字面初级元素，升级属性或新元素为后续工作
-        print(space_ins._proper_trip)
-        print(space_ins._relation_trip)
+        print(space_ins._setobj)
+        print(outlatex)
         outlatex, propertyjson = self.deriv_basicelement(outlatex)
         write_json = {
             "add": {
@@ -986,28 +1090,30 @@ class LogicalInference(object):
             },
             "dele": {"properobj": {}, "triobj": [], "quest_properobj": {}, "quest_triobj": []},
         }
-        self.language.json2space(write_json, space_ins)
-        print(space_ins._proper_trip)
-        print(space_ins._relation_trip)
+        self.language.json2space(write_json, basic_space_ins, space_ins)
+        print(space_ins._setobj)
         # 4. 语法提取 字面关系
         outlatex, propertyjson = self.deriv_relationelement(outlatex)
-        print(space_ins._proper_trip)
-        print(space_ins._relation_trip)
+        print(space_ins._setobj)
         print("check ok")
         return outlatex
 
     def sentence2normal(self, analist):
         """text latex 句子间合并 按句意合并"""
         # 1. 展成 同级 list
+        # print("sentence2normal")
         analist = list(itertools.chain(*analist))
         # 2. 去掉空的
-        analist = [{list(sentence.keys())[0]: list(sentence.values())[0].strip(",，。 \t")} for sentence in analist if
-                   list(sentence.values())[0].strip(",，。 \t") != ""]
+        # analist = [{list(sentence.keys())[0]: latex2space(list(sentence.values())[0]).strip(",，。 \t")} for
+        analist = [{list(sentence.keys())[0]: list(sentence.values())[0].strip(",，。 \t")} for
+                   sentence in analist if list(sentence.values())[0].strip(",，。 \t") != ""]
+        # print(analist)
         # 3. 合并 临近相同的
         keylist = [list(sentence.keys())[0] for sentence in analist]
         contlist = [list(sentence.values())[0].strip() for sentence in analist]
         olenth = len(contlist)
         if olenth < 2:
+            print("合并 临近相同的 olenth < 2")
             analist = [[{keylist[i1]: contlist[i1]} for i1 in range(olenth)]]
             anastr = self.get_allkeyproperty(analist)
             return anastr
@@ -1026,44 +1132,130 @@ class LogicalInference(object):
         sortkey = [[onk, len(onk)] for onk in sortkey]
         sortkey = [onk[0] for onk in sorted(sortkey, key=lambda x: -x[1])]
         # 前一个为 text, 已关键字结尾， 且后一个为latex, 以字母开始。则拆分合并。
-        ins_json = {}
+        ins_json = []
         keylist = [list(sentence.keys())[0] for sentence in analist]
         contlist = [sentence[list(sentence.keys())[0]].strip() for sentence in analist]
         olenth = len(analist)
         if olenth < 2:
+            print("latex text 转化 olenth < 2")
             analist = [[{keylist[i1]: contlist[i1]} for i1 in range(olenth)]]
             anastr = self.get_allkeyproperty(analist)
             return anastr
         for i1 in range(olenth - 1, 0, -1):
+            # 目前 仅支持两种模式  1. 如： 正方形 ABCD 2. 如：A B C D 在一条直线上
             if keylist[i1] == "latex" and keylist[i1 - 1] == "text":
                 for jsonkey in sortkey:
                     mt = re.sub(u"{}$".format(jsonkey), "", contlist[i1 - 1])
                     if mt != contlist[i1 - 1]:
                         # 前一个 以属性名结尾
                         se = re.match(r"^(\w|\s)+", contlist[i1])
-                        # if se.group() is not None:
                         if se is not None:
                             # 后一个 以字母空格开头的 单元字符串 去空
-                            contlist[i1 - 1] = mt.strip()
-                            ins_json[contlist[i1]] = {}
-                            ins_json[contlist[i1]]["是"] = jsonkey
+                            # 当前contlist 为一个集合
+                            tinlist = self.language.latex_extract_word(contlist[i1])
+                            tstrli = latex_fenci(tinlist[0])
+                            siglist = [len(i2) for i2 in tstrli]
+                            siglenth = len(siglist)
+                            posind = -1
+                            for i2 in range(siglenth):
+                                if siglist[i2] == 1:
+                                    posind = i2
+                                else:
+                                    break
+                            if posind == -1:
+                                raise Exception("对应实体描述不存在")
+                            else:
+                                tstrstr = [" ".join(i2) for i2 in tstrli]
+                                tconcept_list = []
+                                for i2 in range(posind, siglenth):
+                                    tnewstr = "{ 点@" + tstrstr[i2] + " }"
+                                    tnewstr = self.language.name_normal(tnewstr)
+                                    ins_json.append([tnewstr, "是", "点"])
+                                    tconcept_list.append(tnewstr)
+                                tnewstr = "{ " + jsonkey + "@" + " ".join(tstrstr[0:posind + 1]) + " }"
+                                tnewstr = self.language.name_normal(tnewstr)
+                                ins_json.append([tnewstr, "是", jsonkey])
+                                # 改写拼接
+                                length_tinlist = len(tinlist)
+                                bstr = ""
+                                if length_tinlist > 1:
+                                    bstr = " , ".join(tinlist[1:])
+                                if siglenth - 1 != posind:
+                                    # 是否删除latex部分
+                                    contlist[i1] = " , ".join(tstrstr[posind:]) + bstr
+                                else:
+                                    if bstr == "":
+                                        del keylist[i1]
+                                        del contlist[i1]
+                                    else:
+                                        contlist[i1] = bstr
+                            # 是否删除文本部分
+                            ttext = mt.strip(",，；;:：。 \t")
+                            if ttext != "":
+                                contlist[i1 - 1] = ttext
+                            else:
+                                del keylist[i1 - 1]
+                                del contlist[i1 - 1]
                             break
-        analist = [[{keylist[i1]: contlist[i1]}] for i1 in range(olenth)]
-        # 5. 提取所有 抽象类。对应实例，改变字符。属性
-        anastr = self.get_allkeyproperty(analist)
-        # 6. 写入句间的实例
+            if keylist[i1] == "text" and keylist[i1 - 1] == "latex":
+                ttypelist = ["在一条直线上"]  # 目前仅支持一种模式
+                for jsonkey in ttypelist:
+                    mt = re.sub(u"^{}".format(jsonkey), "", contlist[i1])
+                    if mt != contlist[i1]:
+                        # 是否删除文本部分
+                        ttext = mt.strip(",，；;:：。 \t")
+                        if ttext != "":
+                            contlist[i1] = ttext
+                        else:
+                            del keylist[i1]
+                            del contlist[i1]
+                        # 前面的 为一个集合
+                        tinlist = self.language.latex_extract_word(contlist[i1 - 1])
+                        tstrli = [latex_fenci(i2) for i2 in tinlist]
+                        siglist = [len(i2) for i2 in tstrli]
+                        siglenth = len(siglist)
+                        posind = -1
+                        for i2 in range(siglenth - 1, -1, -1):
+                            if siglist[i2] == 1:
+                                posind = i2
+                            else:
+                                break
+                        if posind == -1:
+                            raise Exception("在一条直线上 前面不应为空")
+                        else:
+                            tstrstr = [" ".join(i2) for i2 in tstrli]
+                            tconcept_list = []
+                            for i2 in range(posind, siglenth):
+                                tnewstr = "{ 点@" + tstrstr[i2] + " }"
+                                tnewstr = self.language.name_normal(tnewstr)
+                                ins_json.append([tnewstr, "是", "点"])
+                                tconcept_list.append(tnewstr)
+                            ins_json.append([tconcept_list, "是", "直线"])
+                            if 0 != posind:
+                                # 是否删除latex部分
+                                contlist[i1 - 1] = " , ".join(tstrstr[0:posind])
+                            else:
+                                del keylist[i1 - 1]
+                                del contlist[i1 - 1]
+        # 5. 写入句间的实例
         field_name = "数学"
         scene_name = "解题"
         space_name = "customer"
         space_ins = self.gstack.readspace(space_name, scene_name, field_name)
         write_json = {
             "add": {
-                "properobj": ins_json, "triobj": [],
+                "properobj": [], "triobj": ins_json,
                 "quest_properobj": {}, "quest_triobj": {},
             },
             "dele": {"properobj": {}, "triobj": [], "quest_properobj": {}, "quest_triobj": []},
         }
-        self.language.json2space(write_json, space_ins)
+        self.language.json2space(write_json, basic_space_ins, space_ins)
+        # 6. 提取所有 抽象类。对应实例，改变字符。属性
+        olenth = len(contlist)
+        analist = [[{keylist[i1]: contlist[i1]}] for i1 in range(olenth)]
+        # print(analist)
+        anastr = self.get_allkeyproperty(analist)
+        print("out sentence2normal")
         return anastr
 
     def analyize_strs(self, instr_list):
@@ -1089,7 +1281,7 @@ class LogicalInference(object):
             step_counter += 1
             new_space_ins = copy.deepcopy(old_space_ins)
             Steps()
-            if old_space_ins=new_space_ins:
+            if old_space_ins == new_space_ins:
                 break
             old_space_ins = new_space_ins
         res = space_ins.find_obj_property_value(obj="矩形", property="面积")
@@ -1176,10 +1368,24 @@ if __name__ == '__main__':
     # exit()
     # printstr3 = "已知：四边形 $ABCD$ 中 ， $AD\\parallel BC , Ac=bf $，$AC=BD$ ，\n 是不是容易求证 ：$AB=DC$"
     # printstr3 = "某村计划建造如图所示的矩形蔬菜温室，要求长与宽的比为$2:1$．在温室内，沿前侧内墙保留$3m$宽的空地，其他三侧内墙各保留$1m$宽的通道．当矩形温室的长与宽各为多少米时，蔬菜种植区域的面积是$288m^{2}$？"
-    printstr3 = "证明：\\\n 联结 $CE$ \\\n $\\because \\angle{ACB}=90^{\\circ}\\qquad AE=BE$ \\\n $\\therefore CE=AE=\\frac{1}{2}AB$ \\\n 又 $\\because CD=\\frac{1}{2}AB$ \\\n $\\therefore CD=CE$ \\\n $\\therefore \\angle{CED}=\\angle{CDE}$ \\\n 又 $\\because A 、C、 D$ 成一直线 \\\n $\\therefore \\angle{ECA}=\\angle{CED}+\\angle{CDE}$ \\\n $=2\\angle{CDE}$ \\\n $\\angle{CDE}=\\frac{1}{2}\\angle{ECA}$ \\\n 又 $\\because EC=EA$ \\\n $\\therefore \\angle{ECA}=\\angle{EAC}$ \\\n $\\therefore \\angle{ADG}=\\frac{1}{2}\\angle{EAC}$ \\\n 又 $\\because AG$ 是 $\\angle{BAC}$ 的角平分线 \\\n $\\therefore \\angle{GAD}=\\frac{1}{2}\\angle{EAC}$ \\\n $\\therefore \\angle{GAD}=\\angle{GDA}$ \\\n $\\therefore GA=GD$"
+    # printstr3 = "证明：\\\n 联结 $CE$ \\\n $\\because \\angle{ACB}=90^{\\circ}\\qquad AE=BE$ \\\n $\\therefore CE=AE=\\frac{1}{2}AB$ \\\n 又 $\\because CD=\\frac{1}{2}AB$ \\\n $\\therefore CD=CE$ \\\n $\\therefore \\angle{CED}=\\angle{CDE}$ \\\n 又 $\\because A 、C、 D$ 成一直线 \\\n $\\therefore \\angle{ECA}=\\angle{CED}+\\angle{CDE}$ \\\n $=2\\angle{CDE}$ \\\n $\\angle{CDE}=\\frac{1}{2}\\angle{ECA}$ \\\n 又 $\\because EC=EA$ \\\n $\\therefore \\angle{ECA}=\\angle{EAC}$ \\\n $\\therefore \\angle{ADG}=\\frac{1}{2}\\angle{EAC}$ \\\n 又 $\\because AG$ 是 $\\angle{BAC}$ 的角平分线 \\\n $\\therefore \\angle{GAD}=\\frac{1}{2}\\angle{EAC}$ \\\n $\\therefore \\angle{GAD}=\\angle{GDA}$ \\\n $\\therefore GA=GD$"
     # printstr3 = "$\\therefore \\angle{ECA}=\\angle{CED}+\\angle{CDE}$"
     # printstr3 = "$\\therefore CE=AE=\\frac{1}{2}AB$"
-    handestr3 = "已知：四边形 $ABCD$ 中 ， $AD\\parallel BC$，$AC=BD$ ，\n 求证 ：$AB=DC$"
+    # printstr3 = "已知：\\\n 联结 $CE$ \\\n $\\because \\angle{ACB}=90^{\\circ}\\qquad AE=BE$ \\\n $\\therefore CE=AE=\\frac{1}{2}AB$ \\\n 又 $\\because CD=\\frac{1}{2}AB$ \\\n $\\therefore CD=CE$ \\\n $\\therefore \\angle{CED}=\\angle{CDE}$ \\\n 又 $\\because A 、C、 D$ 成一直线 \\\n $\\therefore \\angle{ECA}=\\angle{CED}+\\angle{CDE}$ \\\n $=2\\angle{CDE}$ \\\n $\\angle{CDE}=\\frac{1}{2}\\angle{ECA}$ \\\n 又 $\\because EC=EA$ \\\n $\\therefore \\angle{ECA}=\\angle{EAC}$ \\\n $\\therefore \\angle{ADG}=\\frac{1}{2}\\angle{EAC}$ \\\n 又 $\\because AG$ 是 $\\angle{BAC}$ 的角平分线 \\\n $\\therefore \\angle{GAD}=\\frac{1}{2}\\angle{EAC}$ \\\n $\\therefore \\angle{GAD}=\\angle{GDA}$ \\\n $\\therefore GA=GD$"
+    printstr3 = "已知：正方形 $ABCD, A、P、C $ 在一条直线上。$PQ=PB, MN \\parallel BC, \\angle {BPQ} =90 ^{\\circ},A、B、M $ 在一条直线上。 $C、D、Q、 N $ 在一条直线上。求证 $PB = PQ$"
+    handestr3 = "已知：正方形 $ABCD, A、P、C $ 在一条直线上。$PQ=PB, MN \\parallel BC, \\angle {BPQ} =90 ^{\\circ},A、B、M $ 在一条直线上。 $C、D、Q、 N $ 在一条直线上。求证 $PB = PQ$"
+    # \\therefore AM=PM
+    # \\because AB=MN
+    # \\therefore MB=PN
+    # \\angle BPQ=90 ^ {circ}
+    # \\therefore \\angle BPM + \\angle NPQ = 90 ^ {circ}
+    # \\because \\angle MBP + \\angle BPM = 90 ^ {circ}
+    # \\therefore \\angle MBP = \\angle NPQ
+    # \\triangle BPM 是直角三角形
+    # \\triangle NPQ 是直角三角形
+    # \\therefore \\triangle BPM \\cong \\triangle NPQ
+    #
+    # \\therefore PB = PQ
     # print(printstr3)
     # print(handestr3)
     solve_latex_prove(printstr3, handestr3)
@@ -1190,8 +1396,6 @@ if __name__ == '__main__':
     # printstr1 = "$\\therefore \\angle{ECA}=\\angle{CED}+\\angle{CDE}$"
     printstr1 = "$\\therefore CE=AE=\\frac{1}{2}AB$"
     print(printstr1)
-    # 标准空格化
-    printstr1 = latex2space(printstr1)
     # 先按概念实例合并表达式，再按句意分割，合并最小单元
     varlist = ["CE", "AE", "AB"]
     tmplist = latex2list_P(printstr1, varlist=varlist)
