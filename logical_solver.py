@@ -87,7 +87,7 @@ import itertools
 import logging.handlers
 import os
 import re
-
+from itertools import combinations
 import jieba.posseg as pseg
 # !pip install jsonpatch
 import jsonpatch
@@ -334,6 +334,8 @@ class BasicalSpace(object):
                         newsetobj[keydic[onetri[2]]] = []
                     elif basic_set[keydic[onetri[2]]]["结构形式"] == "一级列表二级集合":
                         newsetobj[keydic[onetri[2]]] = []
+                    elif basic_set[keydic[onetri[2]]]["结构形式"] == "一级列表二级列表":
+                        newsetobj[keydic[onetri[2]]] = []
                     else:
                         print(onetri)
                         raise Exception("没有考虑的情况")
@@ -345,6 +347,10 @@ class BasicalSpace(object):
                     newsetobj[keydic[onetri[2]]].append(set())
                     for i1 in onetri[0]:
                         newsetobj[keydic[onetri[2]]][-1].add(i1)
+                elif basic_set[keydic[onetri[2]]]["结构形式"] == "一级列表二级列表":
+                    newsetobj[keydic[onetri[2]]].append([])
+                    for i1 in onetri[0]:
+                        newsetobj[keydic[onetri[2]]][-1].append(i1)
                 else:
                     print(onetri)
                     raise Exception("没有考虑的情况")
@@ -1273,21 +1279,48 @@ class LogicalInference(object):
         # 1. 遍历点，得到线段 和 角
         print(oldsetobj)
         pointslist = [point.rstrip("}").lstrip("{点@") for point in oldsetobj["点集合"]]
-        lineslist = [point.rstrip("}").lstrip("{点@") for points in oldsetobj["直线集合"] for point in points]
+        lineslist = [[point.rstrip("}").lstrip("{点@") for point in points] for points in oldsetobj["直线集合"]]
         print(pointslist)
         outjson = []
         # 线段
-        for idangle in range(4):
+        for c in combinations(pointslist, 2):
+            print(c)
             tname = self.language.name_symmetric(" ".join(tanglist[idangle:idangle + 3])).replace(" ", "")
-            tname = "{角@" + tname + "}"
-            outjson.append([tname, "是", "角"])
-            outjson.append([tname, "是", "直角"])
+            tname = "{线段@" + tname + "}"
+            outjson.append([tname, "是", "线段"])
+        # 角 三角形
+        for c in combinations(pointslist, 3):
+            insig = 0
+            for oneline in lineslist:
+                if set(c).issubset(set(oneline)):
+                    insig = 1
+                    break
+            if insig != 1:
+                tname = self.language.name_symmetric(" ".join(c)).replace(" ", "")
+                outjson.append(["{角@" + tname + "}", "是", "角"])
+                outjson.append(["{三角形@" + tname + "}", "是", "三角形"])
         # 2. 遍历直线，得到补角
+        for oneline in lineslist:
+            lenth_line = len(oneline)
+            if lenth_line > 2:
+                line_dic = {point: idp for idp, point in enumerate(oneline)}
+                for ang_p in combinations(oneline, 3):
+                    ang_plist = [[point, line_dic[point]] for point in ang_p]
+                    ang_plist = [item[0] for item in sorted(ang_plist, key=lambda x: x[1])]
+                    tname = self.language.name_symmetric(" ".join(ang_plist)).replace(" ", "")
+                    outjson.append(["{角@" + tname + "}", "是", "平角"])
+        # todo: 补角
         # 3. 遍历垂直，得到直角，直角三角形
-        # 4. 平行传递
+        vertlist = [[segm.rstrip("}").lstrip("{线段@") for segm in segms] for segms in oldsetobj["垂直集合"]]
+        vertlist = [[latex_fenci(latex2space(item2)) for item2 in item1] for item1 in vertlist]
+        # 如果 线段的点 全在一条直线上，两条线上的任意一对都垂直。如果垂直的有 共同点，改组为直角。改代表角为直角三角形
+        # 4. 平行传递。线段是元素，多点直线作为多个元素处理。不同组间有重复的元素，则合并。
+        paralist = [[segm.rstrip("}").lstrip("{线段@") for segm in segms] for segms in oldsetobj["平行集合"]]
         # 5. 遍历平行，根据锐角得到同位角，内错角，对顶角
-        # 6. 等值传递
-        # 7. 遍历直角三角形垂直，得到余角
+        # 6. 等值传递。不同组间有重复的元素，则合并。找等于90度和180度的，作为直角 直角三角形 补角 直线。
+        equallist = [[elem for elem in elems] for elems in oldsetobj["等值集合"]]
+        # 7. 遍历直角三角形 垂直已导出角可以略过，得到余角
+        equallist = [[elem for elem in elems] for elems in oldsetobj["直角三角形集合"]]
         return newsetobj
 
     def conception2element(self, oldsetobj):
@@ -1382,11 +1415,10 @@ class LogicalInference(object):
             return True
         # print(operator.is_not(stopobj, newsetobj))
         for key in stopobj.keys():
-            if setobj[key]["结构形式"] == "一级集合":
-                stopobj[key].issubset(newsetobj[key])
-            elif setobj[key]["结构形式"] == "一级列表":
-                stopobj[key].issubset(newsetobj[key])
-            elif setobj[key]["结构形式"] == "一级列表二级集合":
+            if setobj[key]["结构形式"] == ["一级集合", "一级列表"]:
+                if not stopobj[key].issubset(newsetobj[key]):
+                    return False
+            elif setobj[key]["结构形式"] in ["一级列表二级集合", "一级列表二级列表"]:
                 for i1 in stopobj[key]:
                     findsig = 0
                     for i2 in newsetobj[key]:
