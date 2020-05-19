@@ -91,7 +91,7 @@ import re
 import jieba.posseg as pseg
 # !pip install jsonpatch
 import jsonpatch
-
+import operator
 from latex_solver import latex2list_P, postfix_convert_P, latex2space, latex2unit
 from latex_solver import latex_json, baspath, step_alist, step_blist, symblist, pmlist, addtypelist, funclist, operlist
 from meta_property import triobj, properobj, setobj
@@ -214,12 +214,17 @@ class BasicalSpace(object):
         # 1. 加载属性, 加载关系 只有作为逻辑的基类才会加载。
         if space_name == "basic":
             self._proper_keys, self._proper_trip, self._relation_trip, self._setobj = self.storage_oper("r")
+            # print(self._proper_keys)
+            # print(self._proper_trip)
+            # print(self._relation_trip)
+            # exit()
         else:
             self._proper_keys, self._proper_trip = {}, {}
             self._relation_trip = {}
             self._questproperbj = {}
             self._questtriobj = {}
             self._setobj = {}
+            self._stopobj = {}
 
     def storage_oper(self, operstr):
         """硬件：存储交互操作"""
@@ -294,30 +299,52 @@ class BasicalSpace(object):
                     break
         return oritriple
 
-    def tri2set_oper(self, basic_set, setobj, addc=[], delec=[]):
+    def tri2set_oper(self, basic_set, oldsetobj, stopobj, addc=[], delec=[]):
         """内存：triple交互操作"""
+        # print(basic_set)
+        # print(oldsetobj)
+        # print(stopobj)
+        so_obj = {}
+        newout = [oldsetobj, so_obj, stopobj]
+        pushsig = 0
+        newsetobj = oldsetobj
+        newstopobj = stopobj
         keydic = {i1.rstrip("集合"): i1 for i1 in basic_set}
-        for onetri in addc:
+        for oneitems in addc:
+            if "因为" in oneitems:
+                onetri = oneitems["因为"]
+                pushsig = 0
+                newsetobj = newout[0]
+            elif "所以" in oneitems:
+                onetri = oneitems["所以"]
+                pushsig = 1
+                newsetobj = newout[1]
+            elif "求证" in oneitems:
+                onetri = oneitems["求证"]
+                pushsig = 2
+                newsetobj = newout[2]
+            else:
+                print(oneitems)
+                raise Exception("没有考虑的情况")
             if onetri[2] in keydic:
-                if keydic[onetri[2]] not in setobj:
+                if keydic[onetri[2]] not in newsetobj:
                     if basic_set[keydic[onetri[2]]]["结构形式"] == "一级集合":
-                        setobj[keydic[onetri[2]]] = set()
+                        newsetobj[keydic[onetri[2]]] = set()
                     elif basic_set[keydic[onetri[2]]]["结构形式"] == "一级列表":
-                        setobj[keydic[onetri[2]]] = []
+                        newsetobj[keydic[onetri[2]]] = []
                     elif basic_set[keydic[onetri[2]]]["结构形式"] == "一级列表二级集合":
-                        setobj[keydic[onetri[2]]] = []
+                        newsetobj[keydic[onetri[2]]] = []
                     else:
                         print(onetri)
                         raise Exception("没有考虑的情况")
                 if basic_set[keydic[onetri[2]]]["结构形式"] == "一级集合":
-                    setobj[keydic[onetri[2]]].add(onetri[0])
+                    newsetobj[keydic[onetri[2]]].add(onetri[0])
                 elif basic_set[keydic[onetri[2]]]["结构形式"] == "一级列表":
-                    setobj[keydic[onetri[2]]].append(onetri[0])
+                    newsetobj[keydic[onetri[2]]].append(onetri[0])
                 elif basic_set[keydic[onetri[2]]]["结构形式"] == "一级列表二级集合":
-                    setobj[keydic[onetri[2]]].append(set())
-                    print(onetri[0])
+                    newsetobj[keydic[onetri[2]]].append(set())
                     for i1 in onetri[0]:
-                        setobj[keydic[onetri[2]]][-1].add(i1)
+                        newsetobj[keydic[onetri[2]]][-1].add(i1)
                 else:
                     print(onetri)
                     raise Exception("没有考虑的情况")
@@ -326,7 +353,7 @@ class BasicalSpace(object):
                 raise Exception("没有考虑的情况")
         # for onetri in delec:
         #     onetri
-        return setobj
+        return newout
 
     def get_child(self, obj):
         waitelist = [obj]
@@ -651,20 +678,26 @@ class NLPtool(object):
         return latexlist
 
     def json2space(self, write_json, basic_space_ins, space_ins):
+        # 默认： write_json["add"]["triobj"] = [['{线段@BP}', '是', '线段'], ['{线段@PQ}', '是', '线段']]
+        # 特殊声明： write_json["add"]["triobj"] = [{'因为': ['{线段@BP}', '是', '线段']}, '所以': ['{线段@PQ}', '是', '线段']}, '求证': ['{线段@PQ}', '是', '线段']}]
         # 1. 先写属性
         space_ins.property_oper(space_ins._proper_trip, addc=write_json["add"]["properobj"],
                                 delec=write_json["dele"]["properobj"])
         logger1.info("write property: %s" % write_json["add"]["properobj"])
         # 2. 修正元组实体
-        print(113)
-        print(write_json["add"]["triobj"])
+        # print(113)
+        # print(write_json["add"]["triobj"])
         # write_json["add"]["triobj"] = [
         #     [latex2unit(online[0], varlist=varlist), online[1], latex2unit(online[2], varlist=varlist)] for online in
         #     write_json["add"]["triobj"]]
         # print(write_json["add"]["triobj"])
         # 3. 再写元组
-        space_ins.tri2set_oper(basic_space_ins._setobj, space_ins._setobj, addc=write_json["add"]["triobj"],
-                               delec=write_json["dele"]["triobj"])
+        space_ins._setobj, _, space_ins._stopobj = space_ins.tri2set_oper(basic_space_ins._setobj, space_ins._setobj,
+                                                                          space_ins._stopobj,
+                                                                          addc=write_json["add"]["triobj"],
+                                                                          delec=write_json["dele"]["triobj"])
+        # space_ins.tri2set_oper(basic_space_ins, addc=write_json["add"]["triobj"],
+        #                        delec=write_json["dele"]["triobj"])
         # space_ins.triple_oper(space_ins._proper_trip, addc=write_json["add"]["triobj"],
         #                       delec=write_json["dele"]["triobj"])
         logger1.info("write triple: %s" % write_json["add"]["triobj"])
@@ -758,6 +791,7 @@ class NLPtool(object):
         write_json = self.fenci2triple(stand_fenci_list, basic_space_ins)
         logger1.info("json write: %s" % write_json)
         # 5. 写入空间, 先写 属性再根据属性 合并 三元组
+        # propertyjson = [{"因为": i1} for i1 in propertyjson]
         self.json2space(write_json, basic_space_ins, space_ins)
         print(basic_space_ins._proper_trip)
         print(basic_space_ins._relation_trip)
@@ -769,17 +803,21 @@ class NLPtool(object):
 class Steps(object):
     """ 步骤: """
 
-    def __init__(self):
+    def __init__(self, oldspace, basicspace):
         self.step_name = None
         # 临时分两种 easy detail
         self.inference_type = "easy"
         self.out_type = "easy"
+        self.basicspace = basicspace
+        self.oldspace = oldspace
+        self.newspace = copy.deepcopy(oldspace)
 
-    def loadspace(self, bs_ins):
-        pass
+    def __call__(self, *args, **kwargs):
+        return self.inference(basicspace)
 
-    def inference(self, operstr):
-        pass
+    def inference(self, basicspace):
+        self.newspace.inference()
+        return self.newspace
 
 
 class LogicalInference(object):
@@ -803,19 +841,16 @@ class LogicalInference(object):
         """输入为语言的 list dic 数组: text latex"""
         analist = args[0]
         logger1.info("initial analyzing: %s" % analist)
-        # 0. 处理句间 关系，写入部分实体。 基于符号类型的区分标签
+        # 0. 处理句间 关系，写入部分实体。 基于符号类型的区分标签。结果全部写入内存。
         anastr = self.sentence2normal(analist)
         logger1.info("initial clean sentence: %s" % analist)
         # 1. 循环处理每句话 生成空间解析 和 步骤list
         # for sentence in analist:
         #     logger1.info("sentence: %s" % sentence)
         # 2. 基于因果的符号标签
-        self.analyize_strs(anastr)
+        # self.analyize_strs(anastr)
         # 2. 内存推理，基于之前的步骤条件
-        print(self.gstack.space_list)
-        self.inference(triplelist)
-        print("end")
-        exit()
+        self.inference()
 
     def deriv_basicelement(self, analist):
         # 衍生一级元素
@@ -842,14 +877,15 @@ class LogicalInference(object):
 
     def deriv_relationelement(self, analist):
         # 提取所有 已知或求证 的关系
-        # [[['已知'], ['v']], ['{线段@PQ}', '=', '{线段@BP}'], ['{线段@MN}', '\\parallel', '{线段@BC}'], ['{角@BPQ}', '=', '9', '0', '^', '{ \\circ }'], [['求证'], ['v']], ['{线段@BP}', '=', '{线段@PQ}']]
-        print("deriv_relationelement")
-        print(analist)
+        # 输入: [[['已知'], ['v']], ['{线段@PQ}', '=', '{线段@BP}'], ['{线段@MN}', '\\parallel', '{线段@BC}'], ['{角@BPQ}', '=', '9', '0', '^', '{ \\circ }'], [['求证'], ['v']], ['{线段@BP}', '=', '{线段@PQ}']]
+        # 输出:
+        # print("deriv_relationelement")
+        # print(analist)
         purpose_json = []
         # 0. 文本latex标记
         length = len(analist)
+        typesig = "因为"
         for i1 in range(length):
-            typesig = "因为"
             if isinstance(analist[i1][0], list):
                 if analist[i1][0][0] in ["求证"]:
                     # typesig = "所以"
@@ -874,66 +910,62 @@ class LogicalInference(object):
                     pass
                 if analist[i1][i2] in ["=", "等值", '等于']:
                     sigmatch = 1
-                    if setstr == "等值集合" or setstr == "":
-                        setstr = "等值集合"
+                    if setstr == "等值" or setstr == "":
+                        setstr = "等值"
                     else:
-                        raise Exception("等值集合!={}".format(setstr))
+                        raise Exception("等值!={}".format(setstr))
                 if analist[i1][i2] in ['\\parallel', '平行']:
                     sigmatch = 1
-                    if setstr == "平行集合" or setstr == "":
-                        setstr = "平行集合"
+                    if setstr == "平行" or setstr == "":
+                        setstr = "平行"
                     else:
-                        raise Exception("平行集合!={}".format(setstr))
+                        raise Exception("平行!={}".format(setstr))
                 if analist[i1][i2] in ['\\perp', '垂直']:
                     sigmatch = 1
-                    if setstr == "垂直集合" or setstr == "":
-                        setstr = "垂直集合"
+                    if setstr == "垂直" or setstr == "":
+                        setstr = "垂直"
                     else:
-                        raise Exception("垂直集合!={}".format(setstr))
+                        raise Exception("垂直!={}".format(setstr))
                 if analist[i1][i2] in ['\\cong', '全等']:
                     sigmatch = 1
-                    if setstr == "全等集合" or setstr == "":
-                        setstr = "全等集合"
+                    if setstr == "全等" or setstr == "":
+                        setstr = "全等"
                     else:
-                        raise Exception("全等集合!={}".format(setstr))
+                        raise Exception("全等!={}".format(setstr))
                 if analist[i1][i2] in ["相似"]:
                     sigmatch = 1
-                    if setstr == "相似集合" or setstr == "":
-                        setstr = "相似集合"
+                    if setstr == "相似" or setstr == "":
+                        setstr = "相似"
                     else:
-                        raise Exception("相似集合!={}".format(setstr))
+                        raise Exception("相似!={}".format(setstr))
                 if analist[i1][i2] in ["等腰三角形"]:
                     sigmatch = 1
-                    if setstr == "等腰三角形集合" or setstr == "":
-                        setstr = "等腰三角形集合"
+                    if setstr == "等腰三角形" or setstr == "":
+                        setstr = "等腰三角形"
                     else:
-                        raise Exception("等腰三角形集合!={}".format(setstr))
+                        raise Exception("等腰三角形!={}".format(setstr))
                 if analist[i1][i2] in ["等边三角形"]:
                     sigmatch = 1
-                    if setstr == "等边三角形集合" or setstr == "":
-                        setstr = "等边三角形集合"
+                    if setstr == "等边三角形" or setstr == "":
+                        setstr = "等边三角形"
                     else:
-                        raise Exception("等边三角形集合!={}".format(setstr))
+                        raise Exception("等边三角形!={}".format(setstr))
                 if 1 != sigmatch:
                     tmp_json.append(analist[i1][i2])
                 else:
                     subjectlist.append(tmp_json)
                     tmp_json = []
+            if len(tmp_json) != 0 and not isinstance(analist[i1][0], list):
+                subjectlist.append(tmp_json)
             subjectlist = [[" ".join(i2) for i2 in subjectlist], isstr, setstr]
-            if typesig == "因为":
-                pass
-            elif typesig == "所以":
-                pass
-            elif typesig == "求证":
-                pass
-            purpose_json.append({typesig: subjectlist})
-        # print("purpose_json", purpose_json)
+            if setstr != "":
+                purpose_json.append({typesig: subjectlist})
         return purpose_json
 
     def get_allkeyproperty(self, analist):
         """text latex 句子间合并, 写入概念属性json，返回取出主题概念的列表"""
         # 1. 展成 同级 list
-        print("in get_allkeyproperty")
+        # print("in get_allkeyproperty")
         analist = list(itertools.chain(*analist))
         keylist = [list(sentence.keys())[0] for sentence in analist]
         contlist = [list(sentence.values())[0].strip() for sentence in analist]
@@ -952,6 +984,7 @@ class LogicalInference(object):
                 # print(contlist[idn])
                 latexlist, propertyjson = self.language.latex_extract_property(contlist[idn])
                 outlatex += latexlist
+                propertyjson = [{"因为": i1} for i1 in propertyjson]
                 write_json = {
                     "add": {
                         "properobj": {}, "triobj": propertyjson,
@@ -977,9 +1010,10 @@ class LogicalInference(object):
                         tlist.append([[word.word], [word.flag]])
                 outlatex += tlist
         # 3. 提取默认 字面初级元素，升级属性或新元素为后续工作
-        print(space_ins._setobj)
-        print(outlatex)
+        # print(space_ins._setobj)
+        # print(outlatex)
         outlatex, propertyjson = self.deriv_basicelement(outlatex)
+        propertyjson = [{"因为": i1} for i1 in propertyjson]
         write_json = {
             "add": {
                 "properobj": {}, "triobj": propertyjson,
@@ -988,7 +1022,7 @@ class LogicalInference(object):
             "dele": {"properobj": {}, "triobj": [], "quest_properobj": {}, "quest_triobj": []},
         }
         self.language.json2space(write_json, basic_space_ins, space_ins)
-        print(space_ins._setobj)
+        # print(space_ins._setobj)
         # 4. 语法提取 字面关系
         propertyjson = self.deriv_relationelement(outlatex)
         write_json = {
@@ -999,13 +1033,10 @@ class LogicalInference(object):
             "dele": {"properobj": {}, "triobj": [], "quest_properobj": {}, "quest_triobj": []},
         }
         self.language.json2space(write_json, basic_space_ins, space_ins)
-        print(space_ins._setobj)
-        print("check ok")
-        raise "check ok"
         return outlatex
 
     def sentence2normal(self, analist):
-        """text latex 句子间合并 按句意合并"""
+        """text latex 句子间合并 按句意合并, 结果全部写入内存。"""
         # 1. 展成 同级 list
         # print("sentence2normal")
         analist = list(itertools.chain(*analist))
@@ -1104,7 +1135,7 @@ class LogicalInference(object):
                                 del contlist[i1 - 1]
                             break
             if keylist[i1] == "text" and keylist[i1 - 1] == "latex":
-                ttypelist = ["在一条直线上"]  # 目前仅支持一种模式
+                ttypelist = ["在一条直线上", "是锐角"]  # 目前仅支持一种模式
                 for jsonkey in ttypelist:
                     mt = re.sub(u"^{}".format(jsonkey), "", contlist[i1])
                     if mt != contlist[i1]:
@@ -1120,34 +1151,48 @@ class LogicalInference(object):
                         tstrli = [latex_fenci(i2) for i2 in tinlist]
                         siglist = [len(i2) for i2 in tstrli]
                         siglenth = len(siglist)
-                        posind = -1
-                        for i2 in range(siglenth - 1, -1, -1):
-                            if siglist[i2] == 1:
-                                posind = i2
-                            else:
-                                break
+                        if jsonkey == "在一条直线上":
+                            posind = -1
+                            for i2 in range(siglenth - 1, -1, -1):
+                                if siglist[i2] == 1:
+                                    posind = i2
+                                else:
+                                    break
+                        elif jsonkey == "是锐角":
+                            posind = 0 if siglist[0] > 0 else -1
                         if posind == -1:
                             raise Exception("在一条直线上 前面不应为空")
                         else:
                             tstrstr = [" ".join(i2) for i2 in tstrli]
                             tconcept_list = []
-                            for i2 in range(posind, siglenth):
-                                tnewstr = "{ 点@" + tstrstr[i2] + " }"
-                                tnewstr = self.language.name_normal(tnewstr)
-                                ins_json.append([tnewstr, "是", "点"])
-                                tconcept_list.append(tnewstr)
-                            ins_json.append([tconcept_list, "是", "直线"])
-                            if 0 != posind:
-                                # 是否删除latex部分
-                                contlist[i1 - 1] = " , ".join(tstrstr[0:posind])
+                            if jsonkey == "在一条直线上":
+                                for i2 in range(posind, siglenth):
+                                    tnewstr = "{ 点@" + tstrstr[i2] + " }"
+                                    tnewstr = self.language.name_normal(tnewstr)
+                                    ins_json.append([tnewstr, "是", "点"])
+                                    tconcept_list.append(tnewstr)
+                                ins_json.append([tconcept_list, "是", "直线"])
+                                if 0 != posind:
+                                    # 是否删除latex部分
+                                    contlist[i1 - 1] = " , ".join(tstrstr[0:posind])
+                                else:
+                                    del keylist[i1 - 1]
+                                    del contlist[i1 - 1]
+                            elif jsonkey == "是锐角":
+                                tstrli = [i2 for i2 in tstrli[0] if i2 != "\\angle"]
+                                for i2 in tstrli:
+                                    tnewstr = "{ 角@" + i2.strip("{}") + " }"
+                                    tnewstr = self.language.name_normal(tnewstr)
+                                    ins_json.append([tnewstr, "是", "锐角"])
                             else:
-                                del keylist[i1 - 1]
-                                del contlist[i1 - 1]
+                                print(jsonkey)
+                                raise Exception("在一条直线上")
         # 5. 写入句间的实例
         field_name = "数学"
         scene_name = "解题"
         space_name = "customer"
         space_ins = self.gstack.readspace(space_name, scene_name, field_name)
+        ins_json = [{"因为": i1} for i1 in ins_json]
         write_json = {
             "add": {
                 "properobj": [], "triobj": ins_json,
@@ -1161,7 +1206,7 @@ class LogicalInference(object):
         analist = [[{keylist[i1]: contlist[i1]}] for i1 in range(olenth)]
         # print(analist)
         anastr = self.get_allkeyproperty(analist)
-        print("out sentence2normal")
+        # print("out sentence2normal")
         return anastr
 
     def analyize_strs(self, instr_list):
@@ -1172,31 +1217,185 @@ class LogicalInference(object):
         """加载实体空间: """
         pass
 
-    def inference(self, triplelist):
+    def inference(self):
         """推理流程: 三元组 到 三元组"""
         field_name = "数学"
         scene_name = "解题"
+        space_name = "basic"
+        basic_space_ins = self.gstack.readspace(space_name, scene_name, field_name)
         space_name = "customer"
         space_ins = self.gstack.readspace(space_name, scene_name, field_name)
-        old_space_ins = space_ins
+        old_space_setobj = space_ins._setobj
         # 查找 具体 属性值
         step_counter = 0
+        steplist = {"0": old_space_setobj}
         while True:
             # 推演步骤 打印出 用到的集合元素属性 和 集合元素属性导出的结果。
             # 根据最终结论，倒寻相关的属性概念。根据年级，忽略非考点的属性，即评判的结果。
             step_counter += 1
-            new_space_ins = copy.deepcopy(old_space_ins)
-            Steps()
-            if old_space_ins == new_space_ins:
+            logger1.info("in step {}".format(step_counter))
+            new_space_setobj = self.step_infere(copy.deepcopy(old_space_setobj))
+            logger1.info("out step {}: {}".format(step_counter, new_space_setobj))
+            steplist[str(step_counter)] = new_space_setobj
+            # 5. 判断终止
+            operator.eq(old_space_setobj, new_space_setobj)
+            if self.judge_stop(old_space_setobj, new_space_setobj, space_ins._stopobj, basic_space_ins):
+                logger1.info("stop inference")
                 break
-            old_space_ins = new_space_ins
-        res = space_ins.find_obj_property_value(obj="矩形", property="面积")
-        print(res)
-        # 猜谜查找具体 实体
-        res = space_ins.find_property_value_child(obj="四边形", property="对角线", value="相等")
-        print(res)
-        newtrilist = triplelist
-        return newtrilist
+            old_space_setobj = new_space_setobj
+        # 6. 生成思维树
+        print(steplist)
+        raise Exception("end")
+        return None
+
+    def step_infere(self, oldsetobj):
+        "每步推理的具体操作"
+        print("step_infere")
+        print(oldsetobj)
+        # 1. 概念属性 衍生关系
+        newsetobj = self.conception2element(oldsetobj)
+        # 2. 公理 衍生关系
+        newsetobj = self.axiom2relation(newsetobj)
+        # 3. 属性 提取 概念
+        # 4. 内存 去重
+        # res = space_ins.find_obj_property_value(obj="矩形", property="面积")
+        # print(res)
+        # # 猜谜查找具体 实体
+        # res = space_ins.find_property_value_child(obj="四边形", property="对角线", value="相等")
+        # print(res)
+        print(newsetobj)
+        raise Exception("step_infere")
+        return newsetobj
+
+    def axiom2relation(self, oldsetobj):
+        "精确概念的自洽"
+        print("axiom2relation")
+        # 1. 遍历点，得到线段 和 角
+        print(oldsetobj)
+        pointslist = [point.rstrip("}").lstrip("{点@") for point in oldsetobj["点集合"]]
+        lineslist = [point.rstrip("}").lstrip("{点@") for points in oldsetobj["直线集合"] for point in points]
+        print(pointslist)
+        outjson = []
+        # 线段
+        for idangle in range(4):
+            tname = self.language.name_symmetric(" ".join(tanglist[idangle:idangle + 3])).replace(" ", "")
+            tname = "{角@" + tname + "}"
+            outjson.append([tname, "是", "角"])
+            outjson.append([tname, "是", "直角"])
+        # 2. 遍历直线，得到补角
+        # 3. 遍历垂直，得到直角，直角三角形
+        # 4. 平行传递
+        # 5. 遍历平行，根据锐角得到同位角，内错角，对顶角
+        # 6. 等值传递
+        # 7. 遍历直角三角形垂直，得到余角
+        return newsetobj
+
+    def conception2element(self, oldsetobj):
+        # 概念衍生，点， 点 生 线段 角，去掉顺序差异，再根据直线 衍生等值角。
+        outjson = []
+        for oneset in oldsetobj:
+            if oneset == "正方形集合":
+                for obj in oldsetobj[oneset]:
+                    tname = obj.rstrip("}").lstrip("{正方形@")
+                    tlist = latex_fenci(latex2space(tname))
+                    tlist = [i1.replace(" ", "") for i1 in tlist]
+                    # 点
+                    for point in tlist:
+                        tname = self.language.name_symmetric(point).replace(" ", "")
+                        tname = "{点@" + tname + "}"
+                        outjson.append([tname, "是", "点"])
+                    # 线段
+                    tseglist = tlist + tlist[0:1]
+                    last4seg = []
+                    for idseg in range(4):
+                        tname = self.language.name_symmetric(" ".join(tseglist[idseg:idseg + 2])).replace(" ", "")
+                        tname = "{线段@" + tname + "}"
+                        last4seg.append(tname)
+                        outjson.append([tname, "是", "线段"])
+                    outjson.append([[last4seg[-1], last4seg[-3]], "是", "平行"])
+                    outjson.append([[last4seg[-2], last4seg[-4]], "是", "平行"])
+                    outjson.append([[last4seg[-1], last4seg[-2]], "是", "垂直"])
+                    outjson.append([[last4seg[-2], last4seg[-3]], "是", "垂直"])
+                    outjson.append([[last4seg[-3], last4seg[-4]], "是", "垂直"])
+                    outjson.append([[last4seg[-4], last4seg[-1]], "是", "垂直"])
+                    # 线段全展开模式
+                    # for pointa in tlist:
+                    #     for pointb in tlist:
+                    #         if pointa != pointb:
+                    #             tname = self.language.name_symmetric(" ".join([pointa, pointb])).replace(" ", "")
+                    #             tname = "{线段@" + tname + "}"
+                    #             outjson.append([tname, "是", "线段集合"])
+                    # 角
+                    tanglist = tlist + tlist[0:2]
+                    for idangle in range(4):
+                        tname = self.language.name_symmetric(" ".join(tanglist[idangle:idangle + 3])).replace(" ", "")
+                        tname = "{角@" + tname + "}"
+                        outjson.append([tname, "是", "角"])
+                        outjson.append([tname, "是", "直角"])
+            if oneset == "三角形集合":
+                for obj in oldsetobj[oneset]:
+                    tname = obj.rstrip("}").lstrip("{三角形@")
+                    tlist = latex_fenci(latex2space(tname))
+                    tlist = [i1.replace(" ", "") for i1 in tlist]
+                    # 点
+                    for point in tlist:
+                        tname = self.language.name_symmetric(point).replace(" ", "")
+                        tname = "{点@" + tname + "}"
+                        outjson.append([tname, "是", "点"])
+                    # 线段
+                    tseglist = tlist + tlist[0:1]
+                    last4seg = []
+                    for idseg in range(3):
+                        tname = self.language.name_symmetric(" ".join(tseglist[idseg:idseg + 2])).replace(" ", "")
+                        tname = "{线段@" + tname + "}"
+                        last4seg.append(tname)
+                        outjson.append([tname, "是", "线段"])
+                    # 角
+                    tanglist = tlist + tlist[0:2]
+                    for idangle in range(3):
+                        tname = self.language.name_symmetric(" ".join(tanglist[idangle:idangle + 3])).replace(" ", "")
+                        tname = "{角@" + tname + "}"
+                        outjson.append([tname, "是", "角"])
+        outjson = [{"因为": i1} for i1 in outjson]
+        field_name = "数学"
+        scene_name = "解题"
+        space_name = "basic"
+        basic_space_ins = self.gstack.readspace(space_name, scene_name, field_name)
+        space_name = "customer"
+        space_ins = self.gstack.readspace(space_name, scene_name, field_name)
+        space_ins._setobj, _, _ = space_ins.tri2set_oper(basic_space_ins._setobj, space_ins._setobj,
+                                                         space_ins._stopobj,
+                                                         addc=outjson,
+                                                         delec=[])
+        # print(space_ins._setobj)
+        return space_ins._setobj
+
+    def judge_stop(self, oldsetobj, newsetobj, stopobj, basic_space_ins):
+        "每步推理的具体操作 true为应该结束"
+        # print(basic_space_ins._relation_trip)
+        # print(basic_space_ins._proper_trip)
+        # newsetobj["daian"] = 6
+        # print(setobj)
+        # print(oldsetobj)
+        # print(newsetobj)
+        if operator.eq(oldsetobj, newsetobj):
+            return True
+        # print(operator.is_not(stopobj, newsetobj))
+        for key in stopobj.keys():
+            if setobj[key]["结构形式"] == "一级集合":
+                stopobj[key].issubset(newsetobj[key])
+            elif setobj[key]["结构形式"] == "一级列表":
+                stopobj[key].issubset(newsetobj[key])
+            elif setobj[key]["结构形式"] == "一级列表二级集合":
+                for i1 in stopobj[key]:
+                    findsig = 0
+                    for i2 in newsetobj[key]:
+                        if i1.issubset(i2):
+                            findsig = 1
+                            break
+                    if findsig == 0:
+                        return False
+        return True
 
     def outputinfo(self, operstr):
         """结果输出: """
@@ -1271,14 +1470,13 @@ if __name__ == '__main__':
     # se = re.sub(r"^(\w|\s)+","", ss)
     # print(se.string)
     # print(se)
-    # exit()
     # printstr3 = "已知：四边形 $ABCD$ 中 ， $AD\\parallel BC , Ac=bf $，$AC=BD$ ，\n 是不是容易求证 ：$AB=DC$"
     # printstr3 = "某村计划建造如图所示的矩形蔬菜温室，要求长与宽的比为$2:1$．在温室内，沿前侧内墙保留$3m$宽的空地，其他三侧内墙各保留$1m$宽的通道．当矩形温室的长与宽各为多少米时，蔬菜种植区域的面积是$288m^{2}$？"
     # printstr3 = "证明：\\\n 联结 $CE$ \\\n $\\because \\angle{ACB}=90^{\\circ}\\qquad AE=BE$ \\\n $\\therefore CE=AE=\\frac{1}{2}AB$ \\\n 又 $\\because CD=\\frac{1}{2}AB$ \\\n $\\therefore CD=CE$ \\\n $\\therefore \\angle{CED}=\\angle{CDE}$ \\\n 又 $\\because A 、C、 D$ 成一直线 \\\n $\\therefore \\angle{ECA}=\\angle{CED}+\\angle{CDE}$ \\\n $=2\\angle{CDE}$ \\\n $\\angle{CDE}=\\frac{1}{2}\\angle{ECA}$ \\\n 又 $\\because EC=EA$ \\\n $\\therefore \\angle{ECA}=\\angle{EAC}$ \\\n $\\therefore \\angle{ADG}=\\frac{1}{2}\\angle{EAC}$ \\\n 又 $\\because AG$ 是 $\\angle{BAC}$ 的角平分线 \\\n $\\therefore \\angle{GAD}=\\frac{1}{2}\\angle{EAC}$ \\\n $\\therefore \\angle{GAD}=\\angle{GDA}$ \\\n $\\therefore GA=GD$"
     # printstr3 = "$\\therefore \\angle{ECA}=\\angle{CED}+\\angle{CDE}$"
     # printstr3 = "$\\therefore CE=AE=\\frac{1}{2}AB$"
     # printstr3 = "已知：\\\n 联结 $CE$ \\\n $\\because \\angle{ACB}=90^{\\circ}\\qquad AE=BE$ \\\n $\\therefore CE=AE=\\frac{1}{2}AB$ \\\n 又 $\\because CD=\\frac{1}{2}AB$ \\\n $\\therefore CD=CE$ \\\n $\\therefore \\angle{CED}=\\angle{CDE}$ \\\n 又 $\\because A 、C、 D$ 成一直线 \\\n $\\therefore \\angle{ECA}=\\angle{CED}+\\angle{CDE}$ \\\n $=2\\angle{CDE}$ \\\n $\\angle{CDE}=\\frac{1}{2}\\angle{ECA}$ \\\n 又 $\\because EC=EA$ \\\n $\\therefore \\angle{ECA}=\\angle{EAC}$ \\\n $\\therefore \\angle{ADG}=\\frac{1}{2}\\angle{EAC}$ \\\n 又 $\\because AG$ 是 $\\angle{BAC}$ 的角平分线 \\\n $\\therefore \\angle{GAD}=\\frac{1}{2}\\angle{EAC}$ \\\n $\\therefore \\angle{GAD}=\\angle{GDA}$ \\\n $\\therefore GA=GD$"
-    printstr3 = "已知：正方形 $ABCD, A、P、C $ 在一条直线上。$PQ=PB, MN \\parallel BC, \\angle {BPQ} =90 ^{\\circ},A、B、M $ 在一条直线上。 $C、D、Q、 N $ 在一条直线上。求证 $PB = PQ$"
+    printstr3 = "已知：正方形 $ABCD, A、P、C $ 在一条直线上。$MN \\parallel BC, \\angle {BPQ} =90 ^{\\circ},A、M、B $ 在一条直线上，$\\angle {APM}$是锐角，$\\angle {ABC}$是锐角。 $C、Q、 N、D $ 在一条直线上。求证 $PB = PQ$"
     handestr3 = "已知：正方形 $ABCD, A、P、C $ 在一条直线上。$PQ=PB, MN \\parallel BC, \\angle {BPQ} =90 ^{\\circ},A、B、M $ 在一条直线上。 $C、D、Q、 N $ 在一条直线上。求证 $PB = PQ$"
     # \\therefore AM=PM
     # \\because AB=MN
