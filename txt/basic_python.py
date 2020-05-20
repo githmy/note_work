@@ -11,6 +11,11 @@ warnings.filterwarnings(action='ignore', category=FutureWarning)
 from goto import with_goto
 
 
+def 内存查看():
+    import sys
+    print(sys.getsizeof(space_ins._setobj))
+
+
 def garbage_collector():
     # 垃圾回收
     import gc
@@ -103,7 +108,7 @@ def list_deal():
     listB = [3, 4, 5, 6, 7]
     # 逆序列
     listB.reverse()
-    # # 元素的序号
+    # # 元素的序号 索引
     your_list.index('your_item')
     your_list.sort(cmp=None, key=None, reverse=False)
     # 插入
@@ -261,7 +266,7 @@ def regex():
 
 
 def itertools():
-    # 1. 排列组合
+    # 1. 组合 不排列
     shelf_list = [1, 2, 3]
     combnum = 4
     for i2 in itertools.combinations(shelf_list, combnum):
@@ -273,6 +278,12 @@ def itertools():
     batchbetch_all = {"19": 2, "31": 6}
     batchbetch1 = {"1": 2, "9": 2, "3": 4, "5": 6}
     batchbetch_all.update(batchbetch1)
+    # 4. 笛卡尔积组合
+    print(list(itertools.product(segmlist1, segmlist2)))
+    # 5. 2个集合的公共元素
+    list(set(线段1的点).intersection(set(线段2的点)))
+    # 6. 集合 合并
+    a = b | c
 
 
 def json_compare():
