@@ -1495,23 +1495,37 @@ class LogicalInference(object):
         paralist = [[segm.rstrip("}").lstrip("{线段@") for segm in segms] for segms in oldsetobj["平行集合"]]
         paralist = [[latex_fenci(latex2space(item2)) for item2 in item1] for item1 in paralist]
         intangles = []
-        for line in lineslist:
+        for idl, line in enumerate(lineslist):
             len_lines = len(line)
+            noselflines = copy.deepcopy(lineslist)
+            del noselflines[idl]
             for onegroup in paralist:
                 # 5.1得出 交点
-                posi_intersec = {ide: elem for ide, elem in enumerate(line) if elem in list(itertools.chain(*onegroup))}
+                posi_intersec = {ide: elem for ide, elem in enumerate(line) if elem in set(itertools.chain(*onegroup))}
                 # 5.2与一个线段生成上位角和下位角。
                 intangles.append([])
                 # 5.3不同 交点 的 上位角或下位角 如果同是锐角或钝角则相同。
                 for posi in posi_intersec:
+                    tlist_ap = line[:posi]
+                    tlist_an = line[posi + 1:]
                     for segmi in onegroup:
-                        tsegmi = copy.deepcopy(segmi)
-                        if posi_intersec[posi] in tsegmi:
-                            tsegmi.remove(posi_intersec[posi])
-                            iterlist = list(range(len_lines))
-                            iterlist.remove(posi)
-                            for iindex in iterlist:
-                                tlist = [tsegmi[0], posi_intersec[posi], line[iindex]]
+                        if posi_intersec[posi] in segmi:
+                            # 相交的线段，必存在直线
+                            segline = [tmline for tmline in noselflines if set(segmi).issubset(set(tmline))][0]
+                            seglinedic = {elem: ide for ide, elem in enumerate(segline)}
+                            ide_b = seglinedic[posi_intersec[posi]]
+                            tlist_bp = segline[:ide_b]
+                            tlist_bn = segline[ide_b + 1:]
+                            # 内错角1
+                            for pair in list(itertools.product(tlist_ap, tlist_bp)) + list(
+                                    itertools.product(tlist_an, tlist_bn)):
+                                tlist = [pair[0], posi_intersec[posi], pair[1]]
+                                tname = self.language.name_symmetric(" ".join(tlist)).replace(" ", "")
+                                intangles[-1].append("{角@" + tname + "}")
+                            # 内错角2
+                            for pair in list(itertools.product(tlist_ap, tlist_bn)) + list(
+                                    itertools.product(tlist_an, tlist_bp)):
+                                tlist = [pair[0], posi_intersec[posi], pair[1]]
                                 tname = self.language.name_symmetric(" ".join(tlist)).replace(" ", "")
                                 intangles[-1].append("{角@" + tname + "}")
         # print(intangles)
