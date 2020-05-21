@@ -191,11 +191,11 @@ def moviepy_trans(infile, outfile):
     #           .resize(width=40, height=18)
     #           .set_pos((194, 25)))
     # midresult = CompositeVideoClip([ori_video_m, screen], size=moviesize)
-    # # midresult.set_duration(ori_video_m.duration).write_videofile(outfile, fps=ori_video.fps)
+    # # midresult.set_duration(ori_video_m.duration).write_videofile(outfile, fps=ori_video.fps, audio=True)
     # ori_video_t = ori_video.subclip(end_t, None)
     # # 3. 输出
     # result = concatenate_videoclips([ori_video_h, midresult.set_duration(ori_video_m.duration), ori_video_t])
-    # result.write_videofile(outfile, fps=ori_video.fps)
+    # result.write_videofile(outfile, fps=ori_video.fps, audio=True)
     # return
     # 2. 马赛克
     class Mosaic:
@@ -254,7 +254,7 @@ def moviepy_trans(infile, outfile):
     # 4. 输出
     # result = CompositeVideoClip([ori_video], size=moviesize)  尺寸裁剪，不是缩放
     result = CompositeVideoClip([ori_video, screen], size=moviesize)
-    result.set_duration(ori_video.duration).write_videofile(outfile, fps=ori_video.fps)
+    result.set_duration(ori_video.duration).write_videofile(outfile, fps=ori_video.fps, audio=True)
 
 
 # 处理视频+音频的主函数
@@ -263,8 +263,8 @@ def moviepy_dehead(infile, outfile, start_t=0.0, end_t=0.0):
     ori_video = VideoFileClip(infile)
     # 3. 输出
     result = CompositeVideoClip([ori_video]).subclip(start_t, ori_video.duration - end_t)
-    # result.set_duration(ori_video.duration).write_videofile(outfile, fps=ori_video.fps)
-    result.write_videofile(outfile, fps=ori_video.fps)
+    # result.set_duration(ori_video.duration).write_videofile(outfile, fps=ori_video.fps, audio=True)
+    result.write_videofile(outfile, fps=ori_video.fps, audio=True)
 
 
 # 处理视频+音频的主函数
@@ -281,8 +281,8 @@ def moviepy_demid(infile, outfile, start_t=0.0, end_t=0.0):
     # 3. 输出
     result = concatenate_videoclips([ori_video_h, ori_video_t])
     # result = CompositeVideoClip([ori_video]).subclip(start_t, ori_video.duration - end_t)
-    # result.set_duration(ori_video.duration).write_videofile(outfile, fps=ori_video.fps)
-    result.write_videofile(outfile, fps=ori_video.fps)
+    # result.set_duration(ori_video.duration).write_videofile(outfile, fps=ori_video.fps, audio=True)
+    result.write_videofile(outfile, fps=ori_video.fps, audio=True)
 
 
 # 批量我文件合并

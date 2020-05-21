@@ -32,7 +32,7 @@ def moviepy_trans(infile, outfile, div):
     print(ori_video.duration)
     # 4. 输出
     result = concatenate_videoclips([ori_video])
-    result.write_videofile(outfile, fps=ori_video.fps)
+    result.write_videofile(outfile, fps=ori_video.fps, audio=True)
 
 
 # 处理视频+音频的主函数
@@ -43,7 +43,7 @@ def moviepy_dehead(infile, outfile, start_t=0.0, end_t=0.0):
     # 3. 输出
     ori_video_m = ori_video.subclip(start_t, end_t)
     result = concatenate_videoclips([ori_video_m])
-    result.write_videofile(outfile, fps=ori_video.fps)
+    result.write_videofile(outfile, fps=ori_video.fps, audio=True)
 
 
 # 处理视频+音频的主函数
@@ -57,7 +57,7 @@ def moviepy_demid(infile, outfile, start_t=0.0, end_t=0.0):
     ori_video_t = ori_video.subclip(end_t, None)
     # 3. 输出
     result = concatenate_videoclips([ori_video_h, ori_video_t])
-    result.write_videofile(outfile, fps=ori_video.fps)
+    result.write_videofile(outfile, fps=ori_video.fps, audio=True)
 
 
 def main():
