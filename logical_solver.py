@@ -1387,9 +1387,6 @@ class LogicalInference(object):
                 polist.append("{点@" + tname + "}")
             outjson.append([polist, "是", "直线"])
         outjson = [{"因为": i1} for i1 in outjson]
-        if '{角@ABC}' in space_ins._setobj["锐角集合"]:
-            print('{角fsvgdg@ABC}在dsfaf')
-            print(space_ins._setobj["锐角集合"])
         space_ins._setobj, _, _ = space_ins.tri2set_oper(basic_space_ins._setobj, space_ins._setobj,
                                                          space_ins._stopobj, addc=outjson, delec=[])
         outjson = []
@@ -1452,16 +1449,10 @@ class LogicalInference(object):
                             outjson.append([tname2, "是", ttype2])
         # 写入
         outjson = [{"因为": i1} for i1 in outjson]
-        if '{角@ABC}' in space_ins._setobj["锐角集合"]:
-            print('{角@ABC}在dsfaf')
-            print(space_ins._setobj["锐角集合"])
         space_ins._setobj, _, _ = space_ins.tri2set_oper(basic_space_ins._setobj, space_ins._setobj,
                                                          space_ins._stopobj, addc=outjson, delec=[])
         space_ins._setobj["直线集合"] = lines_deliver(space_ins._setobj["直线集合"])
         oldsetobj = space_ins._setobj
-        if '{角@ABC}' in space_ins._setobj["锐角集合"]:
-            print('{角@ABC}在')
-            print(space_ins._setobj["锐角集合"])
         outjson = []
         # 3. 遍历垂直，得到直角，直角三角形
         vertlist = [[segm.rstrip("}").lstrip("{线段@") for segm in segms] for segms in oldsetobj["垂直集合"]]
@@ -1491,16 +1482,10 @@ class LogicalInference(object):
                     outjson.append(["{角@" + tname + "}", "是", "直角"])
                     tname = self.language.name_symmetric(" ".join(insetlist + vertsegm1 + vertsegm2)).replace(" ", "")
                     tname = "{角@" + tname + "}"
-                    if tname in ["{角@ADN}"]:
-                        print(159)
-                        raise 123
                     outjson.append([tname, "是", "角"])
                     outjson.append([tname, "是", "锐角"])
                     tname = self.language.name_symmetric(" ".join(vertsegm1 + vertsegm2 + insetlist)).replace(" ", "")
                     tname = "{角@" + tname + "}"
-                    if tname in ["{角@ADN}"]:
-                        print(159)
-                        raise 123
                     outjson.append([tname, "是", "角"])
                     outjson.append([tname, "是", "锐角"])
                     tname = self.language.name_cyc_one(" ".join(tanlgelist)).replace(" ", "")
@@ -2121,7 +2106,9 @@ if __name__ == '__main__':
     # printstr3 = "$\\therefore \\angle{ECA}=\\angle{CED}+\\angle{CDE}$"
     # printstr3 = "$\\therefore CE=AE=\\frac{1}{2}AB$"
     # printstr3 = "已知：\\\n 联结 $CE$ \\\n $\\because \\angle{ACB}=90^{\\circ}\\qquad AE=BE$ \\\n $\\therefore CE=AE=\\frac{1}{2}AB$ \\\n 又 $\\because CD=\\frac{1}{2}AB$ \\\n $\\therefore CD=CE$ \\\n $\\therefore \\angle{CED}=\\angle{CDE}$ \\\n 又 $\\because A 、C、 D$ 成一直线 \\\n $\\therefore \\angle{ECA}=\\angle{CED}+\\angle{CDE}$ \\\n $=2\\angle{CDE}$ \\\n $\\angle{CDE}=\\frac{1}{2}\\angle{ECA}$ \\\n 又 $\\because EC=EA$ \\\n $\\therefore \\angle{ECA}=\\angle{EAC}$ \\\n $\\therefore \\angle{ADG}=\\frac{1}{2}\\angle{EAC}$ \\\n 又 $\\because AG$ 是 $\\angle{BAC}$ 的角平分线 \\\n $\\therefore \\angle{GAD}=\\frac{1}{2}\\angle{EAC}$ \\\n $\\therefore \\angle{GAD}=\\angle{GDA}$ \\\n $\\therefore GA=GD$"
-    printstr3 = "已知：正方形 $ABCD, A、P、C $ 在一条直线上。$MN \\parallel BC, \\angle {BPQ} =90 ^{\\circ},A、M、B $ 在一条直线上，$\\angle {APM}$是锐角，$\\angle {ACB}$是锐角。 $C、Q、 N、D $ 在一条直线上。求证 $PB = PQ$"
+    # printstr3 = "已知：正方形 $ABCD, A、P、C $ 在一条直线上。$MN \\parallel BC, \\angle {BPQ} =90 ^{\\circ},A、M、B $ 在一条直线上，$\\angle {APM}$是锐角，$\\angle {ACB}$是锐角。 $C、Q、 N、D $ 在一条直线上。求证 $PB = PQ$"
+    # printstr3 = "已知：正方形 $ABCD, A、P、C $ 在一条直线上。$MN \\parallel BC, \\angle {BPQ} =90 ^{\\circ},A、M、B $ 在一条直线上，$\\angle {APM}$是锐角，$\\angle {NPQ} +\\angle {BPQ} +\\angle {BPM} =180^{\\circ }, \\angle {ACB}$是锐角。 $C、Q、 N、D $ 在一条直线上。求证 $PB = PQ$"
+    printstr3 = "已知：三角形 $ABC, \\triangle ACD, \\angle {CAB} = \\angle {CAD}, \\angle {ABC} = \\angle {ADC} = 90 ^{\\circ} $。求证 $BC = CD$"
     handestr3 = "已知：正方形 $ABCD, A、P、C $ 在一条直线上。$PQ=PB, MN \\parallel BC, \\angle {BPQ} =90 ^{\\circ},A、B、M $ 在一条直线上。 $C、D、Q、 N $ 在一条直线上。求证 $PB = PQ$"
     # \\therefore AM=PM
     # \\because AB=MN
