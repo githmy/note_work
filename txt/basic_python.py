@@ -141,6 +141,20 @@ def list_deal():
     operator.ne(set(old_id["mainReviewPoints"]), set(new_id["mainReviewPoints"]))
 
 
+def set_deal():
+    A = set()
+    A.add("a")
+    A.remove('a')  # 不存在会报错
+    print("删除a后:", A)
+    A.discard('b')
+    A.pop()
+    print("删除第1个：", A)
+    A.clear()
+    print("清空后：", A)
+    # 相加
+    A = A | b
+
+
 def list_transpose():
     def transpose(matrix):
         return zip(*matrix)
