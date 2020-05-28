@@ -57,7 +57,7 @@ def plot_markcurve(x, ys, titles, lines, points, text):
     # plt.title(title)
     # plt.grid(b=True)
     plt.savefig('{}.png'.format(titles[0]))
-    plt.show()
+    # plt.show()
 
 
 def getkachi_line(x, y):
@@ -208,9 +208,7 @@ def main():
     for txt in paths:
         filenames += [os.path.join(txt, i1) for i1 in os.listdir(txt) if i1.endswith("txt")]
     stime = time.time()
-    # filenames = [i1 for i1 in os.listdir(baspath) if i1.endswith("txt")]
-    # if 1:
-    filenames = filenames[5:]
+    filenames = filenames[:]
     print(len(filenames))
     for filename in filenames:
         print(filename)

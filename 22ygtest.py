@@ -183,15 +183,15 @@ class FutureShow(object):
             "月嫂预留百分数": 0.2,  # 未排班的订单为基数
             "订单销售速度期望值": 10000,  # todo: 统计 订单详情(星级 地域 服务等待期 当天订单价格 预售期日期 等待期日期) 订单销售速度 销售排行状态
             "订单销售速度标准差": 0,  # todo: 统计 订单详情(星级 地域 服务等待期 当天订单价格 预售期日期 等待期日期) 订单销售速度 销售排行状态
-            "原价订单": 8000,
+            "原价订单": 10000,
             "订单折扣": 0.7,
             # "订单折扣": 1,
             "订单保证金": 500,
             "等待期": 60,
             "服务期": 28,
             "结算期": 7,
-            "原价工资": 5000,
-            "工资折扣": 1.2,
+            "原价工资": 10000,
+            "工资折扣": 1.5,
             # "工资折扣": 1,
             "月嫂使用费": 500,
             "订单提成": 0.1,
@@ -611,7 +611,7 @@ def main():
     fs_ins.gene_fakeori_date()
     # 3. 算结果
     fs_ins.gene_full_service()
-    exit()
+    # exit()
     print("use time is {}s".format(time.time() - stime))
     # 4. 绘图
     titles = ["月嫂总量", "服务中月嫂数", "月嫂缺额数", "未利用月嫂数",
@@ -632,8 +632,8 @@ def main():
           np.array(fs_ins.y_order_free) / max(fs_ins.y_order_free),
           ]
     plot_curve(fs_ins.x_label, ys, titles)
-    bar3dplot([fs_ins.x_label, titles, list(itertools.chain(*ys))])
-    exit()
+    # bar3dplot([fs_ins.x_label, titles, list(itertools.chain(*ys))])
+    # exit()
 
     titles = ["月嫂总量", "服务中月嫂数", "月嫂缺额数", "未利用月嫂数"]
     ys = [fs_ins.y_sao_total, fs_ins.y_sao_servicing, fs_ins.y_sao_short, fs_ins.y_sao_free]
