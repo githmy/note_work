@@ -2563,9 +2563,9 @@ if __name__ == '__main__':
     printstr3 = "已知：正方形 $ABCD, A、P、C $ 在一条直线上。$MN \\parallel BC, \\angle {BPQ} =90 ^{\\circ},A、M、B $ 在一条直线上，$M、P、N $ 在一条直线上，$\\angle {APM}$是锐角，$\\angle {NPQ} +\\angle {BPQ} +\\angle {BPM} =180^{\\circ }, \\angle {ACB}$是锐角。 $C、Q、 N、D $ 在一条直线上。求证 $PB = PQ$"
     handestr3 = "已知：正方形 $ABCD, A、P、C $ 在一条直线上。$PQ=PB, MN \\parallel BC, \\angle {BPQ} =90 ^{\\circ},A、B、M $ 在一条直线上。 $C、D、Q、 N $ 在一条直线上。求证 $PB = PQ$"
     # 对的 1
-    handestr3 = "$\\therefore AM=PM, \\because AB=MN, \\therefore MB=PN, \\because \\angle BPQ=90 ^ {circ}, \\therefore \\angle BPM + \\angle NPQ = 90 ^ {circ}, \\because \\angle MBP + \\angle BPM = 90 ^ {circ}, \\therefore \\angle MBP = \\angle NPQ, \\therefore \\triangle BPM \\cong \\triangle NPQ, \\therefore PB = PQ$"
-    # 对的 2
     handestr3 = "$ \\therefore AM=PM, \\because AB=MN,\\therefore MB=PN,\\because \\angle {BPQ}=90 ^ {\\circ},\\therefore \\angle {BPM} + \\angle {NPQ} = 90 ^ {\\circ},\\because \\angle {MBP} + \\angle {BPM} = 90 ^ {\\circ},\\therefore \\angle {MBP} = \\angle {NPQ},\\because \\triangle {BPM}$ 是直角三角形。$\\because \\triangle {NPQ}$ 是直角三角形$ \\therefore \\triangle {BPM} \\cong \\triangle {NPQ},\\therefore PB = PQ $"
+    # 对的 2
+    handestr3 = "$ \\therefore AM=PM, \\because AB=MN,\\therefore MB=PN,\\because \\angle {BPQ}=90 ^ {\\circ},\\therefore \\angle {BPM} + \\angle {NPQ} = 90 ^ {\\circ},\\because \\angle {NPQ} + \\angle {NQP} = 90 ^ {\\circ},\\therefore \\angle {NPQ} = \\angle {MBP},\\because \\triangle {BPM}$ 是直角三角形。$\\because \\triangle {NPQ}$ 是直角三角形$ \\therefore \\triangle {BPM} \\cong \\triangle {NPQ},\\therefore PB = PQ $"
 
     # \\therefore AM=PM
     # \\because AB=MN
