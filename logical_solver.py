@@ -2566,18 +2566,6 @@ if __name__ == '__main__':
     handestr3 = "$ \\therefore AM=PM, \\because AB=MN,\\therefore MB=PN,\\because \\angle {BPQ}=90 ^ {\\circ},\\therefore \\angle {BPM} + \\angle {NPQ} = 90 ^ {\\circ},\\because \\angle {MBP} + \\angle {BPM} = 90 ^ {\\circ},\\therefore \\angle {MBP} = \\angle {NPQ},\\because \\triangle {BPM}$ 是直角三角形。$\\because \\triangle {NPQ}$ 是直角三角形$ \\therefore \\triangle {BPM} \\cong \\triangle {NPQ},\\therefore PB = PQ $"
     # 对的 2
     handestr3 = "$ \\therefore AM=PM, \\because AB=MN,\\therefore MB=PN,\\because \\angle {BPQ}=90 ^ {\\circ},\\therefore \\angle {BPM} + \\angle {NPQ} = 90 ^ {\\circ},\\because \\angle {NPQ} + \\angle {NQP} = 90 ^ {\\circ},\\therefore \\angle {NPQ} = \\angle {MBP},\\because \\triangle {BPM}$ 是直角三角形。$\\because \\triangle {NPQ}$ 是直角三角形$ \\therefore \\triangle {BPM} \\cong \\triangle {NPQ},\\therefore PB = PQ $"
-
-    # \\therefore AM=PM
-    # \\because AB=MN
-    # \\therefore MB=PN
-    # \\angle BPQ=90 ^ {circ}
-    # \\therefore \\angle BPM + \\angle NPQ = 90 ^ {circ}
-    # \\because \\angle MBP + \\angle BPM = 90 ^ {circ}
-    # \\therefore \\angle MBP = \\angle NPQ
-    # \\triangle BPM 是直角三角形
-    # \\triangle NPQ 是直角三角形
-    # \\therefore \\triangle BPM \\cong \\triangle NPQ
-    #
     # \\therefore PB = PQ
     # print(printstr3)
     # print(handestr3)
