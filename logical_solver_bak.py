@@ -1,3 +1,4 @@
+# coding:utf-8
 """
 逻辑内核:
 感知 行动 认知 语言
@@ -83,6 +84,7 @@ from latex_solver import solve_latex_formula2, solve_latex_equation
 from latex_solver import latex_json, baspath, step_alist, step_blist, symblist, pmlist, addtypelist, funclist, operlist
 from meta_property import triobj, properobj, setobj
 from utils.path_tool import makesurepath
+import json
 
 # pd.set_option('display.max_columns', None)
 cmd_path = os.getcwd()
@@ -168,16 +170,62 @@ def list_set_deliver(inlistset):
     lenth_paralist = len(inlistset)
     for indmain in range(lenth_paralist - 1, 0, -1):
         for indcli in range(indmain - 1, -1, -1):
-            if len(inlistset[indcli].intersection(inlistset[indmain])) > 0:
-                # print(754)
-                # print(inlistset[indcli])
-                # print(inlistset[indmain])
-                # print(inlistset[indcli].intersection(inlistset[indmain]))
-                # print([i21 for i21 in inlistset[indmain] if i21 not in inlistset[indcli].intersection(inlistset[indmain])])
+            if len(set(inlistset[indcli]).intersection(set(inlistset[indmain]))) > 0:
                 inlistset[indcli] |= inlistset[indmain]
                 del inlistset[indmain]
                 break
     return inlistset
+
+
+def list_set_antiequal(objlistset, tarkey="余角", purposekey="等值"):
+    "一级列表二级集合，集合反等传递。如：[余角集合 等值集合] 2d的[垂直集合 平行集合] "
+    tarkey = tarkey + "集合"
+    # purposekey = purposekey
+    objset = [setins for setins in objlistset[tarkey] if setins != set()]
+    lenth_paralist = len(objset)
+    outjson = []
+    # print(objset)
+    for indmain in range(lenth_paralist - 1, 0, -1):
+        for indcli in range(indmain - 1, -1, -1):
+            sameset = objset[indcli].intersection(objset[indmain])
+            if len(sameset) == 2:
+                del objset[indmain]
+                break
+            elif len(sameset) == 1:
+                outsame = []
+                outsame += [i1 for i1 in objset[indcli] if i1 not in sameset]
+                outsame += [i1 for i1 in objset[indmain] if i1 not in sameset]
+                # print(11)
+                # print(sameset)
+                # print(objset[indmain])
+                # print(objset[indcli])
+                # print(outsame)
+                outjson.append([outsame, "是", purposekey])
+    return outjson
+
+
+def list_set_equalanti(objlistset, tarkey="平行", purposekey="垂直"):
+    "一级列表二级集合，集合等值到反关系。如：2d的[平行集合 垂直集合] "
+    tarkey = tarkey + "集合"
+    paraset = [setins for setins in objlistset[tarkey] if setins != set()]
+    genelist = [setins for setins in objlistset[purposekey + "集合"] if setins != set()]
+    lenth_paralist = len(paraset)
+    lenth_vertlist = len(genelist)
+    outjson = []
+    for indvert in range(lenth_vertlist):
+        for indpara in range(lenth_paralist):
+            sameset = paraset[indpara].intersection(genelist[indvert])
+            if len(sameset) == 2:
+                raise Exception("不可能有两个反关系对象，对应单关系对象。")
+            elif len(sameset) == 1:
+                fkey = [i1 for i1 in genelist[indvert] if i1 not in sameset][0]
+                antiout = [i1 for i1 in paraset[indpara] if i1 not in sameset]
+                for onout in antiout:
+                    # print("oot", fkey, onout)
+                    # if "BN" in fkey or "BN" in onout:
+                    #     print(fkey, onout)
+                    outjson.append([[fkey, onout], "是", purposekey])
+    return outjson
 
 
 def lines_deliver(inlistset):
@@ -231,18 +279,6 @@ def lines_deliver(inlistset):
     return inlistset
 
 
-class Field(object):
-    def __init__(self, name):
-        # 0. 加载原始obj
-        self.field_name = name
-
-
-class Scene(object):
-    def __init__(self, name):
-        # 0. 加载原始obj
-        self.scene_name = name
-
-
 class GStack(object):
     """一组语言一个Gstack"""
 
@@ -289,8 +325,10 @@ class BasicalSpace(object):
             self._questtriobj = {}
             self._setobj = {"锐角集合": set(), "钝角集合": set(), "等价集合": [], "全等集合": [], "全等三角形集合": [],
                             "垂直集合": [], "平行集合": [], "直角集合": set(), "平角集合": set(), "直角三角形集合": set(),
-                            "余角集合": [], "补角集合": []}
+                            "余角集合": [], "补角集合": [], "表达式集合": set()}
             self._stopobj = {}
+            self._initobj = {}
+            self._step_node = []
 
     def storage_oper(self, operstr):
         """硬件：存储交互操作"""
@@ -337,7 +375,6 @@ class BasicalSpace(object):
     def property_oper(self, properobj, addc={}, delec=[]):
         """内存：triple交互操作"""
         for oneproper in addc:
-            # print(oneproper)
             properobj[oneproper] = addc[oneproper]
         for oneproper in delec:
             try:
@@ -412,6 +449,7 @@ class BasicalSpace(object):
                     print(onetri)
                     raise Exception("没有考虑的情况")
             else:
+                # print(keydic)
                 print(onetri)
                 raise Exception("没有考虑的情况")
         # for onetri in delec:
@@ -453,31 +491,6 @@ class BasicalSpace(object):
                 waitelist.remove(tmpobj)
             nowlenth = len(outlist)
         return outlist
-
-    def find_obj_property_value(self, obj="矩形", property="面积"):
-        """内存：给定 主体 和 属性，查找 值list"""
-        # 1. 找到所有的父级
-        fatherlist = self.get_father(obj)
-        # 2. 查找继承级的 属性值
-        properlist = []
-        for item in fatherlist:
-            if item in self._proper_keys and property in self._proper_trip[item] and self._proper_trip[item][
-                property] is not None:
-                properlist.append(self._proper_trip[item][property])
-        return properlist
-
-    def find_property_value_child(self, obj="四边形", property="对角线", value="相等"):
-        """内存：给定子级属性值 返回 子级list"""
-        # 1. 找到所有的 子级
-        # print("get_child")
-        childlist = self.get_child(obj)
-        # 2. 查找 符合 属性值的主体
-        objlist = []
-        for item in childlist:
-            if item in self._proper_keys and property in self._proper_trip[item] and value == self._proper_trip[item][
-                property]:
-                objlist.append(item)
-        return objlist
 
     def gene_instance_info(self, ins_key, ):
         infolist = []
@@ -826,12 +839,12 @@ class NLPtool(object):
                            enumerate(tmp_word_tri) if idw > 0 and idw < lenthwt - 1 and "v" == wordtup[1]]
                 # print(triobj)
             else:
-                # 普通 字符 暂时略过
-                if index_question != -1:
-                    # 问句类型处理
-                    pass
-                else:
-                    # 陈述句处理
+                # # 普通 字符 暂时略过
+                # if index_question != -1:
+                #     # 问句类型处理
+                #     pass
+                # else:
+                #     # 陈述句处理
                     pass
         # 暂时没想到
         # print(properobj)
@@ -882,26 +895,6 @@ class NLPtool(object):
         print("check ok")
 
 
-class Steps(object):
-    """ 步骤: """
-
-    def __init__(self, oldspace, basicspace):
-        self.step_name = None
-        # 临时分两种 easy detail
-        self.inference_type = "easy"
-        self.out_type = "easy"
-        self.basicspace = basicspace
-        self.oldspace = oldspace
-        self.newspace = copy.deepcopy(oldspace)
-
-    def __call__(self, *args, **kwargs):
-        return self.inference()
-
-    def inference(self, ):
-        self.newspace.inference()
-        return self.newspace
-
-
 class LogicalInference(object):
     """ 推理内核: """
 
@@ -922,6 +915,7 @@ class LogicalInference(object):
     def __call__(self, *args, **kwargs):
         """输入为语言的 list dic 数组: text latex"""
         analist = args[0]
+        analist = args[0]
         logger1.info("initial analyzing: %s" % analist)
         # 0. 处理句间 关系，写入部分实体。 基于符号类型的区分标签。结果全部写入内存。
         anastr = self.sentence2normal(analist)
@@ -933,6 +927,19 @@ class LogicalInference(object):
         # self.analyize_strs(anastr)
         # 2. 内存推理，基于之前的步骤条件
         self.inference()
+
+    def get_condition_tree(self):
+        field_name = "数学"
+        scene_name = "解题"
+        space_name = "basic"
+        basic_space_ins = self.gstack.readspace(space_name, scene_name, field_name)
+        space_name = "customer"
+        space_ins = self.gstack.readspace(space_name, scene_name, field_name)
+        inout = [space_ins._initobj, space_ins._setobj, space_ins._stopobj]
+        print(space_ins._step_node)
+        raise 987
+        outree = None
+        return outree
 
     def deriv_basicelement(self, analist):
         # 衍生一级元素
@@ -947,7 +954,6 @@ class LogicalInference(object):
         # 2. 生成语法的内存属性实体、生成语法的关系三元组
         write_json = []
         newoutlist = []
-        # print(newlist)
         for i1 in newlist:
             if not isinstance(i1[0], list):
                 outlist, outjson = self.language.latex_default_property(i1)
@@ -961,8 +967,6 @@ class LogicalInference(object):
         # 提取所有 已知或求证 的关系
         # 输入: [[['已知'], ['v']], ['{线段@PQ}', '=', '{线段@BP}'], ['{线段@MN}', '\\parallel', '{线段@BC}'], ['{角@BPQ}', '=', '9', '0', '^', '{ \\circ }'], [['求证'], ['v']], ['{线段@BP}', '=', '{线段@PQ}']]
         # 输出:
-        # print("deriv_relationelement")
-        # print(analist)
         purpose_json = []
         # 0. 文本latex标记
         length = len(analist)
@@ -1035,7 +1039,8 @@ class LogicalInference(object):
                 if 1 != sigmatch:
                     tmp_json.append(analist[i1][i2])
                 else:
-                    subjectlist.append(tmp_json)
+                    if len(tmp_json) != 0:
+                        subjectlist.append(tmp_json)
                     tmp_json = []
             if len(tmp_json) != 0 and not isinstance(analist[i1][0], list):
                 subjectlist.append(tmp_json)
@@ -1048,6 +1053,7 @@ class LogicalInference(object):
         """text latex 句子间合并, 写入概念属性json，返回取出主题概念的列表"""
         # 1. 展成 同级 list
         # print("in get_allkeyproperty")
+        # print(analist)
         analist = list(itertools.chain(*analist))
         keylist = [list(sentence.keys())[0] for sentence in analist]
         contlist = [list(sentence.values())[0].strip() for sentence in analist]
@@ -1085,14 +1091,18 @@ class LogicalInference(object):
                         tlist.append([[word.word], [word.flag]])
                 outlatex += tlist
         # 3. 提取默认 字面初级元素，升级属性或新元素为后续工作
-        # print(space_ins._setobj)
-        # print(outlatex)
         outlatex, propertyjson = self.deriv_basicelement(outlatex)
         propertyjson = [{"因为": i1} for i1 in propertyjson]
         self.language.json2space(propertyjson, basic_space_ins, space_ins)
         # 4. 语法提取 字面关系
         propertyjson = self.deriv_relationelement(outlatex)
         self.language.json2space(propertyjson, basic_space_ins, space_ins)
+        # 清理
+        space_ins._setobj = self.list_set_shrink_all(space_ins._setobj)
+        # 表达式提取
+        space_ins._setobj = self.prepare_clean_set(space_ins._setobj)
+        # 写入初始化条件
+        space_ins._initobj = copy.deepcopy(space_ins._setobj)
         return outlatex
 
     def sentence2normal(self, analist):
@@ -1268,6 +1278,156 @@ class LogicalInference(object):
         """加载实体空间: """
         pass
 
+    def math_solver_write(self, injson):
+        # 1. 操作空间定义
+        field_name = "数学"
+        scene_name = "解题"
+        space_name = "basic"
+        basic_space_ins = self.gstack.readspace(space_name, scene_name, field_name)
+        space_name = "customer"
+        space_ins = self.gstack.readspace(space_name, scene_name, field_name)
+        # 2. json 标准化
+        injson = [{"因为": i1} for i1 in injson]
+        # 3. 写入
+        space_ins._setobj, _, _ = space_ins.tri2set_oper(basic_space_ins._setobj, space_ins._setobj,
+                                                         space_ins._stopobj, addc=injson, delec=[])
+        return copy.deepcopy(space_ins._setobj)
+
+    def step_node_write(self, tripleobjlist):
+        """加入步骤节点列表：单个 已知按原集合形式的列表。知识点为一个集合。导出按元素处理
+        [ [ [[{"线段1"，"线段2"}],"是"，"等值"] , [已知2] ], {知识点1,知识点2},[{a,b},是,xx] ]
+        _step_node = [nodejson1,nodejson2,nodejson3]
+        nodejson = {
+        "points":[],
+        "condjson":{},
+        "outjson":{},
+        }
+        """
+        field_name = "数学"
+        scene_name = "解题"
+        space_name = "basic"
+        basic_space_ins = self.gstack.readspace(space_name, scene_name, field_name)
+        listset_obj = [objset.rstrip("集合") for objset in basic_space_ins._setobj if
+                       basic_space_ins._setobj[objset]["结构形式"].startswith("一级列表二级")]
+        set_obj = [objset.rstrip("集合") for objset in basic_space_ins._setobj if
+                   basic_space_ins._setobj[objset]["结构形式"].startswith("一级集合")]
+        space_name = "customer"
+        space_ins = self.gstack.readspace(space_name, scene_name, field_name)
+
+        def judge_condjson(incondilist, oricondoutilist):
+            "没有，返回新条件json, 有 返回None,即跳过。"
+            # condijson = {}
+            # for i1 in inlist:
+            #     condijson[i1[2]] = i1[0]
+            condijson = condition2json(incondilist)
+            pointsnodejson = [one[0] for one in oricondoutilist]
+            # 遍历 同一个 知识点的json
+            condihavesig = 0
+            for nodejson in pointsnodejson:
+                bakcondijson = copy.deepcopy(condijson)
+                baknodejson = copy.deepcopy(nodejson)
+                for i1 in incondilist:
+                    if i1[2] in listset_obj:
+                        lenthnode = len(baknodejson[i1[2]])
+                        lenthcond = len(bakcondijson[i1[2]])
+                        for idori in range(lenthnode - 1, -1, -1):
+                            for idnew in range(lenthcond - 1, -1, -1):
+                                if operator.eq(set(baknodejson[i1[2]][idori]), set(bakcondijson[i1[2]][idnew])):
+                                    del baknodejson[i1[2]][idori]
+                                    del bakcondijson[i1[2]][idnew]
+                        if len(baknodejson[i1[2]]) == 0:
+                            del baknodejson[i1[2]]
+                        if len(bakcondijson[i1[2]]) == 0:
+                            del bakcondijson[i1[2]]
+                    elif i1[2] in set_obj:
+                        if operator.eq(set(baknodejson[i1[2]]), set(bakcondijson[i1[2]])):
+                            del bakcondijson[i1[2]]
+                            del baknodejson[i1[2]]
+                if len(baknodejson) == len(bakcondijson) and len(bakcondijson) == 0:
+                    condihavesig = 1
+                    break
+            if condihavesig == 0:
+                # 没找到则添加
+                return condijson
+            else:
+                # 有 则 不做处理
+                return None
+
+        def condition2json(incondilist):
+            "条件输入转json"
+            condijson = {}
+            for onitem in incondilist:
+                if onitem[2] + "集合" not in condijson:
+                    condijson[onitem[2] + "集合"] = []
+                condijson[onitem[2] + "集合"].append(onitem[0])
+            return self.listset_deliverall(condijson)
+
+        def out2json(inoutlist, orijson={}):
+            "输数 添加到json"
+            suboutjson = {}
+            if inoutlist[2] + "集合" not in suboutjson:
+                suboutjson[inoutlist[2] + "集合"] = []
+            suboutjson[inoutlist[2] + "集合"].append(inoutlist[0])
+            return self.listset_deliverall(suboutjson)
+
+        for tripleobj in tripleobjlist:
+            findpointsig = 0
+            # 知识点 同为 tripleobj[1]
+            findcondisig = 0
+            tcondilist = []
+            oricondoutilist = [[onenode["condjson"], onenode["outjson"]] for onenode in space_ins._step_node if
+                               operator.eq(set(tripleobj[1]), set(onenode["points"]))]
+            lengthsame = len(oricondoutilist)
+            if lengthsame > 0:
+                findpointsig = 1
+                # 存在则看输出是否已有，不存在则添加条件和输出。
+                condres = judge_condjson(tripleobj[0], oricondoutilist)
+                # 条件是否相同
+                if condres:
+                    tcondilist.append(condres)
+                    # if operator.eq(tripleobj[2], onenode["outjson"]):
+                    #     break
+                else:
+                    # 条件相同 则不需处理 略过
+                    findcondisig = 1
+                    break
+            if findpointsig == 0:
+                # 没有该知识点则写入。条件是统一给定的，一次性完成。输出是离散的，需要判断添加。
+                condijson = condition2json(tripleobj[0])
+                suboutjson = out2json(tripleobj[2], orijson={})
+                tonenode = {"condjson": condijson, "points": tripleobj[1], "outjson": suboutjson}
+                space_ins._step_node.append(tonenode)
+        print(space_ins._step_node)
+        print(9898)
+        # raise 555
+        return None
+
+    def prepare_clean_set(self, oldsetobj):
+        # 1. 移动含有表达式的条目。
+        expresskey = ["+", "-", "*", "\\frac", "\\times", "\\div"]
+        express_set = set()
+        lenth = len(oldsetobj["等值集合"])
+        for ids in range(lenth - 1, -1, -1):
+            breaksig = 0
+            for elem in oldsetobj["等值集合"][ids]:
+                for key in expresskey:
+                    if key in elem:
+                        express_set.add(" = ".join(list(oldsetobj["等值集合"][ids])))
+                        oldsetobj["等值集合"].pop(ids)
+                        breaksig = 1
+                        break
+                if breaksig == 1:
+                    break
+        oldsetobj["表达式集合"] |= express_set
+        # 2. 空间定义
+        field_name = "数学"
+        scene_name = "解题"
+        space_name = "customer"
+        space_ins = self.gstack.readspace(space_name, scene_name, field_name)
+        # 2. 写入
+        space_ins._setobj = oldsetobj
+        return copy.deepcopy(oldsetobj)
+
     def inference(self):
         """推理流程: 三元组 到 三元组"""
         field_name = "数学"
@@ -1277,7 +1437,9 @@ class LogicalInference(object):
         space_name = "customer"
         space_ins = self.gstack.readspace(space_name, scene_name, field_name)
         old_space_setobj = copy.deepcopy(space_ins._setobj)
-        # 查找 具体 属性值
+        # 1. 查找 具体 属性值
+        # old_space_setobj = self.prepare_clean_set(old_space_setobj)
+        logger1.info("in step {}: {}".format(0, old_space_setobj))
         step_counter = 0
         steplist = {"0": old_space_setobj}
         while True:
@@ -1286,20 +1448,22 @@ class LogicalInference(object):
             step_counter += 1
             logger1.info("in step {}: {}".format(step_counter, old_space_setobj))
             new_space_setobj = self.step_infere(old_space_setobj)
-            logger1.info("out step {}: {}".format(step_counter, new_space_setobj))
             steplist[str(step_counter)] = copy.deepcopy(new_space_setobj)
             # 5. 判断终止
-            judgeres = self.judge_stop(old_space_setobj, steplist[str(step_counter)], space_ins._stopobj,
+            judgeres = self.judge_stop(steplist[str(step_counter - 1)], steplist[str(step_counter)], space_ins._stopobj,
                                        basic_space_ins)
             if step_counter == 90:
                 exit()
-            logger1.info("stop inference:{}".format(judgeres[0]))
             if judgeres[1]:
+                logger1.info("final step: {}".format(new_space_setobj))
+                logger1.info("stop inference:{}".format(judgeres[0]))
                 break
             old_space_setobj = steplist[str(step_counter)]
         # 6. 生成思维树
+        outree = self.get_condition_tree()
         for items in steplist.items():
             print(items)
+        print(steplist["5"]["全等三角形集合"])
         raise Exception("end")
         return None
 
@@ -1311,37 +1475,20 @@ class LogicalInference(object):
 
     def step_infere(self, oldsetobj):
         "每步推理的具体操作"
-        print("step_infere")
-        # print(oldsetobj)
         # 1. 概念属性 衍生关系
         newsetobj = self.conception2element(oldsetobj)
         # 2. 公理 衍生关系
         newsetobj = self.axiom2relation(newsetobj)
         # 3. 属性 提取 概念
         newsetobj = self.element2conception(newsetobj)
-        # res = space_ins.find_obj_property_value(obj="矩形", property="面积")
-        # print(res)
         # # 猜谜查找具体 实体
-        # res = space_ins.find_property_value_child(obj="四边形", property="对角线", value="相等")
         # print(res)
         return newsetobj
 
-    def axiom2relation(self, oldsetobj):
-        "精确概念的自洽"
-        print("axiom2relation")
-        # 0. 空间定义
-        field_name = "数学"
-        scene_name = "解题"
-        space_name = "basic"
-        basic_space_ins = self.gstack.readspace(space_name, scene_name, field_name)
-        space_name = "customer"
-        space_ins = self.gstack.readspace(space_name, scene_name, field_name)
-        # 1. 遍历点，得到线段 和 角
-        # print(oldsetobj)
+    def points_relations(self, oldsetobj):
+        "根据所有点 和 直线，得到 线段 角 和 三角形"
         pointslist = [point.rstrip("}").lstrip("{点@") for point in oldsetobj["点集合"]]
         lineslist = [[point.rstrip("}").lstrip("{点@") for point in points] for points in oldsetobj["直线集合"]]
-        # 直线合并
-        lineslist = lines_deliver(lineslist)
         outjson = []
         for line in lineslist:
             polist = []
@@ -1349,11 +1496,7 @@ class LogicalInference(object):
                 tname = self.language.name_symmetric(" ".join(point)).replace(" ", "")
                 polist.append("{点@" + tname + "}")
             outjson.append([polist, "是", "直线"])
-        outjson = [{"因为": i1} for i1 in outjson]
-        space_ins._setobj, _, _ = space_ins.tri2set_oper(basic_space_ins._setobj, space_ins._setobj,
-                                                         space_ins._stopobj, addc=outjson, delec=[])
-        outjson = []
-        # 线段
+        # 2. 线段
         for c in combinations(pointslist, 2):
             tname = self.language.name_symmetric(" ".join(c)).replace(" ", "")
             tname = "{线段@" + tname + "}"
@@ -1363,7 +1506,7 @@ class LogicalInference(object):
             tpname2 = self.language.name_symmetric(" ".join(c[1:])).replace(" ", "")
             tpname2 = "{点@" + tpname2 + "}"
             outjson.append([[tpname1, tpname2], "是", "直线"])
-        # 角 三角形
+        # 3. 角 三角形
         for c in combinations(pointslist, 3):
             insig = 0
             for oneline in lineslist:
@@ -1379,7 +1522,13 @@ class LogicalInference(object):
                 outjson.append(["{角@" + tname + "}", "是", "角"])
                 tname = self.language.name_cyc_one(" ".join(c)).replace(" ", "")
                 outjson.append(["{三角形@" + tname + "}", "是", "三角形"])
-        # 2. 遍历直线，得到补角
+        return self.math_solver_write(outjson)
+
+    def line2comple_relations(self, oldsetobj):
+        " 遍历直线，得到补角 "
+        lineslist = [[point.rstrip("}").lstrip("{点@") for point in points] for points in oldsetobj["直线集合"]]
+        pointslist = [point.rstrip("}").lstrip("{点@") for point in oldsetobj["点集合"]]
+        outjson = []
         for oneline in lineslist:
             lenth_line = len(oneline)
             if lenth_line > 2:
@@ -1410,14 +1559,14 @@ class LogicalInference(object):
                             outjson.append([tname1, "是", ttype1])
                         if ttype2 != "":
                             outjson.append([tname2, "是", ttype2])
-        # 写入
-        outjson = [{"因为": i1} for i1 in outjson]
-        space_ins._setobj, _, _ = space_ins.tri2set_oper(basic_space_ins._setobj, space_ins._setobj,
-                                                         space_ins._stopobj, addc=outjson, delec=[])
-        space_ins._setobj["直线集合"] = lines_deliver(space_ins._setobj["直线集合"])
-        oldsetobj = space_ins._setobj
+        return self.math_solver_write(outjson)
+
+    def vert2Rt_relations(self, oldsetobj):
+        " 遍历垂直，得到直角，直角三角形 "
+        # 如果 线段的点 全在一条直线上，两条线上的任意一对都垂直。如果垂直的有 共同点，改组为直角。改代表角为直角三角形
         outjson = []
-        # 3. 遍历垂直，得到直角，直角三角形
+        lineslist = [[point.rstrip("}").lstrip("{点@") for point in points] for points in oldsetobj["直线集合"]]
+        # print(lineslist)
         vertlist = [[segm.rstrip("}").lstrip("{线段@") for segm in segms] for segms in oldsetobj["垂直集合"]]
         vertlist = [[latex_fenci(latex2space(item2)) for item2 in item1] for item1 in vertlist]
         for segm1, segm2 in vertlist:
@@ -1453,13 +1602,12 @@ class LogicalInference(object):
                     outjson.append([tname, "是", "锐角"])
                     tname = self.language.name_cyc_one(" ".join(tanlgelist)).replace(" ", "")
                     outjson.append(["{三角形@" + tname + "}", "是", "直角三角形"])
-        outjson = [{"因为": i1} for i1 in outjson]
-        space_ins._setobj, _, _ = space_ins.tri2set_oper(basic_space_ins._setobj, space_ins._setobj,
-                                                         space_ins._stopobj, addc=outjson, delec=[])
-        oldsetobj = space_ins._setobj
+        return self.math_solver_write(outjson)
+
+    def parali2segm_relations(self, oldsetobj):
+        " 平行传递。线段是元素，多点直线作为多个元素处理。不同组间有重复的元素，则合并 "
         outjson = []
-        # 如果 线段的点 全在一条直线上，两条线上的任意一对都垂直。如果垂直的有 共同点，改组为直角。改代表角为直角三角形
-        # 4. 平行传递。线段是元素，多点直线作为多个元素处理。不同组间有重复的元素，则合并。
+        lineslist = [[point.rstrip("}").lstrip("{点@") for point in points] for points in oldsetobj["直线集合"]]
         paralist = [[segm.rstrip("}").lstrip("{线段@") for segm in segms] for segms in oldsetobj["平行集合"]]
         paralist = [[latex_fenci(latex2space(item2)) for item2 in item1] for item1 in paralist]
         for onegroup in paralist:
@@ -1475,24 +1623,21 @@ class LogicalInference(object):
                 strlist.append(self.language.name_symmetric(" ".join(segmi)).replace(" ", ""))
             strlist = ["{线段@" + segmi + "}" for segmi in strlist]
             outjson.append([strlist, "是", "平行"])
-        outjson = [{"因为": i1} for i1 in outjson]
-        space_ins._setobj, _, _ = space_ins.tri2set_oper(basic_space_ins._setobj, space_ins._setobj,
-                                                         space_ins._stopobj, addc=outjson, delec=[])
-        # 集合缩并
-        space_ins._setobj["平行集合"] = list_set_deliver(space_ins._setobj["平行集合"])
-        oldsetobj = space_ins._setobj
+        return self.math_solver_write(outjson)
+
+    def corresangles2relations(self, oldsetobj):
+        " 遍历平行，对顶角 "
         outjson = []
         # print(sys.getsizeof(space_ins._setobj))
-        # 5. 遍历平行，对顶角
         lineslist = [[point.rstrip("}").lstrip("{点@") for point in points] for points in oldsetobj["直线集合"]]
         paralist = [[segm.rstrip("}").lstrip("{线段@") for segm in segms] for segms in oldsetobj["平行集合"]]
         paralist = [[latex_fenci(latex2space(item2)) for item2 in item1] for item1 in paralist]
         for idl, line in enumerate(lineslist):
             noselflines = copy.deepcopy(lineslist)
             del noselflines[idl]
-            corres_updn_12ang = []
             for onegroup in paralist:
-                # 5.1得出 交点
+                # 5.1得出 一条主线 与 一组平行线 的 交点
+                corres_updn_12ang = []
                 posi_intersec = {ide: elem for ide, elem in enumerate(line) if elem in set(itertools.chain(*onegroup))}
                 # 5.2与一个线段生成上位角和下位角。
                 # 5.3不同 交点 的 上位角或下位角 如果同是锐角或钝角则相同。
@@ -1532,35 +1677,49 @@ class LogicalInference(object):
                                 inner_dnp.append("{角@" + tname + "}")
                             outjson.append([inner_dnp + inner_upn, "是", "等值"])
                             corres_updn_12ang.append([inner_upp, inner_upn, inner_dnp, inner_dnn])
-            # 根据类型判断相等
-            acute_set = []
-            obtuse_set = []
-            for onegroup in corres_updn_12ang:
-                for angli in onegroup:
-                    if len(set(angli).intersection(space_ins._setobj["锐角集合"])) > 0:
-                        acute_set += angli
-                    elif len(set(angli).intersection(space_ins._setobj["钝角集合"])) > 0:
-                        obtuse_set += angli
-                    else:
-                        pass
-            outjson.append([acute_set, "是", "等值"])
-            outjson.append([obtuse_set, "是", "等值"])
-        outjson = [{"因为": i1} for i1 in outjson]
-        space_ins._setobj, _, _ = space_ins.tri2set_oper(basic_space_ins._setobj, space_ins._setobj,
-                                                         space_ins._stopobj, addc=outjson, delec=[])
-        oldsetobj = space_ins._setobj
+                # 根据类型判断相等
+                acute_set = []
+                obtuse_set = []
+                for onegroup in corres_updn_12ang:
+                    for angli in onegroup:
+                        # if len(set(angli).intersection(space_ins._setobj["锐角集合"])) > 0:
+                        #     acute_set += angli
+                        # elif len(set(angli).intersection(space_ins._setobj["钝角集合"])) > 0:
+                        if len(set(angli).intersection(oldsetobj["锐角集合"])) > 0:
+                            acute_set += angli
+                        elif len(set(angli).intersection(oldsetobj["钝角集合"])) > 0:
+                            obtuse_set += angli
+                        else:
+                            pass
+                outjson.append([acute_set, "是", "等值"])
+                outjson.append([obtuse_set, "是", "等值"])
+        return self.math_solver_write(outjson)
+
+    def rttriang2remain_relations(self, oldsetobj):
+        " 遍历直角三角形 垂直已导出角可以略过，得到余角 "
         outjson = []
-        # 所有直角 平角 导入 等值集合
-        # print("直角集合6")
-        oldsetobj = self.listset_deliverall(oldsetobj)
-        oldsetobj["等值集合"] += [set([elem]) for elem in oldsetobj["线段集合"]]
-        oldsetobj["等值集合"] += [set([elem]) for elem in oldsetobj["角集合"]]
-        oldsetobj["等值集合"].append(copy.deepcopy(oldsetobj["直角集合"]))
-        oldsetobj["等值集合"].append(copy.deepcopy(oldsetobj["平角集合"]))
-        oldsetobj = self.listset_deliverall(oldsetobj)
-        # 6. 等值传递。不同组间有重复的元素，则合并。余角后面和直角三角形一起做
-        # 钝角锐角 根据等值传递
-        space_ins._setobj["等值集合"] = list_set_deliver(oldsetobj["等值集合"])
+        rtlist = [elems.rstrip("}").lstrip("{三角形@") for elems in oldsetobj["直角三角形集合"]]
+        rtlist = [latex_fenci(latex2space(angli)) for angli in rtlist]
+        for points in rtlist:
+            strlist = []
+            tpoilist = points + points[0:2]
+            strlist.append(self.language.name_symmetric(" ".join(tpoilist[0:3])).replace(" ", ""))
+            strlist.append(self.language.name_symmetric(" ".join(tpoilist[1:4])).replace(" ", ""))
+            strlist.append(self.language.name_symmetric(" ".join(tpoilist[2:5])).replace(" ", ""))
+            strlist = ["{角@" + angli + "}" for angli in strlist]
+            # print(strlist)
+            strlist = [angli for angli in strlist if angli not in oldsetobj["直角集合"]]
+            # print(strlist)
+            if 1:
+                # if len(strlist) > 0:
+                #     print(strlist)
+                outjson.append([strlist, "是", "余角"])
+                outjson.append([strlist[0], "是", "锐角"])
+                outjson.append([strlist[1], "是", "锐角"])
+        return self.math_solver_write(outjson)
+
+    def equall2dunrui_relations(self, oldsetobj):
+        outjson = []
         for ruijiao in oldsetobj["锐角集合"]:
             for equals in oldsetobj["等值集合"]:
                 if ruijiao in equals:
@@ -1571,9 +1730,15 @@ class LogicalInference(object):
                 if dunjiao in equals:
                     for elem in equals:
                         outjson.append([elem, "是", "钝角"])
-        # 找等于90度和180度的，作为直角 直角三角形 补角 直线。
+        return self.math_solver_write(outjson)
+
+    def degree2angle_relations(self, oldsetobj):
+        " 找等于90度和180度的，作为直角 直角三角形 补角 直线。"
+        # print("in degree2angle_relations")
+        outjson = []
         for oneset in oldsetobj["等值集合"]:
             # 每个集合中找非属性的表达式，如果计算值小于误差，则为直角 或 平角
+            # print(oneset)
             findsig = 0
             for elem in oneset:
                 if "@" not in elem:
@@ -1585,6 +1750,9 @@ class LogicalInference(object):
                         findsig = "平角"
             if findsig != 0:
                 for elem in oneset:
+                    # if "{角@CMN}" ==elem:
+                    #     print([elem, "是", findsig])
+                    #     raise 334
                     if "@" in elem:
                         outjson.append([elem, "是", findsig])
                         tpoilist = latex_fenci(latex2space(elem.rstrip("}").lstrip("{角@")))
@@ -1596,269 +1764,451 @@ class LogicalInference(object):
                             outjson.append([strlist, "是", "直线"])
                         else:
                             pass
-        outjson = [{"因为": i1} for i1 in outjson]
-        space_ins._setobj, _, _ = space_ins.tri2set_oper(basic_space_ins._setobj, space_ins._setobj,
-                                                         space_ins._stopobj, addc=outjson, delec=[])
-        oldsetobj = space_ins._setobj
-        # print(space_ins._setobj["直线集合"])
-        # print(sys.getsizeof(space_ins._setobj))
-        # 7. 遍历直角三角形 垂直已导出角可以略过，得到余角
-        # print(outjson)
-        # print("直角集合7")
-        # print(len(oldsetobj["直角集合"]))
-        rtlist = [elems.rstrip("}").lstrip("{三角形@") for elems in oldsetobj["直角三角形集合"]]
-        rtlist = [latex_fenci(latex2space(angli)) for angli in rtlist]
-        outjson = []
-        for points in rtlist:
-            strlist = []
-            tpoilist = points + points[0:2]
-            strlist.append(self.language.name_symmetric(" ".join(tpoilist[0:3])).replace(" ", ""))
-            strlist.append(self.language.name_symmetric(" ".join(tpoilist[1:4])).replace(" ", ""))
-            strlist.append(self.language.name_symmetric(" ".join(tpoilist[2:5])).replace(" ", ""))
-            strlist = ["{角@" + angli + "}" for angli in strlist]
-            strlist = [angli for angli in strlist if angli not in oldsetobj["直角集合"]]
-            outjson.append([strlist, "是", "余角"])
-            outjson.append([strlist[0], "是", "锐角"])
-            outjson.append([strlist[1], "是", "锐角"])
-        outjson = [{"因为": i1} for i1 in outjson]
-        space_ins._setobj, _, _ = space_ins.tri2set_oper(basic_space_ins._setobj, space_ins._setobj,
-                                                         space_ins._stopobj, addc=outjson, delec=[])
-        # space_ins._setobj["全等三角形集合"] = list_set_deliver(space_ins._setobj["全等三角形集合"])
-        space_ins._setobj = self.listset_deliverall(space_ins._setobj)
-        # print(space_ins._setobj)
-        for objset in basic_space_ins._setobj:
-            if basic_space_ins._setobj[objset]["结构形式"] == "一级列表二级集合":
-                space_ins._setobj[objset] = list_set_shrink(space_ins._setobj[objset])
-        newsetobj = copy.deepcopy(space_ins._setobj)
-        return newsetobj
+        return self.math_solver_write(outjson)
 
-    def conception2element(self, oldsetobj):
-        "概念衍生，点， 点 生 线段 角，去掉顺序差异，再根据直线 衍生等值角"
+    def express2compleremain_relations(self, oldsetobj):
+        " 找表达式含度的，含90度和180度的，移项 根据 其他表达式或 等值关系，得出 补角 余角。"
         outjson = []
-        for oneset in oldsetobj:
-            if oneset == "正方形集合":
-                for obj in oldsetobj[oneset]:
-                    tname = obj.rstrip("}").lstrip("{正方形@")
-                    tlist = latex_fenci(latex2space(tname))
-                    tlist = [i1.replace(" ", "") for i1 in tlist]
-                    # 点
-                    for point in tlist:
-                        tname = self.language.name_symmetric(point).replace(" ", "")
-                        tname = "{点@" + tname + "}"
-                        outjson.append([tname, "是", "点"])
-                    # 线段
-                    tseglist = tlist + tlist[0:1]
-                    last4seg = []
-                    for idseg in range(4):
-                        tname = self.language.name_symmetric(" ".join(tseglist[idseg:idseg + 2])).replace(" ", "")
-                        tname = "{线段@" + tname + "}"
-                        last4seg.append(tname)
-                        outjson.append([tname, "是", "线段"])
-                        tpname1 = self.language.name_symmetric(" ".join(tseglist[idseg:idseg + 1])).replace(" ", "")
-                        tpname1 = "{点@" + tpname1 + "}"
-                        tpname2 = self.language.name_symmetric(" ".join(tseglist[idseg + 1:idseg + 2])).replace(" ", "")
-                        tpname2 = "{点@" + tpname2 + "}"
-                        outjson.append([[tpname1, tpname2], "是", "直线"])
-                    outjson.append([[last4seg[-1], last4seg[-3]], "是", "平行"])
-                    outjson.append([[last4seg[-2], last4seg[-4]], "是", "平行"])
-                    outjson.append([[last4seg[-1], last4seg[-2]], "是", "垂直"])
-                    outjson.append([[last4seg[-2], last4seg[-3]], "是", "垂直"])
-                    outjson.append([[last4seg[-3], last4seg[-4]], "是", "垂直"])
-                    outjson.append([[last4seg[-4], last4seg[-1]], "是", "垂直"])
-                    outjson.append([last4seg, "是", "等值"])
+        for oneset in oldsetobj["表达式集合"]:
+            if "^ { \\circ }" in oneset:
+                # print("表达式:")
+                # print(oneset)
+                anglelems = [elem for elem in oneset.split()]
+                anglelems = ["1 8 0 ^ { \\circ }" if elem in oldsetobj["平角集合"] else elem for elem in anglelems]
+                anglelems = ["9 0 ^ { \\circ }" if elem in oldsetobj["直角集合"] else elem for elem in anglelems]
+                newoneset = " ".join(anglelems)
+                # print(anglelems)
+                # print(newoneset)
+                anglelems = [elem for elem in newoneset.split() if elem.startswith("{角@")]
+                vastr = solve_latex_equation(newoneset, varlist=anglelems, const_dic={"\\pi": "3.14"})
+                tmpkeys = []
+                for angobj in vastr:
+                    tkey = list(angobj.keys())[0]
+                    tmpkeys.append(tkey)
+                # print(tmpkeys)
+                for angobj in vastr:
+                    tkey = list(angobj.keys())[0]
+                    tvalue = str(angobj[tkey])
+                    tangl = tvalue.replace("1.57 - 1.0*", "")
+                    # print(tkey)
+                    # print(tvalue)
+                    # print(tangl)
+                    if tangl in tmpkeys and tangl != tkey:
+                        outjson.append([[tangl, tkey], "是", "余角"])
+                        # if tangl == tkey:
+                        #     raise 159
+                    tangl = tvalue.replace("3.14 - 1.0*", "")
+                    if tangl in tmpkeys:
+                        outjson.append([[tangl, tkey], "是", "补角"])
+        return self.math_solver_write(outjson)
 
-                    # 角
-                    tanglist = tlist + tlist[0:2]
-                    for idangle in range(4):
-                        tname = self.language.name_symmetric(" ".join(tanglist[idangle:idangle + 3])).replace(" ", "")
-                        tname = "{角@" + tname + "}"
-                        outjson.append([tname, "是", "角"])
-                        outjson.append([tname, "是", "直角"])
-                        tname = self.language.name_symmetric(" ".join([tanglist[idangle + 1], tanglist[idangle],
-                                                                       tanglist[idangle + 2]])).replace(" ", "")
-                        tname = "{角@" + tname + "}"
-                        outjson.append([tname, "是", "角"])
-                        outjson.append([tname, "是", "锐角"])
-                        tname = self.language.name_symmetric(" ".join([tanglist[idangle], tanglist[idangle + 2],
-                                                                       tanglist[idangle + 1]])).replace(" ", "")
-                        tname = "{角@" + tname + "}"
-                        outjson.append([tname, "是", "角"])
-                        outjson.append([tname, "是", "锐角"])
-                        # print(outjson[-1])
-                        tname = self.language.name_cyc_one(" ".join(tanglist[idangle:idangle + 3])).replace(" ", "")
-                        tname = "{三角形@" + tname + "}"
-                        outjson.append([tname, "是", "三角形"])
-                        outjson.append([tname, "是", "直角三角形"])
-            if oneset == "三角形集合":
-                for obj in oldsetobj[oneset]:
-                    tname = obj.rstrip("}").lstrip("{三角形@")
-                    tlist = latex_fenci(latex2space(tname))
-                    tlist = [i1.replace(" ", "") for i1 in tlist]
-                    # 点
-                    for point in tlist:
-                        tname = self.language.name_symmetric(point).replace(" ", "")
-                        tname = "{点@" + tname + "}"
-                        outjson.append([tname, "是", "点"])
-                    # 线段
-                    tseglist = tlist + tlist[0:1]
-                    last4seg = []
-                    for idseg in range(3):
-                        tname = self.language.name_symmetric(" ".join(tseglist[idseg:idseg + 2])).replace(" ", "")
-                        tname = "{线段@" + tname + "}"
-                        last4seg.append(tname)
-                        outjson.append([tname, "是", "线段"])
-                        tpname1 = self.language.name_symmetric(" ".join(tseglist[idseg:idseg + 1])).replace(" ", "")
-                        tpname1 = "{点@" + tpname1 + "}"
-                        tpname2 = self.language.name_symmetric(" ".join(tseglist[idseg + 1:idseg + 2])).replace(" ", "")
-                        tpname2 = "{点@" + tpname2 + "}"
-                        outjson.append([[tpname1, tpname2], "是", "直线"])
-                    # 角
-                    tanglist = tlist + tlist[0:2]
-                    for idangle in range(3):
-                        tname = self.language.name_symmetric(" ".join(tanglist[idangle:idangle + 3])).replace(" ", "")
-                        tname = "{角@" + tname + "}"
-                        outjson.append([tname, "是", "角"])
-            if oneset == "全等三角形集合":
-                for objlist in oldsetobj[oneset]:
-                    # 概念元素输入
-                    for obj in objlist:
-                        tname = obj.rstrip("}").lstrip("{三角形@")
-                        tlist = latex_fenci(latex2space(tname))
-                        tlist = [i1.replace(" ", "") for i1 in tlist]
-                        # 点
-                        for point in tlist:
-                            tname = self.language.name_symmetric(point).replace(" ", "")
-                            tname = "{点@" + tname + "}"
-                            outjson.append([tname, "是", "点"])
-                        # 线段
-                        tseglist = tlist + tlist[0:1]
-                        last4seg = []
-                        for idseg in range(3):
-                            tname = self.language.name_symmetric(" ".join(tseglist[idseg:idseg + 2])).replace(" ", "")
-                            tname = "{线段@" + tname + "}"
-                            last4seg.append(tname)
-                            outjson.append([tname, "是", "线段"])
-                            tpname1 = self.language.name_symmetric(" ".join(tseglist[idseg:idseg + 1])).replace(" ", "")
-                            tpname1 = "{点@" + tpname1 + "}"
-                            tpname2 = self.language.name_symmetric(" ".join(tseglist[idseg + 1:idseg + 2])).replace(" ",
-                                                                                                                    "")
-                            tpname2 = "{点@" + tpname2 + "}"
-                            outjson.append([[tpname1, tpname2], "是", "直线"])
-                        # 角
-                        tanglist = tlist + tlist[0:2]
-                        for idangle in range(3):
-                            tname = self.language.name_symmetric(" ".join(tanglist[idangle:idangle + 3])).replace(" ",
-                                                                                                                  "")
-                            tname = "{角@" + tname + "}"
-                            outjson.append([tname, "是", "角"])
-                    # 特性提取
-                    eae_list = []
-                    aea_list = []
-                    triang_pointlist = [elems.rstrip("}").lstrip("{三角形@") for elems in objlist]
-                    triang_pointlist = [latex_fenci(latex2space(angli)) for angli in triang_pointlist]
-                    for onetriangle in triang_pointlist:
-                        for elem in onetriangle:
-                            elelist = copy.deepcopy(onetriangle)
-                            elelist.remove(elem)
-                            elea = elelist[0]
-                            eleb = elelist[1]
-                            tname = self.language.name_symmetric(" ".join([elea, elem, eleb])).replace(" ", "")
-                            tanle0 = "{角@" + tname + "}"
-                            tname = self.language.name_symmetric(" ".join([elea, elem])).replace(" ", "")
-                            tseg1 = "{线段@" + tname + "}"
-                            tname = self.language.name_symmetric(" ".join([elem, eleb])).replace(" ", "")
-                            tseg2 = "{线段@" + tname + "}"
-                            tname = self.language.name_symmetric(" ".join([elem, elea, eleb])).replace(" ", "")
-                            tanle1 = "{角@" + tname + "}"
-                            tname = self.language.name_symmetric(" ".join([elea, eleb, elem])).replace(" ", "")
-                            tanle2 = "{角@" + tname + "}"
-                            tname = self.language.name_symmetric(" ".join([elea, eleb])).replace(" ", "")
-                            tseg0 = "{线段@" + tname + "}"
-                            tname = self.language.name_cyc_one(" ".join(onetriangle)).replace(" ", "")
-                            ttrian = "{三角形@" + tname + "}"
-                            eae_list.append([tseg1, tseg2, tanle0, ttrian])
-                            aea_list.append([tseg0, tanle1, tanle2, ttrian])
-                    comb_lenth = len(aea_list)
-                    for idmain in range(comb_lenth - 1, 0, -1):
-                        for idcli in range(idmain - 1, -1, -1):
-                            # 判断边
-                            aea_sig = [0, 0, 0, 0, 0]
-                            eae_sig = [0, 0, 0, 0, 0]
-                            for equset in oldsetobj["等值集合"]:
-                                if aea_list[idmain][-1] != aea_list[idcli][-1]:
-                                    # 角边角
-                                    judgequllist = [aea_list[idmain][0], aea_list[idcli][0]]
-                                    if set(judgequllist).issubset(equset):
-                                        aea_sig[0] = 1
-                                    judgequllist = [aea_list[idmain][1], aea_list[idcli][1]]
-                                    if set(judgequllist).issubset(equset):
-                                        aea_sig[1] = 1
-                                    judgequllist = [aea_list[idmain][1], aea_list[idcli][2]]
-                                    if set(judgequllist).issubset(equset):
-                                        aea_sig[2] = 1
-                                    judgequllist = [aea_list[idmain][2], aea_list[idcli][1]]
-                                    if set(judgequllist).issubset(equset):
-                                        aea_sig[3] = 1
-                                    judgequllist = [aea_list[idmain][2], aea_list[idcli][2]]
-                                    if set(judgequllist).issubset(equset):
-                                        aea_sig[4] = 1
-                                    if aea_sig[0] == 1 and (
-                                                        aea_sig[1] + aea_sig[4] == 2 or aea_sig[2] + aea_sig[3] == 2):
-                                        outjson.append([[eae_list[idmain][2], eae_list[idcli][2]], "是", "等值"])
-                                        if aea_sig[1] == 1 and aea_sig[4] == 1:
-                                            outjson.append([[eae_list[idmain][1], eae_list[idcli][1]], "是", "等值"])
-                                            outjson.append([[eae_list[idmain][0], eae_list[idcli][0]], "是", "等值"])
-                                        elif aea_sig[2] == 1 and aea_sig[3] == 1:
-                                            outjson.append([[eae_list[idmain][1], eae_list[idcli][0]], "是", "等值"])
-                                            outjson.append([[eae_list[idmain][0], eae_list[idcli][1]], "是", "等值"])
-                                    # 边角边
-                                    judgequllist = [eae_list[idmain][0], eae_list[idcli][0]]
-                                    if set(judgequllist).issubset(equset):
-                                        eae_sig[0] = 1
-                                    judgequllist = [eae_list[idmain][0], eae_list[idcli][1]]
-                                    if set(judgequllist).issubset(equset):
-                                        eae_sig[1] = 1
-                                    judgequllist = [eae_list[idmain][1], eae_list[idcli][0]]
-                                    if set(judgequllist).issubset(equset):
-                                        eae_sig[2] = 1
-                                    judgequllist = [eae_list[idmain][1], eae_list[idcli][1]]
-                                    if set(judgequllist).issubset(equset):
-                                        eae_sig[3] = 1
-                                    judgequllist = [eae_list[idmain][2], eae_list[idcli][2]]
-                                    if set(judgequllist).issubset(equset):
-                                        eae_sig[4] = 1
-                                    if eae_sig[4] == 1 and (
-                                                        eae_sig[0] + eae_sig[3] == 2 or eae_sig[1] + eae_sig[2] == 2):
-                                        outjson.append([[eae_list[idmain][2], eae_list[idcli][2]], "是", "等值"])
-                                        if eae_sig[0] == 1 and eae_sig[3] == 1:
-                                            outjson.append([[aea_list[idmain][1], aea_list[idcli][1]], "是", "等值"])
-                                            outjson.append([[aea_list[idmain][2], aea_list[idcli][2]], "是", "等值"])
-                                        elif eae_sig[1] == 1 and eae_sig[2] == 1:
-                                            outjson.append([[aea_list[idmain][1], aea_list[idcli][2]], "是", "等值"])
-                                            outjson.append([[aea_list[idmain][2], aea_list[idcli][1]], "是", "等值"])
-                                        outjson.append([[aea_list[idmain][0], aea_list[idcli][0]], "是", "等值"])
-        outjson = [{"因为": i1} for i1 in outjson]
+    def axiom2relation(self, oldsetobj):
+        " 精确概念的自洽 "
+        logger1.info("in axiom2relation")
+        # 0. 空间定义
         field_name = "数学"
         scene_name = "解题"
         space_name = "basic"
         basic_space_ins = self.gstack.readspace(space_name, scene_name, field_name)
         space_name = "customer"
         space_ins = self.gstack.readspace(space_name, scene_name, field_name)
-        space_ins._setobj, _, _ = space_ins.tri2set_oper(basic_space_ins._setobj, space_ins._setobj,
-                                                         space_ins._stopobj,
-                                                         addc=outjson,
-                                                         delec=[])
+        # 0. 直线合并
+        oldsetobj["直线集合"] = lines_deliver(oldsetobj["直线集合"])
+        # 1. 遍历点，得到 线段 角 和 三角形
+        oldsetobj = self.points_relations(oldsetobj)
+        oldsetobj["直线集合"] = lines_deliver(oldsetobj["直线集合"])
+        # 2. 遍历直线，得到补角
+        space_ins._setobj = self.line2comple_relations(oldsetobj)
+        space_ins._setobj["直线集合"] = lines_deliver(space_ins._setobj["直线集合"])
+        oldsetobj = space_ins._setobj
+        # 3. 遍历垂直，得到直角，直角三角形
+        oldsetobj = self.vert2Rt_relations(oldsetobj)
+        # 4. 平行间传递平行。线段是元素，多点直线作为多个元素处理。不同组间有重复的元素，则合并。
+        space_ins._setobj = self.parali2segm_relations(oldsetobj)
+        # 5. 平行传递垂直。
+        outjson = list_set_equalanti(space_ins._setobj, tarkey="平行", purposekey="垂直")
+        oldsetobj = self.math_solver_write(outjson)
+        oldsetobj = self.listset_deliverall(oldsetobj)
+        space_ins._setobj = oldsetobj
+        # 集合缩并
+        space_ins._setobj["平行集合"] = list_set_deliver(space_ins._setobj["平行集合"])
+        oldsetobj = space_ins._setobj
+        # 5. 遍历平行，对顶角, 同位角
+        oldsetobj["直线集合"] = lines_deliver(oldsetobj["直线集合"])
+        oldsetobj = self.corresangles2relations(oldsetobj)
+        oldsetobj = self.listset_deliverall(oldsetobj)
+        # 所有直角 平角 导入 等值集合
+        oldsetobj["等值集合"] += [set([elem]) for elem in oldsetobj["线段集合"]]
+        oldsetobj["等值集合"] += [set([elem]) for elem in oldsetobj["角集合"]]
+        oldsetobj["等值集合"].append(copy.deepcopy(oldsetobj["直角集合"]))
+        oldsetobj["等值集合"].append(copy.deepcopy(oldsetobj["平角集合"]))
+        oldsetobj = self.listset_deliverall(oldsetobj)
+        space_ins._setobj["等值集合"] = oldsetobj["等值集合"]
+        # 6. 等值传递。不同组间有重复的元素，则合并。余角后面和直角三角形一起做
+        # 钝角锐角 根据等值传递
+        oldsetobj = self.equall2dunrui_relations(oldsetobj)
+        oldsetobj = self.degree2angle_relations(oldsetobj)
+        # print(sys.getsizeof(space_ins._setobj))
+        # 7. 遍历直角三角形 垂直已导出角可以略过，得到余角
+        oldsetobj = self.rttriang2remain_relations(oldsetobj)
+        oldsetobj = self.listset_deliverall(oldsetobj)
+        # 8. 表达式得出补角余角集合
+        oldsetobj = self.express2compleremain_relations(oldsetobj)
+        # 9. 余角 补角 垂直 反等传递
+        outjson = list_set_antiequal(oldsetobj, tarkey="余角", purposekey="等值")
+        oldsetobj = self.math_solver_write(outjson)
+        outjson = list_set_antiequal(oldsetobj, tarkey="补角", purposekey="等值")
+        oldsetobj = self.math_solver_write(outjson)
+        outjson = list_set_antiequal(oldsetobj, tarkey="垂直", purposekey="平行")
+        oldsetobj = self.math_solver_write(outjson)
+        oldsetobj = self.listset_deliverall(oldsetobj)
+        space_ins._setobj = oldsetobj
+        # 10. 删除空的集合
+        # for objset in basic_space_ins._setobj:
+        #     if basic_space_ins._setobj[objset]["结构形式"] == "一级列表二级集合":
+        #         space_ins._setobj[objset] = list_set_shrink(space_ins._setobj[objset])
+        space_ins._setobj = self.list_set_shrink_all(oldsetobj)
+        newsetobj = copy.deepcopy(space_ins._setobj)
+        return newsetobj
+
+    def list_set_shrink_all(self, oldsetobj):
+        field_name = "数学"
+        scene_name = "解题"
+        space_name = "basic"
+        basic_space_ins = self.gstack.readspace(space_name, scene_name, field_name)
+        for objset in basic_space_ins._setobj:
+            if basic_space_ins._setobj[objset]["结构形式"] == "一级列表二级集合":
+                oldsetobj[objset] = list_set_shrink(oldsetobj[objset])
+        newsetobj = copy.deepcopy(oldsetobj)
+        return newsetobj
+
+    def square2elements(self, onesetobj):
+        tripleobjlist = []
+        outjson = []
+        for obj in onesetobj:
+            tname = obj.rstrip("}").lstrip("{正方形@")
+            tlist = latex_fenci(latex2space(tname))
+            tlist = [i1.replace(" ", "") for i1 in tlist]
+            # 点
+            for point in tlist:
+                tname = self.language.name_symmetric(point).replace(" ", "")
+                tname = "{点@" + tname + "}"
+                outjson.append([tname, "是", "点"])
+            # 线段
+            tseglist = tlist + tlist[0:1]
+            last4seg = []
+            for idseg in range(4):
+                tname = self.language.name_symmetric(" ".join(tseglist[idseg:idseg + 2])).replace(" ", "")
+                tname = "{线段@" + tname + "}"
+                last4seg.append(tname)
+                outjson.append([tname, "是", "线段"])
+                tpname1 = self.language.name_symmetric(" ".join(tseglist[idseg:idseg + 1])).replace(" ", "")
+                tpname1 = "{点@" + tpname1 + "}"
+                tpname2 = self.language.name_symmetric(" ".join(tseglist[idseg + 1:idseg + 2])).replace(" ", "")
+                tpname2 = "{点@" + tpname2 + "}"
+                outjson.append([[tpname1, tpname2], "是", "直线"])
+            tripleobjlist.append([[[[obj], "是", "正方形"]], ["@@正方形平行属性"], [{last4seg[-1], last4seg[-3]}, "是", "平行"]])
+            # [[[{"线段1"，"线段2"}, "是"，"等值"], [已知2]], {知识点1, 知识点2}, [{a, b}, 是, xx]]
+            tripleobjlist.append([[[[obj], "是", "正方形"]], ["@@正方形平行属性"], [[last4seg[-2], last4seg[-4]], "是", "平行"]])
+            tripleobjlist.append([[[[obj], "是", "正方形"]], ["@@正方形垂直属性"], [[last4seg[-1], last4seg[-2]], "是", "垂直"]])
+            tripleobjlist.append([[[[obj], "是", "正方形"]], ["@@正方形垂直属性"], [[last4seg[-2], last4seg[-3]], "是", "垂直"]])
+            tripleobjlist.append([[[[obj], "是", "正方形"]], ["@@正方形垂直属性"], [[last4seg[-3], last4seg[-4]], "是", "垂直"]])
+            tripleobjlist.append([[[[obj], "是", "正方形"]], ["@@正方形垂直属性"], [[last4seg[-4], last4seg[-1]], "是", "垂直"]])
+            tripleobjlist.append([[[[obj], "是", "正方形"]], ["@@正方形等边属性"], [last4seg, "是", "等值"]])
+            outjson.append([[last4seg[-1], last4seg[-3]], "是", "平行"])
+            outjson.append([[last4seg[-2], last4seg[-4]], "是", "平行"])
+            outjson.append([[last4seg[-1], last4seg[-2]], "是", "垂直"])
+            outjson.append([[last4seg[-2], last4seg[-3]], "是", "垂直"])
+            outjson.append([[last4seg[-3], last4seg[-4]], "是", "垂直"])
+            outjson.append([[last4seg[-4], last4seg[-1]], "是", "垂直"])
+            outjson.append([last4seg, "是", "等值"])
+
+            # 角
+            tanglist = tlist + tlist[0:2]
+            for idangle in range(4):
+                tname = self.language.name_symmetric(" ".join(tanglist[idangle:idangle + 3])).replace(" ", "")
+                tname = "{角@" + tname + "}"
+                outjson.append([tname, "是", "角"])
+                outjson.append([tname, "是", "直角"])
+                tripleobjlist.append([[[[obj], "是", "正方形"]], {"@@正方形直角属性"}, [{tname}, "是", "直角"]])
+                tname = self.language.name_symmetric(" ".join([tanglist[idangle + 1], tanglist[idangle],
+                                                               tanglist[idangle + 2]])).replace(" ", "")
+                tname = "{角@" + tname + "}"
+                outjson.append([tname, "是", "角"])
+                outjson.append([tname, "是", "锐角"])
+                tname = self.language.name_symmetric(" ".join([tanglist[idangle], tanglist[idangle + 2],
+                                                               tanglist[idangle + 1]])).replace(" ", "")
+                tname = "{角@" + tname + "}"
+                outjson.append([tname, "是", "角"])
+                outjson.append([tname, "是", "锐角"])
+                tname = self.language.name_cyc_one(" ".join(tanglist[idangle:idangle + 3])).replace(" ", "")
+                tname = "{三角形@" + tname + "}"
+                outjson.append([tname, "是", "三角形"])
+                outjson.append([tname, "是", "直角三角形"])
+                tripleobjlist.append([[[[obj], "是", "正方形"]], {"@@正方形直角属性"}, [{tname}, "是", "直角三角形"]])
+        self.step_node_write(tripleobjlist)
+        return self.math_solver_write(outjson)
+
+    def triangle2elements(self, onesetobj):
+        outjson = []
+        for obj in onesetobj:
+            tname = obj.rstrip("}").lstrip("{三角形@")
+            tlist = latex_fenci(latex2space(tname))
+            tlist = [i1.replace(" ", "") for i1 in tlist]
+            # 点
+            for point in tlist:
+                tname = self.language.name_symmetric(point).replace(" ", "")
+                tname = "{点@" + tname + "}"
+                outjson.append([tname, "是", "点"])
+            # 线段
+            tseglist = tlist + tlist[0:1]
+            last4seg = []
+            for idseg in range(3):
+                tname = self.language.name_symmetric(" ".join(tseglist[idseg:idseg + 2])).replace(" ", "")
+                tname = "{线段@" + tname + "}"
+                last4seg.append(tname)
+                outjson.append([tname, "是", "线段"])
+                tpname1 = self.language.name_symmetric(" ".join(tseglist[idseg:idseg + 1])).replace(" ", "")
+                tpname1 = "{点@" + tpname1 + "}"
+                tpname2 = self.language.name_symmetric(" ".join(tseglist[idseg + 1:idseg + 2])).replace(" ", "")
+                tpname2 = "{点@" + tpname2 + "}"
+                outjson.append([[tpname1, tpname2], "是", "直线"])
+            # 角
+            tanglist = tlist + tlist[0:2]
+            for idangle in range(3):
+                tname = self.language.name_symmetric(" ".join(tanglist[idangle:idangle + 3])).replace(" ", "")
+                tname = "{角@" + tname + "}"
+                outjson.append([tname, "是", "角"])
+        return self.math_solver_write(outjson)
+
+    def congruent_triangle2elements(self, onesetobj, equalsetobj):
+        "全等三角形必要条件 可以导出的"
+        tripleobjlist = []
+        outjson = []
+        for objlist in onesetobj:
+            # 概念元素输入
+            for obj in objlist:
+                tname = obj.rstrip("}").lstrip("{三角形@")
+                tlist = latex_fenci(latex2space(tname))
+                tlist = [i1.replace(" ", "") for i1 in tlist]
+                # 点
+                for point in tlist:
+                    tname = self.language.name_symmetric(point).replace(" ", "")
+                    tname = "{点@" + tname + "}"
+                    outjson.append([tname, "是", "点"])
+                # 线段
+                tseglist = tlist + tlist[0:1]
+                last4seg = []
+                for idseg in range(3):
+                    tname = self.language.name_symmetric(" ".join(tseglist[idseg:idseg + 2])).replace(" ", "")
+                    tname = "{线段@" + tname + "}"
+                    last4seg.append(tname)
+                    outjson.append([tname, "是", "线段"])
+                    tpname1 = self.language.name_symmetric(" ".join(tseglist[idseg:idseg + 1])).replace(" ", "")
+                    tpname1 = "{点@" + tpname1 + "}"
+                    tpname2 = self.language.name_symmetric(" ".join(tseglist[idseg + 1:idseg + 2])).replace(" ", "")
+                    tpname2 = "{点@" + tpname2 + "}"
+                    outjson.append([[tpname1, tpname2], "是", "直线"])
+                # 角
+                tanglist = tlist + tlist[0:2]
+                for idangle in range(3):
+                    tname = self.language.name_symmetric(" ".join(tanglist[idangle:idangle + 3])).replace(" ", "")
+                    tname = "{角@" + tname + "}"
+                    outjson.append([tname, "是", "角"])
+            # 特性提取
+            eae_list = []
+            aea_list = []
+            triang_pointlist = [elems.rstrip("}").lstrip("{三角形@") for elems in objlist]
+            triang_pointlist = [latex_fenci(latex2space(angli)) for angli in triang_pointlist]
+            for onetriangle in triang_pointlist:
+                for elem in onetriangle:
+                    elelist = copy.deepcopy(onetriangle)
+                    elelist.remove(elem)
+                    elea = elelist[0]
+                    eleb = elelist[1]
+                    tname = self.language.name_symmetric(" ".join([elea, elem, eleb])).replace(" ", "")
+                    tanle0 = "{角@" + tname + "}"
+                    tname = self.language.name_symmetric(" ".join([elea, elem])).replace(" ", "")
+                    tseg1 = "{线段@" + tname + "}"
+                    tname = self.language.name_symmetric(" ".join([elem, eleb])).replace(" ", "")
+                    tseg2 = "{线段@" + tname + "}"
+                    tname = self.language.name_symmetric(" ".join([elem, elea, eleb])).replace(" ", "")
+                    tanle1 = "{角@" + tname + "}"
+                    tname = self.language.name_symmetric(" ".join([elea, eleb, elem])).replace(" ", "")
+                    tanle2 = "{角@" + tname + "}"
+                    tname = self.language.name_symmetric(" ".join([elea, eleb])).replace(" ", "")
+                    tseg0 = "{线段@" + tname + "}"
+                    tname = self.language.name_cyc_one(" ".join(onetriangle)).replace(" ", "")
+                    ttrian = "{三角形@" + tname + "}"
+                    eae_list.append([tseg1, tseg2, tanle0, ttrian])
+                    aea_list.append([tseg0, tanle1, tanle2, ttrian])
+            comb_lenth = len(aea_list)
+            for idmain in range(comb_lenth - 1, 0, -1):
+                for idcli in range(idmain - 1, -1, -1):
+                    # 判断边
+                    aea_sig = [0, 0, 0, 0, 0]
+                    eae_sig = [0, 0, 0, 0, 0]
+                    for equset in equalsetobj:
+                        if aea_list[idmain][-1] != aea_list[idcli][-1]:
+                            # 角边角
+                            judgequllist = [aea_list[idmain][0], aea_list[idcli][0]]
+                            if set(judgequllist).issubset(equset):
+                                aea_sig[0] = 1
+                            judgequllist = [aea_list[idmain][1], aea_list[idcli][1]]
+                            if set(judgequllist).issubset(equset):
+                                aea_sig[1] = 1
+                            judgequllist = [aea_list[idmain][1], aea_list[idcli][2]]
+                            if set(judgequllist).issubset(equset):
+                                aea_sig[2] = 1
+                            judgequllist = [aea_list[idmain][2], aea_list[idcli][1]]
+                            if set(judgequllist).issubset(equset):
+                                aea_sig[3] = 1
+                            judgequllist = [aea_list[idmain][2], aea_list[idcli][2]]
+                            if set(judgequllist).issubset(equset):
+                                aea_sig[4] = 1
+                            if aea_sig[0] == 1 and (
+                                                aea_sig[1] + aea_sig[4] == 2 or aea_sig[2] + aea_sig[3] == 2):
+                                # outjson 可以只写 aea 之外的等值关系。tripleobjlist 需要全量写
+                                outjson.append([[eae_list[idmain][2], eae_list[idcli][2]], "是", "等值"])
+                                tripleobjlist.append(
+                                    [[[[[eae_list[idmain][-1], eae_list[idcli][-1]]], "是", "全等三角形"]],
+                                     ["@@全等三角形必要条件"],
+                                     [[eae_list[idmain][2], eae_list[idcli][2]], "是", "等值"]])
+                                tripleobjlist.append(
+                                    [[[[[eae_list[idmain][-1], eae_list[idcli][-1]]], "是", "全等三角形"]],
+                                     ["@@全等三角形必要条件"],
+                                     [[aea_list[idmain][0], aea_list[idcli][0]], "是", "等值"]])
+                                if aea_sig[1] == 1 and aea_sig[4] == 1:
+                                    outjson.append([[eae_list[idmain][1], eae_list[idcli][1]], "是", "等值"])
+                                    tripleobjlist.append(
+                                        [[[[[eae_list[idmain][-1], eae_list[idcli][-1]]], "是", "全等三角形"]],
+                                         ["@@全等三角形必要条件"],
+                                         [[eae_list[idmain][1], eae_list[idcli][1]], "是", "等值"]])
+                                    tripleobjlist.append(
+                                        [[[[[eae_list[idmain][-1], eae_list[idcli][-1]]], "是", "全等三角形"]],
+                                         ["@@全等三角形必要条件"],
+                                         [[aea_list[idmain][1], aea_list[idcli][1]], "是", "等值"]])
+                                    outjson.append([[eae_list[idmain][0], eae_list[idcli][0]], "是", "等值"])
+                                    tripleobjlist.append(
+                                        [[[[[eae_list[idmain][-1], eae_list[idcli][-1]]], "是", "全等三角形"]],
+                                         ["@@全等三角形必要条件"],
+                                         [[eae_list[idmain][0], eae_list[idcli][0]], "是", "等值"]])
+                                    tripleobjlist.append(
+                                        [[[[[eae_list[idmain][-1], eae_list[idcli][-1]]], "是", "全等三角形"]],
+                                         ["@@全等三角形必要条件"],
+                                         [[aea_list[idmain][2], aea_list[idcli][2]], "是", "等值"]])
+                                elif aea_sig[2] == 1 and aea_sig[3] == 1:
+                                    outjson.append([[eae_list[idmain][1], eae_list[idcli][0]], "是", "等值"])
+                                    tripleobjlist.append(
+                                        [[[[[eae_list[idmain][-1], eae_list[idcli][-1]]], "是", "全等三角形"]],
+                                         ["@@全等三角形必要条件"],
+                                         [[eae_list[idmain][1], eae_list[idcli][0]], "是", "等值"]])
+                                    tripleobjlist.append(
+                                        [[[[[eae_list[idmain][-1], eae_list[idcli][-1]]], "是", "全等三角形"]],
+                                         ["@@全等三角形必要条件"],
+                                         [[aea_list[idmain][1], aea_list[idcli][2]], "是", "等值"]])
+                                    outjson.append([[eae_list[idmain][0], eae_list[idcli][1]], "是", "等值"])
+                                    tripleobjlist.append(
+                                        [[[[[eae_list[idmain][-1], eae_list[idcli][-1]]], "是", "全等三角形"]],
+                                         ["@@全等三角形必要条件"],
+                                         [[eae_list[idmain][0], eae_list[idcli][1]], "是", "等值"]])
+                                    tripleobjlist.append(
+                                        [[[[[eae_list[idmain][-1], eae_list[idcli][-1]]], "是", "全等三角形"]],
+                                         ["@@全等三角形必要条件"],
+                                         [[aea_list[idmain][2], aea_list[idcli][1]], "是", "等值"]])
+                            # 边角边
+                            judgequllist = [eae_list[idmain][0], eae_list[idcli][0]]
+                            if set(judgequllist).issubset(equset):
+                                eae_sig[0] = 1
+                            judgequllist = [eae_list[idmain][0], eae_list[idcli][1]]
+                            if set(judgequllist).issubset(equset):
+                                eae_sig[1] = 1
+                            judgequllist = [eae_list[idmain][1], eae_list[idcli][0]]
+                            if set(judgequllist).issubset(equset):
+                                eae_sig[2] = 1
+                            judgequllist = [eae_list[idmain][1], eae_list[idcli][1]]
+                            if set(judgequllist).issubset(equset):
+                                eae_sig[3] = 1
+                            judgequllist = [eae_list[idmain][2], eae_list[idcli][2]]
+                            if set(judgequllist).issubset(equset):
+                                eae_sig[4] = 1
+                            if eae_sig[4] == 1 and (
+                                                eae_sig[0] + eae_sig[3] == 2 or eae_sig[1] + eae_sig[2] == 2):
+                                # outjson 可以只写 eae 之外的等值关系。tripleobjlist 需要全量写
+                                if eae_sig[0] == 1 and eae_sig[3] == 1:
+                                    outjson.append([[aea_list[idmain][1], aea_list[idcli][1]], "是", "等值"])
+                                    tripleobjlist.append(
+                                        [[[[[aea_list[idmain][-1], aea_list[idcli][-1]]], "是", "全等三角形"]],
+                                         ["@@全等三角形必要条件"],
+                                         [[aea_list[idmain][1], aea_list[idcli][1]], "是", "等值"]])
+                                    tripleobjlist.append(
+                                        [[[[[aea_list[idmain][-1], aea_list[idcli][-1]]], "是", "全等三角形"]],
+                                         ["@@全等三角形必要条件"],
+                                         [[eae_list[idmain][1], eae_list[idcli][1]], "是", "等值"]])
+                                    outjson.append([[aea_list[idmain][2], aea_list[idcli][2]], "是", "等值"])
+                                    tripleobjlist.append(
+                                        [[[[[aea_list[idmain][-1], aea_list[idcli][-1]]], "是", "全等三角形"]],
+                                         ["@@全等三角形必要条件"],
+                                         [[aea_list[idmain][2], aea_list[idcli][2]], "是", "等值"]])
+                                    tripleobjlist.append(
+                                        [[[[[aea_list[idmain][-1], aea_list[idcli][-1]]], "是", "全等三角形"]],
+                                         ["@@全等三角形必要条件"],
+                                         [[eae_list[idmain][0], eae_list[idcli][0]], "是", "等值"]])
+                                elif eae_sig[1] == 1 and eae_sig[2] == 1:
+                                    outjson.append([[aea_list[idmain][1], aea_list[idcli][2]], "是", "等值"])
+                                    tripleobjlist.append(
+                                        [[[[[aea_list[idmain][-1], aea_list[idcli][-1]]], "是", "全等三角形"]],
+                                         ["@@全等三角形必要条件"],
+                                         [[aea_list[idmain][1], aea_list[idcli][2]], "是", "等值"]])
+                                    tripleobjlist.append(
+                                        [[[[[aea_list[idmain][-1], aea_list[idcli][-1]]], "是", "全等三角形"]],
+                                         ["@@全等三角形必要条件"],
+                                         [[eae_list[idmain][1], eae_list[idcli][0]], "是", "等值"]])
+                                    outjson.append([[aea_list[idmain][2], aea_list[idcli][1]], "是", "等值"])
+                                    tripleobjlist.append(
+                                        [[[[[aea_list[idmain][-1], aea_list[idcli][-1]]], "是", "全等三角形"]],
+                                         ["@@全等三角形必要条件"],
+                                         [[aea_list[idmain][2], aea_list[idcli][1]], "是", "等值"]])
+                                    tripleobjlist.append(
+                                        [[[[[aea_list[idmain][-1], aea_list[idcli][-1]]], "是", "全等三角形"]],
+                                         ["@@全等三角形必要条件"],
+                                         [[eae_list[idmain][0], eae_list[idcli][1]], "是", "等值"]])
+                                outjson.append([[aea_list[idmain][0], aea_list[idcli][0]], "是", "等值"])
+                                tripleobjlist.append(
+                                    [[[[[aea_list[idmain][-1], aea_list[idcli][-1]]], "是", "全等三角形"]],
+                                     ["@@全等三角形必要条件"],
+                                     [[aea_list[idmain][0], aea_list[idcli][0]], "是", "等值"]])
+                                tripleobjlist.append(
+                                    [[[[[eae_list[idmain][-1], eae_list[idcli][-1]]], "是", "全等三角形"]],
+                                     ["@@全等三角形必要条件"],
+                                     [[eae_list[idmain][2], eae_list[idcli][2]], "是", "等值"]])
+        self.step_node_write(tripleobjlist)
+        return self.math_solver_write(outjson)
+
+    def conception2element(self, oldsetobj):
+        " 根据概念属性 衍生，点 线段 角 三角形，去掉顺序差异，再根据直线 衍生等值角"
+        logger1.info("in conception2element")
+        field_name = "数学"
+        scene_name = "解题"
+        space_name = "customer"
+        space_ins = self.gstack.readspace(space_name, scene_name, field_name)
+        for oneset in oldsetobj:
+            if oneset == "正方形集合":
+                self.square2elements(oldsetobj[oneset])
+            if oneset == "三角形集合":
+                self.triangle2elements(oldsetobj[oneset])
+            if oneset == "全等三角形集合":
+                self.congruent_triangle2elements(oldsetobj[oneset], oldsetobj["等值集合"])
         return space_ins._setobj
 
     def element2conception(self, oldsetobj):
         "元素衍生概念"
+        logger1.info("in element2conception")
         # 1. 得出 全等三角形
-        # print(oldsetobj["三角形集合"])
-        # print(oldsetobj["角集合"])
-        # print(oldsetobj["等值集合"])
         triang_pointlist = [elems.rstrip("}").lstrip("{三角形@") for elems in oldsetobj["三角形集合"]]
         triang_pointlist = [latex_fenci(latex2space(angli)) for angli in triang_pointlist]
         # 1.1 边角边
+        tripleobjlist = []
         outjson = []
         eae_list = []
         aea_list = []
@@ -1912,7 +2262,16 @@ class LogicalInference(object):
                         #     print("aea_sig", aea_sig)
                         if aea_sig[0] == 1 and (aea_sig[1] + aea_sig[4] == 2 or aea_sig[2] + aea_sig[3] == 2):
                             outjson.append([[aea_list[idmain][-1], aea_list[idcli][-1]], "是", "全等三角形"])
-                            break
+                            taea_equal = []
+                            if aea_sig[1] + aea_sig[4] == 2:
+                                taea_equal.append([[aea_list[idmain][1], aea_list[idcli][1]], "是", "等值"])
+                                taea_equal.append([[aea_list[idmain][2], aea_list[idcli][2]], "是", "等值"])
+                            if aea_sig[2] + aea_sig[3] == 2:
+                                taea_equal.append([[aea_list[idmain][1], aea_list[idcli][2]], "是", "等值"])
+                                taea_equal.append([[aea_list[idmain][2], aea_list[idcli][1]], "是", "等值"])
+                            tripleobjlist.append([taea_equal, ["@@全等三角形充分条件角边角"],
+                                                  [[aea_list[idmain][-1], aea_list[idcli][-1]], "是", "全等三角形"]])
+                            # break
                         # 边角边
                         judgequllist = [eae_list[idmain][0], eae_list[idcli][0]]
                         if set(judgequllist).issubset(equset):
@@ -1934,27 +2293,27 @@ class LogicalInference(object):
                         #     print(eae_list[idmain][-1], eae_list[idcli][-1])
                         if eae_sig[4] == 1 and (eae_sig[0] + eae_sig[3] == 2 or eae_sig[1] + eae_sig[2] == 2):
                             outjson.append([[eae_list[idmain][-1], eae_list[idcli][-1]], "是", "全等三角形"])
-                            break
-        outjson = [{"因为": i1} for i1 in outjson]
+                            teae_equal = []
+                            if eae_sig[0] + eae_sig[3] == 2:
+                                teae_equal.append([[eae_list[idmain][0], eae_list[idcli][0]], "是", "等值"])
+                                teae_equal.append([[eae_list[idmain][1], eae_list[idcli][1]], "是", "等值"])
+                            if eae_sig[1] + eae_sig[2] == 2:
+                                teae_equal.append([[eae_list[idmain][0], eae_list[idcli][1]], "是", "等值"])
+                                teae_equal.append([[eae_list[idmain][1], eae_list[idcli][0]], "是", "等值"])
+                            tripleobjlist.append([teae_equal, ["@@全等三角形充分条件边角边"],
+                                                  [[eae_list[idmain][-1], eae_list[idcli][-1]], "是", "全等三角形"]])
+                            # break
         field_name = "数学"
         scene_name = "解题"
-        space_name = "basic"
-        basic_space_ins = self.gstack.readspace(space_name, scene_name, field_name)
         space_name = "customer"
         space_ins = self.gstack.readspace(space_name, scene_name, field_name)
-        space_ins._setobj, _, _ = space_ins.tri2set_oper(basic_space_ins._setobj, space_ins._setobj,
-                                                         space_ins._stopobj, addc=outjson, delec=[])
+        self.step_node_write(tripleobjlist)
+        space_ins._setobj = self.math_solver_write(outjson)
         space_ins._setobj = self.listset_deliverall(space_ins._setobj)
         return space_ins._setobj
 
     def judge_stop(self, oldsetobj, newsetobj, stopobj, basic_space_ins):
         "每步推理的具体操作 true为应该结束"
-        # print(basic_space_ins._relation_trip)
-        # print(basic_space_ins._proper_trip)
-        # newsetobj["daian"] = 6
-        # print("judge_stop")
-        # print(oldsetobj)
-        # print(newsetobj)
         if operator.eq(oldsetobj, newsetobj):
             message = "已知条件无法进一步推理"
             return message, True
@@ -1978,27 +2337,49 @@ class LogicalInference(object):
         message = "任务完成"
         return message, True
 
-    def outputinfo(self, operstr):
-        """结果输出: """
-        pass
 
-    def compare(self, operstr):
-        """类比: """
-        pass
-
-    def induce(self, operstr):
-        """归纳: """
-        pass
-
-    def imagine(self, operstr):
-        """想象: """
-        pass
+def recog_str2list(instr):
+    " 输入为 text 、latex "
+    # 1. 答案字符标准化
+    if isinstance(instr, str):
+        # 1.1 行级 处理单元
+        # printstr3 = printstr3.replace("\\\\", "\\").replace("\\n", "\n")
+        handestr3 = instr.replace("\\\n", "\n")
+        # print(handestr3)
+        # 1.2 句组级 处理单元
+        sentenc_list = re.split('。|\?|？|！|；|。|;|\n', handestr3)
+        ans_inlist = []
+        for sentence in sentenc_list:
+            sp_list = sentence.strip(" ,，.。\t").split("$")
+            ans_inlist.append([{"text": sp} if id % 2 == 0 else {"latex": sp} for id, sp in enumerate(sp_list)])
+    else:
+        ans_inlist = instr
+    return ans_inlist
 
 
 # 3. latex 证明
 def solve_latex_prove(printstr3, handestr3):
     # 输入为 text 、latex
-    # 1. 输入字符标准化
+    # 1. 答案字符标准化
+    if isinstance(handestr3, str):
+        # 1.1 行级 处理单元
+        # printstr3 = printstr3.replace("\\\\", "\\").replace("\\n", "\n")
+        handestr3 = handestr3.replace("\\\n", "\n")
+        # print(handestr3)
+        # 1.2 句组级 处理单元
+        sentenc_list = re.split('。|\?|？|！|；|。|;|\n', handestr3)
+        ans_inlist = []
+        for sentence in sentenc_list:
+            sp_list = sentence.strip(" ,，.。\t").split("$")
+            ans_inlist.append([{"text": sp} if id % 2 == 0 else {"latex": sp} for id, sp in enumerate(sp_list)])
+    else:
+        ans_inlist = printstr3
+    # 2. 分解答案
+    li_ins = LogicalInference()
+    anastr = li_ins.sentence2normal(ans_inlist)
+    print(anastr)
+    raise Exception("solve end")
+    # 3. 问题字符标准化
     if isinstance(printstr3, str):
         # 1.1 行级 处理单元
         # printstr3 = printstr3.replace("\\\\", "\\").replace("\\n", "\n")
@@ -2012,9 +2393,35 @@ def solve_latex_prove(printstr3, handestr3):
             dic_inlist.append([{"text": sp} if id % 2 == 0 else {"latex": sp} for id, sp in enumerate(sp_list)])
     else:
         dic_inlist = printstr3
-    # 2. 分析问句
+    # 4. 分析问句
     li_ins = LogicalInference()
     li_ins(dic_inlist)
+
+
+def title_latex_prove(instr):
+    "输入：题目字符串，输出：序列化条件，序列化的树"
+    # 1. 问题字符标准化
+    ans_inlist = recog_str2list(instr)
+    # 2. 分解问题
+    # 4. 分析问句
+    li_ins = LogicalInference()
+    li_ins(ans_inlist)
+    outelem = "res"
+    outtree = "res"
+    return outelem, outtree
+
+
+def answer_latex_prove(instr, intree):
+    "输入：解答字符串，输出：序列化要素，相关知识点报告"
+    # 1. 答案字符标准化
+    ans_inlist = recog_str2list(instr)
+    # 2. 分解答案
+    li_ins = LogicalInference()
+    anastr = li_ins.sentence2normal(ans_inlist)
+    print(anastr)
+    outelem = "res"
+    outreport = "res"
+    return outelem, outreport
 
 
 if __name__ == '__main__':
@@ -2061,8 +2468,13 @@ if __name__ == '__main__':
     # 演示版本 全等三角形
     # printstr3 = "已知：三角形 $ABC, \\triangle {ACD}, \\angle {CAB} = \\angle {CAD}, \\angle {ACB} = \\angle {ACD} = 30 ^{\\circ} $。求证 $BC = CD$"
     # 中等难度 多边形
-    printstr3 = "已知：正方形 $ABCD, A、P、C $ 在一条直线上。$MN \\parallel BC, \\angle {BPQ} =90 ^{\\circ},A、M、B $ 在一条直线上，$\\angle {APM}$是锐角，$\\angle {NPQ} +\\angle {BPQ} +\\angle {BPM} =180^{\\circ }, \\angle {ACB}$是锐角。 $C、Q、 N、D $ 在一条直线上。求证 $PB = PQ$"
+    printstr3 = "已知：正方形 $ABCD, A、P、C $ 在一条直线上。$MN \\parallel BC, \\angle {BPQ} =90 ^{\\circ},A、M、B $ 在一条直线上，$M、P、N $ 在一条直线上，$\\angle {APM}$是锐角，$\\angle {NPQ} +\\angle {BPQ} +\\angle {BPM} =180^{\\circ }, \\angle {ACB}$是锐角。 $C、Q、 N、D $ 在一条直线上。求证 $PB = PQ$"
     handestr3 = "已知：正方形 $ABCD, A、P、C $ 在一条直线上。$PQ=PB, MN \\parallel BC, \\angle {BPQ} =90 ^{\\circ},A、B、M $ 在一条直线上。 $C、D、Q、 N $ 在一条直线上。求证 $PB = PQ$"
+    # 对的 1
+    handestr3 = "$\\therefore AM=PM, \\because AB=MN, \\therefore MB=PN, \\because \\angle BPQ=90 ^ {circ}, \\therefore \\angle BPM + \\angle NPQ = 90 ^ {circ}, \\because \\angle MBP + \\angle BPM = 90 ^ {circ}, \\therefore \\angle MBP = \\angle NPQ, \\therefore \\triangle BPM \\cong \\triangle NPQ, \\therefore PB = PQ$"
+    # 对的 2
+    handestr3 = "$ \\therefore AM=PM, \\because AB=MN,\\therefore MB=PN,\\because \\angle {BPQ}=90 ^ {\\circ},\\therefore \\angle {BPM} + \\angle {NPQ} = 90 ^ {\\circ},\\because \\angle {MBP} + \\angle {BPM} = 90 ^ {\\circ},\\therefore \\angle {MBP} = \\angle {NPQ},\\because \\triangle {BPM}$ 是直角三角形。$\\because \\triangle {NPQ}$ 是直角三角形$ \\therefore \\triangle {BPM} \\cong \\triangle {NPQ},\\therefore PB = PQ $"
+
     # \\therefore AM=PM
     # \\because AB=MN
     # \\therefore MB=PN
@@ -2077,7 +2489,11 @@ if __name__ == '__main__':
     # \\therefore PB = PQ
     # print(printstr3)
     # print(handestr3)
-    solve_latex_prove(printstr3, handestr3)
+    # solve_latex_prove(printstr3, handestr3)
+    outelem, outtree = title_latex_prove(printstr3)
+    outtree = None
+    outelem, outreport = answer_latex_prove(handestr3, outtree)
+    raise 456
     print("end")
     exit()
 
@@ -2092,3 +2508,5 @@ if __name__ == '__main__':
     # # 3. 解析堆栈形式
     postfix = postfix_convert_P(tmplist)
     print(postfix)
+    # res = re.findall(r"/h3>([\s\S]+?)</div", instr)
+    # todo: 1. 树连接 2. 解析答案元素 加入树 3. 对比 get_condition_tree

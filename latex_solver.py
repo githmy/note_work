@@ -332,10 +332,6 @@ def calc_func(num1, op):
 
 def equa_opt(num1, op, num2, vardic={}):
     # 1. 判断: 是否变量、是否是对象、是否是数字、是否是字符数组
-    # print(num1)
-    # print(type(num1))
-    # print(num2)
-    # print(type(num2))
     if num1 in vardic:
         num1 = vardic[num1]
     elif re.match("^<class 'sympy", str(type(num1))):
@@ -382,10 +378,6 @@ def equa_opt(num1, op, num2, vardic={}):
 
 def equa_equa_opt(num1, op, num2, vardic={}):
     # 1. 判断
-    # print(num1)
-    # print(type(num1))
-    # print(num2)
-    # print(type(num2))
     if num1 in vardic:
         num1 = vardic[num1]
     elif re.match("^<class 'sympy", str(type(num1))):
@@ -416,8 +408,6 @@ def equa_equa_opt(num1, op, num2, vardic={}):
 
 def equa_func(num1, op, vardic={}):
     # 1. 判断
-    # print(num1)
-    # print(type(num1))
     if num1 in vardic:
         num1 = vardic[num1]
     elif re.match("^<class 'sympy", str(type(num1))):
@@ -716,65 +706,6 @@ def latex2list(instr, varlist=[]):
                 # 前插入
                 inlist.insert(i1, "0")
                 inlist.insert(i1, "(")
-            # elif inlist[i1 + 1] in funclist + ["(", "{"]:
-            #     if inlist[i1] == "+" and inlist[i1 - 1] in pmlist:
-            #         del inlist[i1]
-            #     elif inlist[i1] == "-" and inlist[i1 - 1] in pmlist:
-            #         if inlist[i1 - 1] == "-":
-            #             del inlist[i1]
-            #             del inlist[i1 - 1]
-            #             inlist.insert(i1 - 1, "+")
-            #         elif inlist[i1 - 1] == "+":
-            #             del inlist[i1 - 1]
-            #         elif inlist[i1 - 1] == "\\pm":
-            #             inlist[i1 - 1] = "\\mp"
-            #             del inlist[i1]
-            #         elif inlist[i1 - 1] == "\\mp":
-            #             inlist[i1 - 1] = "\\pm"
-            #             del inlist[i1]
-            #         elif inlist[i1 - 1] in ["*", "/", "^", "\\div", "\\cdot", "\\times"] and inlist[
-            #                     i1 + 1] in funclist + [
-            #             "(", "{"]:
-            #             # 后面的意义单元为 函数 或 平衡符号组
-            #             typestartsig = ""
-            #             typeendsig = ""
-            #             singl_cout = 0
-            #             numcout = 0
-            #             endnum = 0
-            #             for i2 in range(i1 + 1, orilenth):
-            #                 if typestartsig == "":
-            #                     if inlist[i2] == "{":
-            #                         typestartsig = "{"
-            #                         typeendsig = "}"
-            #                         singl_cout += 1
-            #                     elif inlist[i2] == "(":
-            #                         typestartsig = "("
-            #                         typeendsig = ")"
-            #                         singl_cout += 1
-            #                 else:
-            #                     if inlist[i2] == typestartsig:
-            #                         singl_cout += 1
-            #                     elif inlist[i2] == typeendsig:
-            #                         singl_cout -= 1
-            #                     if singl_cout == 0:
-            #                         numcout += 1
-            #                         if numcout == 1:
-            #                             endnum = i2 + 1
-            #                             break
-            #             if numcout != 1:
-            #                 raise Exception("match num error.")
-            #             # 后插入
-            #             inlist.insert(endnum, ")")
-            #             # 前插入
-            #             inlist.insert(i1, "0")
-            #             inlist.insert(i1, "(")
-            #         elif inlist[i1 - 1] in "({":
-            #             inlist.insert(i1, "0")
-            #         elif inlist[i1 - 1] in ["*", "/", "^", "\\div", "\\cdot", "\\times"]:
-            #             # 后面的意义单元为数字
-            #             inlist.insert(i1 + 1, ")")
-            #             inlist.insert(i1, "0")
-            #             inlist.insert(i1, "(")
             pass
     return inlist
 
@@ -993,65 +924,6 @@ def latex2list_P(instr, varlist=[]):
                 # 前插入
                 inlist.insert(i1, "0")
                 inlist.insert(i1, "(")
-            # elif inlist[i1 + 1] in funclist + ["(", "{"]:
-            #     if inlist[i1] == "+" and inlist[i1 - 1] in pmlist:
-            #         del inlist[i1]
-            #     elif inlist[i1] == "-" and inlist[i1 - 1] in pmlist:
-            #         if inlist[i1 - 1] == "-":
-            #             del inlist[i1]
-            #             del inlist[i1 - 1]
-            #             inlist.insert(i1 - 1, "+")
-            #         elif inlist[i1 - 1] == "+":
-            #             del inlist[i1 - 1]
-            #         elif inlist[i1 - 1] == "\\pm":
-            #             inlist[i1 - 1] = "\\mp"
-            #             del inlist[i1]
-            #         elif inlist[i1 - 1] == "\\mp":
-            #             inlist[i1 - 1] = "\\pm"
-            #             del inlist[i1]
-            #         elif inlist[i1 - 1] in ["*", "/", "^", "\\div", "\\cdot", "\\times"] and inlist[
-            #                     i1 + 1] in funclist + [
-            #             "(", "{"]:
-            #             # 后面的意义单元为 函数 或 平衡符号组
-            #             typestartsig = ""
-            #             typeendsig = ""
-            #             singl_cout = 0
-            #             numcout = 0
-            #             endnum = 0
-            #             for i2 in range(i1 + 1, orilenth):
-            #                 if typestartsig == "":
-            #                     if inlist[i2] == "{":
-            #                         typestartsig = "{"
-            #                         typeendsig = "}"
-            #                         singl_cout += 1
-            #                     elif inlist[i2] == "(":
-            #                         typestartsig = "("
-            #                         typeendsig = ")"
-            #                         singl_cout += 1
-            #                 else:
-            #                     if inlist[i2] == typestartsig:
-            #                         singl_cout += 1
-            #                     elif inlist[i2] == typeendsig:
-            #                         singl_cout -= 1
-            #                     if singl_cout == 0:
-            #                         numcout += 1
-            #                         if numcout == 1:
-            #                             endnum = i2 + 1
-            #                             break
-            #             if numcout != 1:
-            #                 raise Exception("match num error.")
-            #             # 后插入
-            #             inlist.insert(endnum, ")")
-            #             # 前插入
-            #             inlist.insert(i1, "0")
-            #             inlist.insert(i1, "(")
-            #         elif inlist[i1 - 1] in "({":
-            #             inlist.insert(i1, "0")
-            #         elif inlist[i1 - 1] in ["*", "/", "^", "\\div", "\\cdot", "\\times"]:
-            #             # 后面的意义单元为数字
-            #             inlist.insert(i1 + 1, ")")
-            #             inlist.insert(i1, "0")
-            #             inlist.insert(i1, "(")
             pass
     return inlist
 
@@ -1094,12 +966,6 @@ def equat2array(expstr):
     equalist = expstr.split("\\\\")
     equalist = [i1.strip() for i1 in equalist]
     return equalist
-    # # 2. equation = 向左移项，忽略右边
-    # outequalist = []
-    # for i1 in equalist:
-    #     tmplist = i1.split("=")
-    #     outequalist.append(tmplist[0].strip() + " - ( " + tmplist[1].strip() + " )")
-    # return outequalist
 
 
 # 1. latex 公式解析
@@ -1150,13 +1016,13 @@ def solve_latex_equation(expstr, varlist=["x", "y"], const_dic={"\\pi": "3.14"})
     # 2. latex单元到列表
     equaoutlist = []
     for i1 in equalist:
-        print(i1)
+        # print(i1)
         tmplist = latex2list(i1, varlist=varlist)
-        print(tmplist)
+        # print(tmplist)
         # # 3. 解析堆栈形式
         postfix = postfix_convert(tmplist)
-        print(postfix)
-        exit()
+        # print(postfix)
+        # exit()
         # # 4. 常数替换
         postfix = constance_explist(postfix, const_dic=const_dic)
         exprestion = cal_equation_tree(postfix, vardic)

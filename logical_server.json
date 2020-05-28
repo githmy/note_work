@@ -1,0 +1,15 @@
+{
+  "port": 8080,
+  "database_ip": "127.0.0.1",
+  "database_name": "yuejuan",
+  "user": "root",
+  "password": "333",
+  "wcsurl": "http://192.168.0.107:8090",
+  "wcsinit": "algInitRequest",
+  "wcsget": "algNormalRequest",
+  "wcsput": "algOutputInfo",
+  "wcsupdate": "",
+  "alg_user": "ALG",
+  "alg_pass": "123456",
+  "para_path": "conf"
+}
