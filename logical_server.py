@@ -172,7 +172,6 @@ class Delphis(object):
 
     def get_report(self, piccontent):
         # 1. 图片转成 token
-        print(888)
         namespace = uuid.NAMESPACE_URL
         picid = str(uuid.uuid3(namespace, piccontent))
         # print(piccontent)
@@ -193,13 +192,14 @@ class Delphis(object):
         # 3. 如果有title内容，没有思维树，生成思维树，写入
         titleid, ansid = self.picmap[picid]
         if titleid is not None and ansid is not None:
-            titlein_sql = """SELECT content, condition, trees FROM `titletab` where titleid={}""".format(titleid)
+            titlein_sql = """SELECT content, `condition`, trees FROM `titletab` where titleid={}""".format(titleid)
+            # print(titlein_sql)
             title_content = self.mysql.exec_sql(titlein_sql)
             if len(title_content) == 0:
                 error["题目id"] = "没有对应内容, 待写入"
             else:
-                condition = title_content["condition"]
-                trees = title_content["trees"]
+                condition = title_content[0]["condition"]
+                trees = title_content[0]["trees"]
                 if condition is None or trees is None:
                     # 1. 解析题目，2. 序列化后写入数据库
                     pass
@@ -208,16 +208,13 @@ class Delphis(object):
             if len(ansin_content) == 0:
                 error["解答id"] = "没有对应内容, 待写入"
             else:
-                anspoints = ansin_content["anspoints"]
-                ansreports = ansin_content["ansreports"]
+                anspoints = ansin_content[0]["anspoints"]
+                ansreports = ansin_content[0]["ansreports"]
                 if anspoints is None or ansreports is None:
                     # 1. 解析答案，2. 对比内容，3. 序列化后写入数据库
                     pass
-            # 4. 解析ans，写入解析形式，对比titlte, 写入报告。
-            if title_content:
-                print(title_content)
-            print(ansin_content)
-            # 5. 返还信息
+                report = ansreports
+            # 4. 返还信息
             return report, error
         else:
             error = {"message": "图片没有对应的 题目id 或 解答id,待写入。"}
@@ -237,83 +234,41 @@ class Delphis(object):
         # print(request_params)
         piccontent = request_params["content"]
         response, error = self.get_report(piccontent)
-        # raise 123
-        # datas = "好的"
         # return json.dumps({'info': 'new model trained: {}'.format(datas)}, indent=4, ensure_ascii=False)
-        error = {}
-        response = [
-            {"ponit1": "y = kx + b", "istrue": True},
-            {"ponit1": "y = kx + b", "istrue": True},
-            {"ponit1": "y = kx + b", "istrue": True},
-        ]
+        # error = {}
+        # response = [
+        #     {"content": "因为 AM=PM","point": "平行定理", "istrue": True},
+        #     {"content": "所以 AM=PM","point": "平行定理", "istrue": True},
+        #     {"content": "因为 AB=MN","point": "全等三角形充分条件", "istrue": True},
+        #     {"content": "所以 MB=PN","point": "全等三角形必要条件", "istrue": True},
+        #     {"content": "因为 角BPQ=90度", "point": "平行定理", "istrue": True},
+        #     {"content": "所以 角BPM+角NPQ=90度", "point": "全等三角形充分条件", "istrue": True},
+        #     {"content": "因为 角MBP+角BPM=90度", "point": "全等三角形必要条件", "istrue": True},
+        #     {"content": "所以 角MBP=角NPQ", "point": "平行定理", "istrue": True},
+        #     {"content": "所以 三角形MBP 全等 三角形NPQ", "point": "全等三角形充分条件", "istrue": True},
+        #     {"content": "所以 PB=PQ", "point": "全等三角形必要条件", "istrue": True},
+        # ]
+        # response = [
+        #     {"content": "因为 AM=PM","point": "平行定理", "istrue": True},
+        #     {"content": "所以 AM=PM","point": "平行定理", "istrue": True},
+        #     {"content": "因为 AB=MN","point": "全等三角形充分条件", "istrue": True},
+        #     {"content": "所以 MB=PN","point": "全等三角形必要条件", "istrue": True},
+        #     {"content": "因为 角BPQ=90度", "point": "平行定理", "istrue": True},
+        #     {"content": "所以 角BPM+角NPQ=90度", "point": "全等三角形充分条件", "istrue": True},
+        #     {"content": "因为 角MBP+角BPM=90度", "point": "全等三角形必要条件", "istrue": True},
+        #     {"content": "所以 角MPB=角NQP", "point": "平行定理", "istrue": True},
+        #     {"content": "所以 三角形MBP 全等 三角形NPQ", "point": "全等三角形充分条件", "istrue": True},
+        #     {"content": "所以 PB=PQ", "point": "全等三角形必要条件", "istrue": True},
+        # ]
         if len(error) > 0:
-            dumped = yield json.dumps(error, indent=4, ensure_ascii=False)
+            # print(error)
+            # dumped = yield json.dumps(error, indent=4, ensure_ascii=False)
+            dumped = yield error
         else:
-            dumped = yield json.dumps(response, indent=4, ensure_ascii=False)
+            # print(response)
+            # dumped = yield json.dumps(response, indent=4, ensure_ascii=False)
+            dumped = yield response
         returnValue(dumped)
-
-    @app.route("/predict", methods=['POST', 'OPTIONS'])
-    # @requires_auth
-    @check_cors
-    @inlineCallbacks
-    @timeit
-    def predict(self, request):
-        print("***************  in predict ***********************")
-        data_string = request.content.read().decode('utf8', 'strict')
-        request.setHeader('Content-Type', 'application/json')
-        print(data_string)
-        print(json.loads(data_string))
-        print(simplejson.loads(data_string))
-        print(json.loads(data_string, encoding="utf-8"))
-        x_test, x_train, x_dev, y_train_m, y_dev_m, y_train_r, y_dev_r, y_train_l, y_dev_l = self.model_instance.data4train()
-        reslist = self.model_instance.predict(x_test)
-        print(reslist[0].aa)
-        print(reslist[0][0:2])
-        print(reslist[1].shape)
-        print(reslist[1][0:2])
-        print(reslist[2].shape)
-        print(reslist[2][0:2])
-        request.setHeader('Content-Type', 'application/json')
-        try:
-            request.setResponseCode(200)
-            tmpjson = simplejson.loads(data_string)
-            print(tmpjson)
-            response = yield self.data_router.start_process(self._model_json, tmpjson)
-            print("***************  end predict ***********************")
-            returnValue(json.dumps({'info': 'new model trained: {}'.format(response)}))
-        except Exception as e:
-            returnValue(json.dumps({"error": "{}".format(e)}, ensure_ascii=False, indent=4))
-
-    @app.route("/parse", methods=['GET', 'POST', 'OPTIONS'])
-    # @requires_auth
-    @check_cors
-    @inlineCallbacks
-    def parse_get(self, request):
-        print("in server")
-        request.setHeader('Content-Type', 'application/json')
-        if request.method.decode('utf-8', 'strict') == 'GET':
-            request_params = {key.decode('utf-8', 'strict'): value[0].decode('utf-8', 'strict')
-                              for key, value in request.args.items()}
-        else:
-            request_params = simplejson.loads(request.content.read().decode('utf-8', 'strict'))
-
-        if 'query' in request_params:
-            request_params['q'] = request_params.pop('query')
-
-        if 'q' not in request_params:
-            request.setResponseCode(404)
-            dumped = json.dumps({"error": "Invalid parse parameter specified"}, ensure_ascii=False, indent=4)
-            returnValue(dumped)
-        else:
-            data = self.extract_data(request_params)
-            try:
-                request.setResponseCode(200)
-                response = yield (threads.deferToThread(self.parse, data))
-                returnValue(json.dumps(response, ensure_ascii=False, indent=4))
-            except Exception as e:
-                request.setResponseCode(500)
-                print(e)
-                returnValue(json.dumps({"error": "{}".format(e)}, ensure_ascii=False, indent=4))
 
 
 def main():
