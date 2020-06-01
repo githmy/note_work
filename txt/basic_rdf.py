@@ -123,6 +123,9 @@ def test_networkx(fall_list=["数的整除", "比和比例"]):
     # pos = nx.random_layout(G)
     # pos = nx.kamada_kawai_layout(G)
     # pos = nx.circular_layout(G)
+    # pos = nx.draw_spectral(G)
+    # pos = nx.draw_spring(G)
+    # pos = nx.draw_graphviz(G)
     nx.draw(G, pos, node_color=node_colors, edge_color=edge_colors, width=wide_list, node_size=size_list, font_size=10,
             with_labels=True)
     plt.axis('on')
