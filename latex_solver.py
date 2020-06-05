@@ -6,7 +6,8 @@ import string
 import os
 import json
 
-baspath = os.path.join("..", "data", "wordvector")
+# baspath = os.path.join("..", "data", "wordvector")
+baspath = os.path.join(".")
 latex_json = json.load(open(os.path.join(baspath, 'vocab.json'), encoding="utf-8"))
 
 operator_precedence = {

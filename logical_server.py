@@ -16,6 +16,7 @@ from utils.path_tool import makesurepath
 from utils.timet import timeit
 import simplejson
 from logical_solver import LogicalInference
+from logical_solver import title_latex_prove
 import pymysql
 import threading
 import uuid
@@ -192,6 +193,7 @@ class Delphis(object):
         # 3. 如果有title内容，没有思维树，生成思维树，写入
         titleid, ansid = self.picmap[picid]
         if titleid is not None and ansid is not None:
+            # 测试注销 start
             titlein_sql = """SELECT content, `condition`, trees FROM `titletab` where titleid={}""".format(titleid)
             # print(titlein_sql)
             title_content = self.mysql.exec_sql(titlein_sql)
@@ -202,7 +204,13 @@ class Delphis(object):
                 trees = title_content[0]["trees"]
                 if condition is None or trees is None:
                     # 1. 解析题目，2. 序列化后写入数据库
-                    pass
+                    nodejson, edgelist = title_latex_prove(title_content[0]["content"])
+                    if nodejson is None:
+                        raise Exception("题目解析 或 生成思维树错误！")
+                    insert_title_sql = """INSERT INTO `titletab` (`condition`, trees) values ("{}","{}")""".format(nodejson, edgelist)
+                    print(insert_title_sql)
+                    title_content = self.mysql.exec_sql(insert_title_sql)
+            # 测试注销 end
             ansin_sql = """SELECT anstrs, anspoints, ansreports FROM `answertab` where ansid={}""".format(ansid)
             ansin_content = self.mysql.exec_sql(ansin_sql)
             if len(ansin_content) == 0:
