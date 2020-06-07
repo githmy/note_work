@@ -36,8 +36,9 @@
 不论售卖订单或招募月嫂，越平均，对月嫂的利用率越高，也就是可以预留更少的月嫂作为储备。
 
 本次修改:
-展示多维图
-
+大客户存在日期变动，但不存在撤单和违约金
+延时的订单，全为散单
+借贷只影响散单部分
 待做:
 1. 得出统计参数
 2. 基于统计参数 得出 规则常数
@@ -180,6 +181,7 @@ class FutureShow(object):
             "月嫂日增标准差": 1,  # todo: 统计 星级 地域 当前工资 报名加入日期(含培训期) 当天工资分享数量（可得2周内）
             "月嫂专职数": 2000,
             "月嫂精英数": 20,
+            "大客户订单百分数": 0.2,
             "月嫂预留百分数": 0.2,  # 未排班的订单为基数
             "订单销售速度期望值": 10000,  # todo: 统计 订单详情(星级 地域 服务等待期 当天订单价格 预售期日期 等待期日期) 订单销售速度 销售排行状态
             "订单销售速度标准差": 0,  # todo: 统计 订单详情(星级 地域 服务等待期 当天订单价格 预售期日期 等待期日期) 订单销售速度 销售排行状态
@@ -198,7 +200,13 @@ class FutureShow(object):
             "总时长": 365,
             # "总时长": 180,
             "初始资金": 0,
+            "初始大客户资金": 0,
+            "初始散客资金": 0,
             "初始借贷": 0,
+            "初始双头补资金": 0,
+            "初始单头补资金": 0,
+            "初始发放工资": 0,
+            "初始创始人资金": 0,
             "平台通讯费": 0,
             "平台开销": 0,
             # "日期偏移标准差": 0,
@@ -248,20 +256,24 @@ class FutureShow(object):
         # 2. 折扣变动
         nday = 90
         change_every = (1 - self.datajson["订单折扣"]) / nday
-        self.order_discount_day = [1 for _ in range(self.datajson["总时长"])]
-        self.order_discount_day[0:nday] = [self.datajson["订单折扣"] + i1 * change_every for i1 in range(nday)]
-        self.order_price_day = np.array(self.order_discount_day) * self.datajson["原价订单"]
+        self.order_small_discount_day = [1 for _ in range(self.datajson["总时长"])]
+        self.order_small_discount_day[0:nday] = [self.datajson["订单折扣"] + i1 * change_every for i1 in range(nday)]
+        self.order_small_price_day = np.array(self.order_small_discount_day) * self.datajson["原价订单"]
+        self.order_big_discount_day = [1 for _ in range(self.datajson["总时长"])]
+        self.order_big_discount_day[0:nday] = [self.datajson["订单折扣"] + i1 * change_every for i1 in range(nday)]
+        self.order_big_price_day = np.array(self.order_big_discount_day) * self.datajson["原价订单"]
         change_every = (1 - self.datajson["工资折扣"]) / nday
         self.salary_discount_day = [1 for _ in range(self.datajson["总时长"])]
         self.salary_discount_day[0:nday] = [self.datajson["工资折扣"] + i1 * change_every for i1 in range(nday)]
         self.salary_price_day = np.array(self.salary_discount_day) * self.datajson["原价工资"]
         # 4. 服务未关闭，订单列表，包含 待服务 服务中 待结算"status": "servicing,waiting,calc"
-        self.order_pass_list = []
+        self.order_small_pass_list = []
+        self.order_big_pass_list = []
         # 5. 资金借贷列表
         self.borrow_list = [
-            ["2020-06-18", 1000000],
-            ["2020-07-18", -500000],
-            ["2020-07-18", -1000000],
+            ["2020-10-18", 5000000],
+            ["2020-11-18", -1000000],
+            ["2020-12-18", -1000000],
         ]
         print("模拟未来借贷列表：{}".format(self.borrow_list))
 
@@ -298,23 +310,23 @@ class FutureShow(object):
         # 1. 当天可用月嫂数
         return self.sao_day_nums[dateid]
         # sao_daynum = self.sao_day_nums[dateid]
-        # order_daynum = len(
-        #     ["" for i1 in self.order_today_alllist if i1["start"] <= today_date and i1["end"] >= today_date])
-        # return sao_daynum if sao_daynum > order_daynum else order_daynum
+        # order_small_daynum = len(
+        #     ["" for i1 in self.order_small_today_alllist if i1["start"] <= today_date and i1["end"] >= today_date])
+        # return sao_daynum if sao_daynum > order_small_daynum else order_small_daynum
 
     def every_update_infor(self):
         availablelenth = self.sao_tomorrow_totalnum if self.sao_tomorrow_totalnum < self.sao_tomorrow_planservicing_num else self.sao_tomorrow_planservicing_num
         destrib_counter = 0
         # 安起始日期排序
-        self.order_today_alllist = sorted(self.order_today_alllist, key=lambda x: x["start"])
-        for order in self.order_today_alllist:
+        self.order_small_today_alllist = sorted(self.order_small_today_alllist, key=lambda x: x["start"])
+        for order in self.order_small_today_alllist:
             if order["calcdate"] < self.tomorrow_str:
                 # 如果明天超时，结算
                 if order["calcdate"] < order["start"]:
                     # 结算取消订单
-                    self.cap_num -= order["orderprice"] + self.datajson["订单保证金"]
+                    self.cap2_num -= order["orderprice"] + self.datajson["订单保证金"]
                     self.creater_num += self.datajson["订单保证金"]
-                    self.subsidy_num -= self.datajson["原价订单"] - order["orderprice"]
+                    self.subsidy2_num -= self.datajson["原价订单"] - order["orderprice"]
                     print("        取消订单结算")
                     print("        本单工资发放 = {}".format(order["salaryprice"]))
                     print("        本单双头补订单部分退回 = 原价订单 - 订单价格")
@@ -324,9 +336,9 @@ class FutureShow(object):
                     print("        {} = {} + {}".format(order["orderprice"] + self.datajson["订单保证金"],
                                                         order["orderprice"], self.datajson["订单保证金"]))
                 else:
-                    self.cap_num -= order["salaryprice"] + \
-                                    self.datajson["原价订单"] * self.datajson["订单提成"] + self.datajson["订单保证金"]
-                    self.subsidy_num += order["salaryprice"] - self.datajson["原价工资"]
+                    self.cap2_num -= order["salaryprice"] + \
+                                     self.datajson["原价订单"] * self.datajson["订单提成"] + self.datajson["订单保证金"]
+                    self.subsidy2_num += order["salaryprice"] - self.datajson["原价工资"]
                     self.salary_num += order["salaryprice"]
                     self.creater_num += self.datajson["原价订单"] * self.datajson["订单提成"] + self.datajson["订单保证金"]
                     print("        正常订单结算")
@@ -365,87 +377,197 @@ class FutureShow(object):
                     order["saoid"] = "saoidxn"
                     order["status"] = "servicing"
 
+        self.order_big_today_alllist = sorted(self.order_big_today_alllist, key=lambda x: x["start"])
+        for order in self.order_big_today_alllist:
+            if order["calcdate"] < self.tomorrow_str:
+                # 如果明天超时，结算
+                if order["calcdate"] < order["start"]:
+                    raise Exception("        大客户不存在取消订单")
+                else:
+                    self.cap1_num -= order["salaryprice"] + \
+                                     self.datajson["原价订单"] * self.datajson["订单提成"] + self.datajson["订单保证金"]
+                    self.subsidy1_num += order["salaryprice"] - self.datajson["原价工资"]
+                    self.salary_num += order["salaryprice"]
+                    self.creater_num += self.datajson["原价订单"] * self.datajson["订单提成"] + self.datajson["订单保证金"]
+                    print("        正常订单结算")
+                    print("        本单工资发放 = {}".format(order["salaryprice"]))
+                    print("        本单双头补工资部分 = 实际工资 - 原价工资")
+                    print("        {} = {} - {} )".format(order["salaryprice"] - self.datajson["原价工资"],
+                                                          order["salaryprice"], self.datajson["原价工资"]))
+                    print("        本单创始人金额 = 原价订单 * 订单提成 + 订单保证金")
+                    print("        {} = {} * {} + {}".format(
+                        self.datajson["原价订单"] * self.datajson["订单提成"] + self.datajson["订单保证金"],
+                        self.datajson["原价订单"], self.datajson["订单提成"], self.datajson["订单保证金"]))
+                    print("        平台结算金额 = 实际工资 + 原价订单 * 订单提成 + 订单保证金")
+                    print("        {} = {} + {} * {} + {}".format(order["salaryprice"] + self.datajson["原价订单"] *
+                                                                  self.datajson["订单提成"] + self.datajson["订单保证金"],
+                                                                  order["salaryprice"], self.datajson["原价订单"],
+                                                                  self.datajson["订单提成"], self.datajson["订单保证金"]
+                                                                  ))
+                order["status"] = "done"
+            elif order["end"] < self.tomorrow_str:
+                order["status"] = "calc"
+            elif order["start"] > self.tomorrow_str:
+                order["status"] = "waiting"
+            else:
+                # 本应 servicing 的订单
+                destrib_counter += 1
+                if destrib_counter > availablelenth:
+                    # print(destrib_counter, emptylenth)
+                    # 月嫂余量不足 一直变到 有月嫂
+                    order["saoid"] = ""
+                    order["start"] = self.tomorrow_str
+                    order["end"] = self.futureend_str
+                    order["calc"] = self.futurecalc_str
+                    order["status"] = "waiting"
+                    destrib_counter -= 1
+                else:
+                    order["saoid"] = "saoidxn"
+                    order["status"] = "servicing"
+
         # 清空过期的订单列表
         print("    未来一个等待期后月嫂总数量")
         print("    {}".format(self.sao_future_totalnum))
         print("    清空过期的订单列表")
-        self.order_today_alllist = [orderold for orderold in self.order_today_alllist if orderold["status"] != "done"]
-        return self.order_today_alllist
+        self.order_small_today_alllist = [orderold for orderold in self.order_small_today_alllist if
+                                          orderold["status"] != "done"]
+        self.order_big_today_alllist = [orderold for orderold in self.order_big_today_alllist if
+                                        orderold["status"] != "done"]
+        return self.order_small_today_alllist, self.order_big_today_alllist
 
     def every_new_orders(self, dateid):
         """创建 新订单： 预留月嫂，受销售数量上限"""
         #  待服务 服务中 待结算 : "servicing,waiting,calc,done"
         # 未来一个等待期后空闲月嫂数 可能已被占用 只是未分配，不能简单求空闲的长度 作为新增的长度
-        # 1. 预留月嫂数 self.sao_future_freenum<len(sao_future_freelist)
-        self.sao_future_freenum = self.sao_future_totalnum - int(
+        # 1. 预留月嫂数 sao_future_freenum<len(sao_future_freelist)
+        sao_future_freenum = self.sao_future_totalnum - int(
             self.sao_future_planservicing_num * (1 + self.datajson["月嫂预留百分数"]))
         print("    未来一个等待期后空闲月嫂数 = 未来一个等待期后月嫂总数 - 未来一个等待期后月嫂服务中数量 * ( 1 + 月嫂预留百分数 )")
-        print("    {} = {} - {} * ( 1 + {} )".format(self.sao_future_freenum, self.sao_future_totalnum,
+        print("    {} = {} - {} * ( 1 + {} )".format(sao_future_freenum, self.sao_future_totalnum,
                                                      self.sao_future_planservicing_num, self.datajson["月嫂预留百分数"]))
         sale_expect, sale_std = self.get_sale_std(ordertype=None)
         sale_num = int(round(np.random.normal(loc=sale_expect, scale=sale_std, size=1)[0]))
-        sale_final = sale_num if sale_num < self.sao_future_freenum else self.sao_future_freenum
+        sale_final = sale_num if sale_num < sao_future_freenum else sao_future_freenum
         print("    当天订单出售数量 = 最小值 (订单售出上限，未来一个等待期后空闲月嫂数量) 如果是负值，不售出。")
-        print("    {} = 最小值 ( {}，{} )".format(sale_final, sale_num, self.sao_future_freenum))
+        print("    {} = 最小值 ( {}，{} )".format(sale_final, sale_num, sao_future_freenum))
         # 2. 预留
-        self.order_today_sale_list = []
+        sale_final_big = int(sale_final * self.datajson["大客户订单百分数"])
+        print("    当天大客户订单出售数量 = 当天订单出售数量 * 大客户订单百分数 ")
+        print("    {} = {} * {}".format(sale_final_big, sale_final, self.datajson["大客户订单百分数"]))
+        sale_final_small = sale_final - sale_final_big
+        print("    当天散单订单出售数量 = 当天订单出售数量 - 当天大客户订单出售数量 ")
+        print("    {} = {} * {}".format(sale_final_small, sale_final, sale_final_big))
+        self.order_small_today_sale_list = []
+        self.order_big_today_sale_list = []
+        # self.datajson["大客户订单百分数"]
         if sale_final > 0:
             # 6.1. 直接模拟卖出了 未来等待期的 原始订单。未来变更，直接现在修改
             service_shift_expect, service_shift_std = self.get_service_shift_std(ordertype=None)
-            randshifts = np.random.normal(loc=service_shift_expect, scale=service_shift_std, size=sale_final)
+            randshifts = np.random.normal(loc=service_shift_expect, scale=service_shift_std, size=sale_final_small)
             randshifts = [
                 1000 if rn < self.datajson["变更服务费率"][0][0][0] or rn > self.datajson["变更服务费率"][-1][0][1] else rn for rn
                 in randshifts]
             shiftsstart = [int(round(rn) + self.futurestart_int) for rn in randshifts]
             shiftsend = [rn + self.datajson["服务期"] for rn in shiftsstart]
             shiftscalc = [rn + self.datajson["结算期"] for rn in shiftsend]
-            self.order_today_sale_list = [{"orderid": "saoidx_" + self.tomorrow_str,  # saoid 只为防止重复占位，跟绑定月嫂无关。
-                                           "waitdate": self.tomorrow_str,
-                                           "oristart": self.futurestart_str,
-                                           "start": int2date(shiftsstart[idn]).strftime("%Y-%m-%d"),
-                                           "end": int2date(shiftsend[idn]).strftime("%Y-%m-%d"),
-                                           "calcdate": int2date(shiftscalc[idn]).strftime("%Y-%m-%d"),
-                                           "saoid": "",
-                                           "orderprice": self.order_price_day[dateid],
-                                           "salaryprice": self.salary_price_day[dateid],
-                                           "status": "waiting"} for idn in range(self.sao_future_freenum)
-                                          if idn < sale_final]
-            print("    生成随机服务日期变更的订单，变更超出费率区间表的直接设为取消")
+            self.order_small_today_sale_list = [{"orderid": "saoidx_" + self.tomorrow_str,  # saoid 只为防止重复占位，跟绑定月嫂无关。
+                                                 "waitdate": self.tomorrow_str,
+                                                 "oristart": self.futurestart_str,
+                                                 "start": int2date(shiftsstart[idn]).strftime("%Y-%m-%d"),
+                                                 "end": int2date(shiftsend[idn]).strftime("%Y-%m-%d"),
+                                                 "calcdate": int2date(shiftscalc[idn]).strftime("%Y-%m-%d"),
+                                                 "saoid": "",
+                                                 "orderprice": self.order_small_price_day[dateid],
+                                                 "salaryprice": self.salary_price_day[dateid],
+                                                 "status": "waiting"} for idn in range(sale_final_small) if
+                                                idn < sale_final]
+            # 大客户只考虑偏移，不考虑费用
+            randshifts_big = np.random.normal(loc=service_shift_expect, scale=service_shift_std, size=sale_final_big)
+            # shiftsstart_big = [rn if rn > 0 else -rn for rn in randshifts_big]
+            randshifts_big = [rn if rn > 0 else -rn for rn in randshifts_big]
+            shiftsstart_big = [int(round(rn) + self.futurestart_int) for rn in randshifts_big]
+            shiftsend_big = [rn + self.datajson["服务期"] for rn in shiftsstart_big]
+            shiftscalc_big = [rn + self.datajson["结算期"] for rn in shiftsend_big]
+            self.order_big_today_sale_list = [{"bigorderid": "saoidx_" + self.tomorrow_str,  # saoid 只为防止重复占位，跟绑定月嫂无关。
+                                               "waitdate": self.tomorrow_str,
+                                               "oristart": self.futurestart_str,
+                                               "start": int2date(shiftsstart_big[idn]).strftime("%Y-%m-%d"),
+                                               "end": int2date(shiftsend_big[idn]).strftime("%Y-%m-%d"),
+                                               "calcdate": int2date(shiftscalc_big[idn]).strftime("%Y-%m-%d"),
+                                               "saoid": "",
+                                               "orderprice": self.order_big_price_day[dateid],
+                                               "salaryprice": self.salary_price_day[dateid],
+                                               "status": "waiting"} for idn in range(sale_final_big) if
+                                              idn < sale_final]
+            print("    生成随机服务日期变更的散单订单，变更超出费率区间表的直接设为取消")
+            print("    生成随机服务日期变更的大客户订单，不考虑变更问题")
             # 6.2. 模拟原始售出资金变动，未来变更，在排班服务时修正
-
-            self.cap_num += (self.order_price_day[dateid] + self.datajson["月嫂使用费"] + self.datajson[
-                "订单保证金"]) * sale_final
-            self.subsidy_num += (self.datajson["原价订单"] * (1 - self.order_discount_day[dateid])) * sale_final
-            self.creater_num -= self.datajson["订单保证金"] * sale_final
-            print("    当天订单出售金额 = ( 订单价格 + 月嫂使用费 + 订单保证金) * 售出数量")
-            print("    {} = ( {} + {} + {} ) * {}".format(self.cap_num, self.order_price_day[dateid], self.datajson["月嫂使用费"],
-                                                          self.datajson["订单保证金"], sale_final))
-            print("    当天双头补订单部分 = 原价订单 * ( 1 - 订单折扣 ) * 售出数量")
-            print(
-                "    {} = {} * ( 1 - {} ) * {}".format((self.datajson["原价订单"] * (1 - self.order_discount_day[dateid])) *
-                                                       sale_final, self.datajson["原价订单"],
-                                                       self.order_discount_day[dateid],
-                                                       sale_final))
-            print("    当天创始人订单保证金额= 订单保证金 * 售出数量")
+            self.cap2_num += (self.order_small_price_day[dateid] + self.datajson["月嫂使用费"] + self.datajson[
+                "订单保证金"]) * sale_final_small
+            self.subsidy2_num += (
+                                     self.datajson["原价订单"] * (
+                                         1 - self.order_small_discount_day[dateid])) * sale_final_small
+            print("    当天散客订单出售金额 = ( 订单价格 + 月嫂使用费 + 订单保证金) * 散客售出数量")
+            print("    {} = ( {} + {} + {} ) * {}".format(self.cap2_num, self.order_small_price_day[dateid],
+                                                          self.datajson["月嫂使用费"], self.datajson["订单保证金"],
+                                                          sale_final_small))
+            print("    当天双头补订单部分 = 原价订单 * ( 1 - 订单折扣 ) * 散客售出数量")
+            print("    {} = {} * ( 1 - {} ) * {}".format(
+                (self.datajson["原价订单"] * (1 - self.order_small_discount_day[dateid])) *
+                sale_final_small, self.datajson["原价订单"], self.order_small_discount_day[dateid], sale_final_small))
+            self.cap1_num += (self.order_big_price_day[dateid] + self.datajson["月嫂使用费"] + self.datajson[
+                "订单保证金"]) * sale_final_big
+            self.subsidy1_num += (self.datajson["原价订单"] * (1 - self.order_big_discount_day[dateid])) * sale_final_big
+            print("    当天大客户订单出售金额 = ( 订单价格 + 月嫂使用费 + 订单保证金) * 大客户售出数量")
+            print("    {} = ( {} + {} + {} ) * {}".format(self.cap1_num, self.order_big_price_day[dateid],
+                                                          self.datajson["月嫂使用费"], self.datajson["订单保证金"],
+                                                          sale_final_big))
+            print("    当天单头补订单部分 = 原价订单 * ( 1 - 订单折扣 ) * 大客户售出数量")
+            print("    {} = {} * ( 1 - {} ) * {}".format(
+                (self.datajson["原价订单"] * (1 - self.order_big_discount_day[dateid])) *
+                sale_final_big, self.datajson["原价订单"], self.order_big_discount_day[dateid], sale_final_big))
+            print("    当天创始人订单保证金额= 订单保证金 * 总售出数量 ) ")
             print("    {} = {} * {}".format(self.datajson["订单保证金"] * sale_final, self.datajson["订单保证金"], sale_final))
-        return self.order_today_sale_list
+            self.creater_num -= self.datajson["订单保证金"] * sale_final
+        return self.order_small_today_sale_list, self.order_big_today_sale_list
 
     def every_status_orders(self):
         """更新 订单 服务状态，加入 变期 订单费用"""
-        for order in self.order_today_alllist:
+        for order in self.order_big_today_alllist:
             # 当天服务中的 订单和对应月嫂。如果有月嫂 突然退出 需要外部程序清空该订单的月嫂id更改状态为 等待期 或其他约定字段
             if order["status"] == "servicing":
-                self.order_today_servicingnum += 1
+                self.order_big_today_servicingnum += 1
                 self.sao_today_servicingnum += 1
             elif order["status"] == "waiting":
                 # if today_date>order["start"]:
-                self.order_today_waitingnum += 1
+                self.order_big_today_waitingnum += 1
+                # 明天为已排班 切为起始日，切 变更过起始日期，则修改资金收入
+                if order["start"] == self.tomorrow_str and order["start"] != order["oristart"] and order["saoid"] != "":
+                    # 大客户无违约金相关费用
+                    print("        当天服务中订单数量")
+                if order["start"] <= self.today_date and order["end"] >= self.today_date and order["saoid"] == "":
+                    self.order_big_today_delaynum += 1
+            # 明天订单在服务期的数量 即使未分配月嫂，也占一个位置
+            if order["start"] <= self.tomorrow_str and order["end"] >= self.tomorrow_str:
+                self.sao_tomorrow_planservicing_num += 1
+            # 新订单在服务期的数量 即使未分配月嫂，也占一个位置
+            if order["start"] <= self.futurestart_str and order["end"] >= self.futurestart_str:
+                self.sao_future_planservicing_num += 1
+                # print(order["start"], order["end"], self.futurestart_str)
+        for order in self.order_small_today_alllist:
+            # 当天服务中的 订单和对应月嫂。如果有月嫂 突然退出 需要外部程序清空该订单的月嫂id更改状态为 等待期 或其他约定字段
+            if order["status"] == "servicing":
+                self.order_small_today_servicingnum += 1
+                self.sao_today_servicingnum += 1
+            elif order["status"] == "waiting":
+                # if today_date>order["start"]:
+                self.order_small_today_waitingnum += 1
                 # 明天为已排班 切为起始日，切 变更过起始日期，则修改资金收入
                 if order["start"] == self.tomorrow_str and order["start"] != order["oristart"] and order["saoid"] != "":
                     diffdays = datediff(order["oristart"], order["start"])
                     for fee in self.datajson["变更服务费率"]:
                         if diffdays <= fee[0][1] and diffdays >= fee[0][0]:
-                            self.cap_num += fee[1] * order["orderprice"]
+                            self.cap2_num += fee[1] * order["orderprice"]
                             print("        订单变更信息，原始服务起始日期, 实际服务起始日期")
                             print("                    {}, {}".format(order["oristart"], order["start"]))
                             print("        变更服务费率区间，上限日期, 下限日期, 征收金额=订单价格*对应费率")
@@ -454,7 +576,7 @@ class FutureShow(object):
                                                                                         order["orderprice"], fee[1]))
                             break
                 if order["start"] <= self.today_date and order["end"] >= self.today_date and order["saoid"] == "":
-                    self.order_today_delaynum += 1
+                    self.order_small_today_delaynum += 1
             # 明天订单在服务期的数量 即使未分配月嫂，也占一个位置
             if order["start"] <= self.tomorrow_str and order["end"] >= self.tomorrow_str:
                 self.sao_tomorrow_planservicing_num += 1
@@ -462,28 +584,40 @@ class FutureShow(object):
             if order["start"] <= self.futurestart_str and order["end"] >= self.futurestart_str:
                 self.sao_future_planservicing_num += 1
                 # print(order["start"], order["end"], self.futurestart_str)
-        print("    当天服务中订单数量")
-        print("    {}".format(self.order_today_servicingnum))
-        print("    当天等待服务中订单数量")
-        print("    {}".format(self.order_today_waitingnum))
-        print("    当天延迟服务订单数量")
-        print("    {}".format(self.order_today_delaynum))
+        print("    当天散单服务中订单数量")
+        print("    {}".format(self.order_small_today_servicingnum))
+        print("    当天散单等待服务中订单数量")
+        print("    {}".format(self.order_small_today_waitingnum))
+        print("    当天散单延迟服务订单数量")
+        print("    {}".format(self.order_small_today_delaynum))
+        print("    当天大客户服务中订单数量")
+        print("    {}".format(self.order_big_today_servicingnum))
+        print("    当天大客户等待服务中订单数量")
+        print("    {}".format(self.order_big_today_waitingnum))
+        print("    当天大客户延迟服务订单数量")
+        print("    {}".format(self.order_big_today_delaynum))
         print("    明天订单在服务期的数量 即使未分配月嫂，也占一个位置")
         print("    {}".format(self.sao_tomorrow_planservicing_num))
         print("    新订单在服务期的数量 即使未分配月嫂，也占一个位置")
         print("    {}".format(self.sao_future_planservicing_num))
         print("    当天订单开始服务的日期变更费用=所有订单变更的日期的费用和")
-        print("    {}".format(self.cap_num))
-        return self.order_today_alllist
+        print("    {}".format(self.cap2_num))
+        return self.order_small_today_alllist, self.order_big_today_alllist
 
     def gene_full_service(self):
         self.y_capital = []  # 资金池 历史累计余额
-        self.y_subsidy = []  # 双头补 历史累计余额
+        self.y_1_capital = []  # 资金池大客户部分 历史累计余额
+        self.y_2_capital = []  # 资金池散客户部分 历史累计余额
+        self.y_2subsidy = []  # 双头补散客 历史累计余额
+        self.y_1subsidy = []  # 双头补大客户 历史累计余额
         self.y_borrow = []  # 借贷资金 历史累计余额 正为借出 负为贷入
         self.y_salary = []  # 原价工资累积
         self.y_creater = []  # 创始人收益累积
         self.y_capital_change = []  # 每日资金变化
-        self.y_subsidy_change = []  # 双头补资金变化
+        self.y_1_capital_change = []  # 每日资金变化
+        self.y_2_capital_change = []  # 每日资金变化
+        self.y_2subsidy_change = []  # 双头补散客 资金变化
+        self.y_1subsidy_change = []  # 双头补大客户 资金变化
         self.y_borrow_change = []  # 借贷资金变化
         self.y_salary_change = []  # 原价工资变化
         self.y_creater_change = []  # 创始人收益变化
@@ -493,8 +627,16 @@ class FutureShow(object):
         self.y_sao_free = []  # 未利用月嫂数 = 未开发订单数
         self.y_order_total = []  # 订单总容量 包含待服务的 不含未开发的，上限为 当天月嫂总量
         self.y_order_waiting = []  # 待服务订单数 = 未到期订单数 + 月嫂的缺额
-        self.y_order_delay = []  # 延期且未开订单数 = 月嫂的缺额
         self.y_order_servicing = []  # 服务中订单数 = 服务中月嫂数
+        self.y_order_delay = []  # 延期且未开订单数 = 月嫂的缺额
+        self.y_order_small_total = []  # 订单总容量 包含待服务的 不含未开发的，上限为 当天月嫂总量
+        self.y_order_small_waiting = []  # 待服务订单数 = 未到期订单数 + 月嫂的缺额
+        self.y_order_small_servicing = []  # 服务中订单数 = 服务中月嫂数
+        self.y_order_small_delay = []  # 延期且未开订单数 = 月嫂的缺额
+        self.y_order_big_total = []  # 订单总容量 包含待服务的 不含未开发的，上限为 当天月嫂总量
+        self.y_order_big_waiting = []  # 待服务订单数 = 未到期订单数 + 月嫂的缺额
+        self.y_order_big_servicing = []  # 服务中订单数 = 服务中月嫂数
+        self.y_order_big_delay = []  # 延期且未开订单数 = 月嫂的缺额
         self.y_order_free = []  # 未开发订单数 = 未利用月嫂数
         self.x = [i1 for i1 in range(self.datajson["总时长"])]
         self.x_label = [int2date(i1).strftime("%Y-%m-%d") for i1 in range(self.datajson["总时长"])]
@@ -502,7 +644,8 @@ class FutureShow(object):
         addday = int(round(self.datajson["服务逾期补偿"][0] * self.datajson["等待期"]))
         # 根据月嫂数生成对应的订单，初始化时 是否利用等待期的空置月嫂？ 尽量短的
         # 4. 服务未关闭，订单列表，包含 待服务 服务中 待结算"status": "servicing,waiting,calc,done"
-        self.order_today_alllist = copy.deepcopy(self.order_pass_list)
+        self.order_small_today_alllist = copy.deepcopy(self.order_small_pass_list)
+        self.order_big_today_alllist = copy.deepcopy(self.order_big_pass_list)
         for dateid, today_date in enumerate(self.x_label):
             # print("dateid:", dateid)
             print("当天日期:", today_date)
@@ -517,7 +660,10 @@ class FutureShow(object):
             self.future_addend_str = int2date(self.futureend_int + addday).strftime("%Y-%m-%d")
             self.future_addcalc_str = int2date(self.futurecalc_int + addday).strftime("%Y-%m-%d")
             self.cap_num = 0  # 资金初始
-            self.subsidy_num = 0  # 双头补 分 订单和工资两部分
+            self.cap1_num = 0  # 资金初始
+            self.cap2_num = 0  # 资金初始
+            self.subsidy2_num = 0  # 双头补 分 订单和工资两部分
+            self.subsidy1_num = 0  # 双头补 分 关系费和工资两部分
             self.salary_num = 0  # 工资
             self.creater_num = 0  # 创始人结算
             # 1. 当天可用的月嫂列表=已排班的+未排班的
@@ -527,81 +673,128 @@ class FutureShow(object):
             print("    当天月嫂总数量")
             print("    {}".format(sao_today_totalnum))
             # 2. 当天 服务未完成，已排服务列表 = self.sao_today_servicingnum
-            self.order_today_servicingnum = 0
-            self.order_today_delaynum = 0
-            self.order_today_waitingnum = 0
+            self.order_small_today_servicingnum = 0
+            self.order_small_today_waitingnum = 0
+            self.order_small_today_delaynum = 0
+            self.order_big_today_servicingnum = 0
+            self.order_big_today_waitingnum = 0
+            self.order_big_today_delaynum = 0
             # 3. 月嫂已排班记录 = 已排服务列表, 当天 明天和未来的 因为可能有月嫂缺额，未必相等
             self.sao_today_servicingnum = 0
             self.sao_tomorrow_planservicing_num = 0
-            self.sao_future_planservicing_num = 0  # 未来一个等待期后待服务列表 = 对应区间的月嫂数 即 self.order_future_waitinglist
+            self.sao_future_planservicing_num = 0  # 未来一个等待期后待服务列表 = 对应区间的月嫂数 即 self.order_small_future_waitinglist
             # 4. 当天 未排班服务列表
             # 最近空闲列表，未分配 但可能已占位，可用长度要用月嫂总数减去分配长度
             self.sao_tomorrow_freenum = 0
-            self.sao_future_freenum = 0
             # 生成订单统计数据
-            self.order_today_alllist = self.every_status_orders()
-            order_today_length = len(self.order_today_alllist)
+            self.order_small_today_alllist, self.order_big_today_alllist = self.every_status_orders()
+            order_small_today_length = len(self.order_small_today_alllist)
+            order_big_today_length = len(self.order_big_today_alllist)
             sao_today_freenum = sao_today_totalnum - self.sao_today_servicingnum
             self.sao_tomorrow_freenum = self.sao_tomorrow_totalnum - self.sao_tomorrow_planservicing_num
             # 6. 当天 空闲服务列表 直接分配 按日期生成订单号,
-            self.order_today_sale_list = self.every_new_orders(dateid)
+            self.order_small_today_sale_list, self.order_big_today_sale_list = self.every_new_orders(dateid)
             # 7. 更新 跟新订单合并
-            self.order_today_alllist += self.order_today_sale_list
+            self.order_small_today_alllist += self.order_small_today_sale_list
+            self.order_big_today_alllist += self.order_big_today_sale_list
             # 8. 更新明天每单的状态, 同时 输出排班信息，结算
-            self.order_today_alllist = self.every_update_infor()
-            # 9. 更新 月嫂池 订单池 和资金池
+            self.order_small_today_alllist, self.order_big_today_alllist = self.every_update_infor()
+
+            # 9. 当天 非订单开销结算
+            print("    当天平台开销")
+            print("    {}".format(self.datajson["平台开销"]))
+            if len(self.y_2_capital) == 0 or self.y_2_capital[-1] >= self.datajson["平台开销"]:
+                self.cap2_num -= self.datajson["平台开销"]
+            else:
+                print(len(self.y_2_capital))
+                print(self.y_2_capital[-1])
+                print(self.datajson["平台开销"])
+                raise Exception("没有声明散客资金池不足开销的情况")
+            borrow_num = self.get_day_borrow(dateid)
+            print("    当天计划借贷金额")
+            print("    {}".format(borrow_num))
+            if len(self.y_2_capital) == 0 or self.y_2_capital[-1] >= self.datajson["平台开销"] + borrow_num:
+                print("    当天实际借贷金额")
+                print("    {}".format(borrow_num))
+                self.cap2_num -= borrow_num
+            else:
+                print(len(self.y_2_capital))
+                print(self.y_2_capital[-1])
+                print(self.datajson["平台开销"])
+                print(borrow_num)
+                raise Exception("没有声明散客资金池不足借贷的情况")
+            print("    散客资金量扣除开销变化后金额")
+            print("    {}".format(self.cap2_num))
+            # 资金汇总
+            self.cap_num = self.cap1_num + self.cap2_num
             captmp = self.cap_num
             print("    当天订单结算总额：{}".format(captmp))
             self.cap_num += self.datajson["平台通讯费"]
             print("    当天平台通讯费")
             print("    {}".format(self.datajson["平台通讯费"]))
-            self.cap_num -= self.datajson["平台开销"]
-            print("    当天平台开销")
-            print("    {}".format(self.datajson["平台开销"]))
-            borrow_num = self.get_day_borrow(dateid)
-            print("    当天借贷金额")
-            print("    {}".format(borrow_num))
-            self.cap_num -= borrow_num
-            print("    当天资金变化 =  当天订单结算总额 + 当天平台通讯费 + 当天平台开销 + 当天借贷金额")
-            print("    {} = {} + {} + {} + {}".format(self.cap_num, captmp, self.datajson["平台通讯费"],
-                                                      self.datajson["平台开销"], borrow_num))
+            print("    当天资金变化 =  当天订单结算总额 + 当天平台通讯费")
+            print("    {} = {} + {}".format(self.cap_num, captmp, self.datajson["平台通讯费"]))
             self.y_capital_change.append(self.cap_num)  # 每日资金变化
-            self.y_subsidy_change.append(self.subsidy_num)  # 双头补金额
+            self.y_1_capital_change.append(self.cap1_num)  # 每日资金变化
+            self.y_2_capital_change.append(self.cap2_num)  # 每日资金变化
+            self.y_1subsidy_change.append(self.subsidy1_num)  # 双头补金额
+            self.y_2subsidy_change.append(self.subsidy2_num)  # 双头补金额
             self.y_borrow_change.append(borrow_num)  # 借贷资金变化
             self.y_salary_change.append(self.salary_num)  # 原价工资变化
             self.y_creater_change.append(self.creater_num)  # 创始人收益变化
             self.y_sao_free.append(sao_today_freenum)  # 未利用月嫂数 = 未开发订单数
-            self.y_sao_short.append(self.order_today_delaynum)  # 月嫂缺额
+            self.y_sao_short.append(self.order_small_today_delaynum + self.order_big_today_delaynum)  # 月嫂缺额
             self.y_sao_total.append(sao_today_totalnum)  # 月嫂总量
             self.y_sao_servicing.append(self.sao_today_servicingnum)  # 服务中月嫂数 = 服务中订单数
-            self.y_order_total.append(order_today_length)  # 订单总容量 包含待服务的 和 服务中的。不含未开发的
-            self.y_order_waiting.append(self.order_today_waitingnum)  # 待服务订单数
-            self.y_order_delay.append(self.order_today_delaynum)  # 延迟订单数
-            self.y_order_servicing.append(self.order_today_servicingnum)  # 服务中订单数 = 服务中月嫂数
+            self.y_order_small_total.append(order_small_today_length)  # 订单总容量 包含待服务的 和 服务中的。不含未开发的
+            self.y_order_small_waiting.append(self.order_small_today_waitingnum)  # 待服务订单数
+            self.y_order_small_servicing.append(self.order_small_today_servicingnum)  # 服务中订单数 = 服务中月嫂数
+            self.y_order_small_delay.append(self.order_small_today_delaynum)  # 延迟订单数
+            self.y_order_big_total.append(order_big_today_length)  # 订单总容量 包含待服务的 和 服务中的。不含未开发的
+            self.y_order_big_waiting.append(self.order_big_today_waitingnum)  # 待服务订单数
+            self.y_order_big_servicing.append(self.order_big_today_servicingnum)  # 服务中订单数 = 服务中月嫂数
+            self.y_order_big_delay.append(self.order_big_today_delaynum)  # 延迟订单数
+            self.y_order_servicing.append(
+                self.order_small_today_servicingnum + self.order_big_today_servicingnum)  # 订单总容量 包含待服务的 和 服务中的。不含未开发的
+            self.y_order_waiting.append(
+                self.order_small_today_waitingnum + self.order_big_today_waitingnum)  # 订单总容量 包含待服务的 和 服务中的。不含未开发的
+            self.y_order_total.append(order_small_today_length + order_big_today_length)  # 订单总容量 包含待服务的 和 服务中的。不含未开发的
+            self.y_order_delay.append(self.order_small_today_delaynum + self.order_big_today_delaynum)  # 延迟订单数
             self.y_order_free.append(sao_today_freenum)  # 未开发订单数 = 未利用月嫂数
-            # print(len(self.order_today_alllist))
+            # print(len(self.order_small_today_alllist))
             # print("sao_today_totalnum", sao_today_totalnum)
-            # print(self.order_today_waitingnum)
-            # print(self.order_today_servicingnum)
+            # print(self.order_small_today_waitingnum)
+            # print(self.order_small_today_servicingnum)
             # 9. 累计值生成
             # print(self.sao_day_nums)
-            # for dateid, cap in enumerate(self.y_capital_change):  # 资金池 历史累计余额
             if dateid == 0:
-                self.y_capital.append(self.datajson["初始资金"] + self.y_capital_change[0])
-                self.y_subsidy.append(self.y_subsidy_change[0])  # 原价工资
-                self.y_borrow.append(self.datajson["初始借贷"] + self.y_borrow_change[0])  # 借贷累计
-                self.y_salary.append(self.y_salary_change[0])  # 原价工资
-                self.y_creater.append(self.y_creater_change[0])  # 创始人收益
+                self.y_capital.append(self.datajson["初始资金"])
+                self.y_1_capital.append(self.datajson["初始大客户资金"])
+                self.y_2_capital.append(self.datajson["初始散客资金"])
+                self.y_1subsidy.append(self.datajson["初始单头补资金"])  # 双头补金额累计
+                self.y_2subsidy.append(self.datajson["初始双头补资金"])  # 双头补金额累计
+                self.y_salary.append(self.datajson["初始发放工资"])  # 工资累计
+                self.y_creater.append(self.datajson["初始创始人资金"])  # 创始人收益累计
+                self.y_borrow.append(self.datajson["初始借贷"])  # 借贷累计
             else:
                 self.y_capital.append(self.y_capital[-1] + self.y_capital_change[dateid])  # 资金池
-                self.y_subsidy.append(self.y_subsidy[-1] + self.y_subsidy_change[dateid])  # 双头补金额累计
+                self.y_1_capital.append(self.y_1_capital[-1] + self.y_1_capital_change[dateid])
+                self.y_2_capital.append(self.y_2_capital[-1] + self.y_2_capital_change[dateid])
                 self.y_borrow.append(self.y_borrow[-1] + self.y_borrow_change[dateid])  # 借贷累计
+                self.y_1subsidy.append(self.y_1subsidy[-1] + self.y_1subsidy_change[dateid])  # 双头补金额累计
+                self.y_2subsidy.append(self.y_2subsidy[-1] + self.y_2subsidy_change[dateid])  # 双头补金额累计
                 self.y_salary.append(self.y_salary[-1] + self.y_salary_change[dateid])  # 工资累计
                 self.y_creater.append(self.y_creater[-1] + self.y_creater_change[dateid])  # 创始人收益累计
             print("    当天历史资金累计")
             print("    {}".format(self.y_capital[-1]))
-            print("    当天历史双头补资金累计")
-            print("    {}".format(self.y_subsidy[-1]))
+            print("    当天历史大客户资金累计")
+            print("    {}".format(self.y_1_capital[-1]))
+            print("    当天历史散客资金累计")
+            print("    {}".format(self.y_2_capital[-1]))
+            print("    当天历史散客双头补资金累计")
+            print("    {}".format(self.y_2subsidy[-1]))
+            print("    当天历史大客户单头补开销资金累计")
+            print("    {}".format(self.y_1subsidy[-1]))
             print("    当天历史借贷累计")
             print("    {}".format(self.y_borrow[-1]))
             print("    当天历史工资累计")
@@ -625,31 +818,35 @@ def main():
     fs_ins.gene_fakeori_date()
     # 3. 算结果
     fs_ins.gene_full_service()
+    # fs_ins.x_label.insert(0, int2date(-1).strftime("%Y-%m-%d"))
     # exit()
     print("use time is {}s".format(time.time() - stime))
     # 4. 绘图
-    titles = ["月嫂总量", "服务中月嫂数", "月嫂缺额数", "未利用月嫂数",
-              "资金池累计", "双头补金额累积", "工资累积", "创始人收益累积",
-              "订单总容量", "待服务订单数", "服务中订单数", "延迟订单数", "未开发订单数"]
-    ys = [np.array(fs_ins.y_sao_total) / max(fs_ins.y_sao_total),
-          np.array(fs_ins.y_sao_servicing) / max(fs_ins.y_sao_servicing),
-          np.array(fs_ins.y_sao_short) / max(fs_ins.y_sao_short),
-          np.array(fs_ins.y_sao_free) / max(fs_ins.y_sao_free),
-          np.array(fs_ins.y_capital) / max(fs_ins.y_capital),
-          np.array(fs_ins.y_subsidy) / max(fs_ins.y_subsidy),
-          np.array(fs_ins.y_salary) / max(fs_ins.y_salary),
-          np.array(fs_ins.y_creater) / max(fs_ins.y_creater),
-          np.array(fs_ins.y_order_total) / max(fs_ins.y_order_total),
-          np.array(fs_ins.y_order_waiting) / max(fs_ins.y_order_waiting),
-          np.array(fs_ins.y_order_servicing) / max(fs_ins.y_order_servicing),
-          np.array(fs_ins.y_order_delay) / max(fs_ins.y_order_delay),
-          np.array(fs_ins.y_order_free) / max(fs_ins.y_order_free),
-          ]
-    plot_curve(fs_ins.x_label, ys, titles)
+    # titles = ["月嫂总量", "服务中月嫂数", "月嫂缺额数", "未利用月嫂数",
+    #           "总资金池累计", "散单资金池累计", "大客户资金池累计", "双头补金额累积", "单头补金额累积", "工资累积", "创始人收益累积",
+    #           "订单总容量", "订单散客容量", "订单大客户容量", "待服务订单数", "服务中订单数", "延迟订单数", "未开发订单数"]
+    # ys = [np.array(fs_ins.y_sao_total) / max(fs_ins.y_sao_total),
+    #       np.array(fs_ins.y_sao_servicing) / max(fs_ins.y_sao_servicing),
+    #       np.array(fs_ins.y_sao_short) / max(fs_ins.y_sao_short),
+    #       np.array(fs_ins.y_sao_free) / max(fs_ins.y_sao_free),
+    #       np.array(fs_ins.y_capital) / max(fs_ins.y_capital),
+    #       np.array(fs_ins.y_2_capital) / max(fs_ins.y_2_capital),
+    #       np.array(fs_ins.y_1_capital) / max(fs_ins.y_1_capital),
+    #       np.array(fs_ins.y_2subsidy) / max(fs_ins.y_2subsidy),
+    #       np.array(fs_ins.y_1subsidy) / max(fs_ins.y_1subsidy),
+    #       np.array(fs_ins.y_salary) / max(fs_ins.y_salary),
+    #       np.array(fs_ins.y_creater) / max(fs_ins.y_creater),
+    #       np.array(fs_ins.y_order_small_total) / max(fs_ins.y_order_small_total),
+    #       np.array(fs_ins.y_order_small_waiting) / max(fs_ins.y_order_small_waiting),
+    #       np.array(fs_ins.y_order_small_servicing) / max(fs_ins.y_order_small_servicing),
+    #       np.array(fs_ins.y_order_delay) / max(fs_ins.y_order_delay),
+    #       np.array(fs_ins.y_order_free) / max(fs_ins.y_order_free),
+    #       ]
+    # plot_curve(fs_ins.x_label, ys, titles)
     # bar3dplot([fs_ins.x_label, titles, list(itertools.chain(*ys))])
     # exit()
     titles = ["工资价格", "订单价格"]
-    ys = [fs_ins.salary_price_day, fs_ins.order_price_day]
+    ys = [fs_ins.salary_price_day, fs_ins.order_small_price_day]
     plot_curve(fs_ins.x_label, ys, titles)
 
     titles = ["月嫂总量", "服务中月嫂数", "月嫂缺额数", "未利用月嫂数"]
@@ -659,25 +856,40 @@ def main():
     # print(fs_ins.y_capital_change)
     # print(fs_ins.y_salary_change)
     # print(fs_ins.y_creater_change)
-    titles = ["资金池增量", "双头补金额增量", "借贷增量", "工资增量", "创始人收益增量"]
-    ys = [fs_ins.y_capital_change, fs_ins.y_subsidy_change, fs_ins.y_borrow_change, fs_ins.y_salary_change,
-          fs_ins.y_creater_change]
+    titles = ["总资金池增量", "大客户资金池增量", "散单资金池增量", "双头补金额增量", "单补金额增量", "借贷增量", "工资增量", "创始人收益增量"]
+    ys = [fs_ins.y_capital_change, fs_ins.y_1_capital_change, fs_ins.y_2_capital_change, fs_ins.y_2subsidy_change,
+          fs_ins.y_1subsidy_change, fs_ins.y_borrow_change, fs_ins.y_salary_change, fs_ins.y_creater_change]
     plot_curve(fs_ins.x_label, ys, titles)
     # print(fs_ins.y_capital)
     # print(fs_ins.y_salary)
     # print(fs_ins.y_creater)
-    titles = ["资金池累计", "双头补金额累积", "借贷累计", "工资累积", "创始人收益累积"]
-    ys = [fs_ins.y_capital, fs_ins.y_subsidy, fs_ins.y_borrow, fs_ins.y_salary, fs_ins.y_creater]
+    # titles = ["总资金池累计", "大客户资金池累计", "散单资金池累计", "双头补金额累积", "单头补金额累积", "借贷累计", "工资累积", "创始人收益累积"]
+    # ys = [fs_ins.y_capital, fs_ins.y_1_capital, fs_ins.y_2_capital, fs_ins.y_2subsidy, fs_ins.y_1subsidy,
+    #       fs_ins.y_borrow, fs_ins.y_salary, fs_ins.y_creater]
+    titles = ["总资金池累计", "大客户资金池累计", "散单资金池累计", "双头补金额累积", "单头补金额累积", "借贷累计", "创始人收益累积"]
+    ys = [fs_ins.y_capital, fs_ins.y_1_capital, fs_ins.y_2_capital, fs_ins.y_2subsidy, fs_ins.y_1subsidy,
+          fs_ins.y_borrow, fs_ins.y_creater]
     plot_curve(fs_ins.x_label, ys, titles)
-    # print(fs_ins.y_order_total)
-    # print(fs_ins.y_order_waiting)
-    # print(fs_ins.y_order_servicing)
+    # print(fs_ins.y_order_small_total)
+    # print(fs_ins.y_order_small_waiting)
+    # print(fs_ins.y_order_small_servicing)
     # print(fs_ins.y_order_free)
     # # ind = [i1 for i1 in range(len(fs_ins.y_order_free))]
     # # print([i1 for i1 in zip(ind, fs_ins.y_order_free)])
-    titles = ["订单总容量", "待服务订单数", "服务中订单数", "延迟订单数", "未开发订单数"]
-    ys = [fs_ins.y_order_total, fs_ins.y_order_waiting, fs_ins.y_order_servicing, fs_ins.y_order_delay,
-          fs_ins.y_order_free]
+    # titles = ["订单总容量", "订单散单容量", "订单大客户容量", "待服务总订单数", "待服务散客订单数", "待服务大客户订单数",
+    #           "服务中总订单数", "服务中散客订单数", "服务中大客户订单数", "大客户延迟订单数", "散客延迟订单数", "总延迟订单数", "未开发订单数"]
+    # ys = [fs_ins.y_order_total, fs_ins.y_order_small_total, fs_ins.y_order_big_total,
+    #       fs_ins.y_order_waiting, fs_ins.y_order_small_waiting, fs_ins.y_order_big_waiting,
+    #       fs_ins.y_order_servicing, fs_ins.y_order_small_servicing, fs_ins.y_order_big_servicing,
+    #       fs_ins.y_order_big_delay, fs_ins.y_order_small_delay, fs_ins.y_order_delay,
+    #       fs_ins.y_order_free]
+    titles = ["订单总容量", "订单散单容量", "订单大客户容量", "待服务总订单数", "待服务散客订单数", "待服务大客户订单数"]
+    ys = [fs_ins.y_order_total, fs_ins.y_order_small_total, fs_ins.y_order_big_total,
+          fs_ins.y_order_waiting, fs_ins.y_order_small_waiting, fs_ins.y_order_big_waiting,
+          fs_ins.y_order_servicing, fs_ins.y_order_small_servicing, fs_ins.y_order_big_servicing]
+    titles = ["服务中总订单数", "服务中散客订单数", "服务中大客户订单数", "大客户延迟订单数", "散客延迟订单数", "总延迟订单数", "未开发订单数"]
+    ys = [fs_ins.y_order_servicing, fs_ins.y_order_small_servicing, fs_ins.y_order_big_servicing,
+          fs_ins.y_order_big_delay, fs_ins.y_order_small_delay, fs_ins.y_order_delay, fs_ins.y_order_free]
     plot_curve(fs_ins.x_label, ys, titles)
 
 

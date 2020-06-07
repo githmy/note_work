@@ -219,12 +219,12 @@ class FutureShow(object):
             "服务逾期补偿": [0.25, 3],  # 给客户 3倍的活期利率 或 25%延时服务
         }
         print("初始参数：{}".format(self.datajson))
-        self.datajson["订单价格"] = self.datajson["原价订单"] * self.datajson["订单折扣"]
-        self.datajson["实际工资"] = self.datajson["原价工资"] * self.datajson["工资折扣"]
-        print("订单价格 = 原价订单 × 订单折扣")
-        print("{} = {} × {}".format(self.datajson["订单价格"], self.datajson["原价订单"], self.datajson["订单折扣"]))
-        print("实际工资 = 原价工资 × 工资折扣")
-        print("{} = {} × {}".format(self.datajson["实际工资"], self.datajson["原价工资"], self.datajson["工资折扣"]))
+        # self.datajson["订单价格"] = self.datajson["原价订单"] * self.datajson["订单折扣"]
+        # self.datajson["实际工资"] = self.datajson["原价工资"] * self.datajson["工资折扣"]
+        # print("订单价格 = 原价订单 × 订单折扣")
+        # print("{} = {} × {}".format(self.datajson["订单价格"], self.datajson["原价订单"], self.datajson["订单折扣"]))
+        # print("实际工资 = 原价工资 × 工资折扣")
+        # print("{} = {} × {}".format(self.datajson["实际工资"], self.datajson["原价工资"], self.datajson["工资折扣"]))
 
     def gene_fakeori_date(self):
         # 1. 当天的月嫂数，如果月嫂在服务期，没有备用月嫂不能减少。即消单才退。
@@ -245,14 +245,16 @@ class FutureShow(object):
         for i1 in self.vocation_list:
             tn = datediff(int2date(0).strftime("%Y-%m-%d"), i1[0])
             self.sao_day_nums[tn] -= i1[1]
-        # 1. 月嫂id表
+        # 2. 折扣变动
         nday = 90
         change_every = (1 - self.datajson["订单折扣"]) / nday
         self.order_discount_day = [1 for _ in range(self.datajson["总时长"])]
         self.order_discount_day[0:nday] = [self.datajson["订单折扣"] + i1 * change_every for i1 in range(nday)]
+        self.order_price_day = np.array(self.order_discount_day) * self.datajson["原价订单"]
         change_every = (1 - self.datajson["工资折扣"]) / nday
         self.salary_discount_day = [1 for _ in range(self.datajson["总时长"])]
         self.salary_discount_day[0:nday] = [self.datajson["工资折扣"] + i1 * change_every for i1 in range(nday)]
+        self.salary_price_day = np.array(self.salary_discount_day) * self.datajson["原价工资"]
         # 4. 服务未关闭，订单列表，包含 待服务 服务中 待结算"status": "servicing,waiting,calc"
         self.order_pass_list = []
         # 5. 资金借贷列表
@@ -310,36 +312,36 @@ class FutureShow(object):
                 # 如果明天超时，结算
                 if order["calcdate"] < order["start"]:
                     # 结算取消订单
-                    self.cap_num -= self.datajson["订单价格"] + self.datajson["订单保证金"]
+                    self.cap_num -= order["orderprice"] + self.datajson["订单保证金"]
                     self.creater_num += self.datajson["订单保证金"]
-                    self.subsidy_num -= self.datajson["原价订单"] * (1 - self.datajson["订单折扣"])
+                    self.subsidy_num -= self.datajson["原价订单"] - order["orderprice"]
                     print("        取消订单结算")
-                    print("        本单工资发放 = {}".format(self.datajson["实际工资"]))
-                    print("        本单双头补订单部分退回 = 原价订单 * (1-订单折扣)")
-                    print("        {} = {} * ( 1 - {} )".format(self.datajson["原价订单"] * (1 - self.datajson["订单折扣"]),
-                                                                self.datajson["原价订单"], self.datajson["订单折扣"]))
+                    print("        本单工资发放 = {}".format(order["salaryprice"]))
+                    print("        本单双头补订单部分退回 = 原价订单 - 订单价格")
+                    print("        {} = {} - {} )".format(self.datajson["原价订单"] - order["orderprice"],
+                                                          self.datajson["原价订单"], order["orderprice"]))
                     print("        本单平台结算金额 = 订单价格 + 订单保证金")
-                    print("        {} = {} + {}".format(self.datajson["订单价格"] + self.datajson["订单保证金"],
-                                                        self.datajson["订单价格"], self.datajson["订单保证金"]))
+                    print("        {} = {} + {}".format(order["orderprice"] + self.datajson["订单保证金"],
+                                                        order["orderprice"], self.datajson["订单保证金"]))
                 else:
-                    self.cap_num -= self.datajson["实际工资"] + \
+                    self.cap_num -= order["salaryprice"] + \
                                     self.datajson["原价订单"] * self.datajson["订单提成"] + self.datajson["订单保证金"]
-                    self.subsidy_num += self.datajson["原价工资"] * (self.datajson["工资折扣"] - 1)
-                    self.salary_num += self.datajson["实际工资"]
+                    self.subsidy_num += order["salaryprice"] - self.datajson["原价工资"]
+                    self.salary_num += order["salaryprice"]
                     self.creater_num += self.datajson["原价订单"] * self.datajson["订单提成"] + self.datajson["订单保证金"]
                     print("        正常订单结算")
-                    print("        本单工资发放 = {}".format(self.datajson["实际工资"]))
-                    print("        本单双头补工资部分 = 原价工资 * (工资折扣 - 1)")
-                    print("        {} = {} * ( {} - 1 )".format(self.datajson["原价工资"] * (self.datajson["工资折扣"] - 1),
-                                                                self.datajson["原价工资"], self.datajson["工资折扣"]))
+                    print("        本单工资发放 = {}".format(order["salaryprice"]))
+                    print("        本单双头补工资部分 = 实际工资 - 原价工资")
+                    print("        {} = {} - {} )".format(order["salaryprice"] - self.datajson["原价工资"],
+                                                          order["salaryprice"], self.datajson["原价工资"]))
                     print("        本单创始人金额 = 原价订单 * 订单提成 + 订单保证金")
                     print("        {} = {} * {} + {}".format(
                         self.datajson["原价订单"] * self.datajson["订单提成"] + self.datajson["订单保证金"],
                         self.datajson["原价订单"], self.datajson["订单提成"], self.datajson["订单保证金"]))
                     print("        平台结算金额 = 实际工资 + 原价订单 * 订单提成 + 订单保证金")
-                    print("        {} = {} + {} * {} + {}".format(self.datajson["实际工资"] + self.datajson["原价订单"] *
+                    print("        {} = {} + {} * {} + {}".format(order["salaryprice"] + self.datajson["原价订单"] *
                                                                   self.datajson["订单提成"] + self.datajson["订单保证金"],
-                                                                  self.datajson["实际工资"], self.datajson["原价订单"],
+                                                                  order["salaryprice"], self.datajson["原价订单"],
                                                                   self.datajson["订单提成"], self.datajson["订单保证金"]
                                                                   ))
                 order["status"] = "done"
@@ -404,21 +406,26 @@ class FutureShow(object):
                                            "end": int2date(shiftsend[idn]).strftime("%Y-%m-%d"),
                                            "calcdate": int2date(shiftscalc[idn]).strftime("%Y-%m-%d"),
                                            "saoid": "",
+                                           "orderprice": self.order_price_day[dateid],
+                                           "salaryprice": self.salary_price_day[dateid],
                                            "status": "waiting"} for idn in range(self.sao_future_freenum)
                                           if idn < sale_final]
             print("    生成随机服务日期变更的订单，变更超出费率区间表的直接设为取消")
             # 6.2. 模拟原始售出资金变动，未来变更，在排班服务时修正
-            self.cap_num += (self.datajson["订单价格"] + self.datajson["月嫂使用费"] + self.datajson[
+
+            self.cap_num += (self.order_price_day[dateid] + self.datajson["月嫂使用费"] + self.datajson[
                 "订单保证金"]) * sale_final
-            self.subsidy_num += (self.datajson["原价订单"] * (1 - self.datajson["订单折扣"])) * sale_final
+            self.subsidy_num += (self.datajson["原价订单"] * (1 - self.order_discount_day[dateid])) * sale_final
             self.creater_num -= self.datajson["订单保证金"] * sale_final
             print("    当天订单出售金额 = ( 订单价格 + 月嫂使用费 + 订单保证金) * 售出数量")
-            print("    {} = ( {} + {} + {} ) * {}".format(self.cap_num, self.datajson["订单价格"], self.datajson["月嫂使用费"],
+            print("    {} = ( {} + {} + {} ) * {}".format(self.cap_num, self.order_price_day[dateid], self.datajson["月嫂使用费"],
                                                           self.datajson["订单保证金"], sale_final))
             print("    当天双头补订单部分 = 原价订单 * ( 1 - 订单折扣 ) * 售出数量")
-            print("    {} = {} * ( 1 - {} ) * {}".format((self.datajson["原价订单"] * (1 - self.datajson["订单折扣"])) *
-                                                         sale_final, self.datajson["原价订单"], self.datajson["订单折扣"],
-                                                         sale_final))
+            print(
+                "    {} = {} * ( 1 - {} ) * {}".format((self.datajson["原价订单"] * (1 - self.order_discount_day[dateid])) *
+                                                       sale_final, self.datajson["原价订单"],
+                                                       self.order_discount_day[dateid],
+                                                       sale_final))
             print("    当天创始人订单保证金额= 订单保证金 * 售出数量")
             print("    {} = {} * {}".format(self.datajson["订单保证金"] * sale_final, self.datajson["订单保证金"], sale_final))
         return self.order_today_sale_list
@@ -438,13 +445,13 @@ class FutureShow(object):
                     diffdays = datediff(order["oristart"], order["start"])
                     for fee in self.datajson["变更服务费率"]:
                         if diffdays <= fee[0][1] and diffdays >= fee[0][0]:
-                            self.cap_num += fee[1] * self.datajson["订单价格"]
+                            self.cap_num += fee[1] * order["orderprice"]
                             print("        订单变更信息，原始服务起始日期, 实际服务起始日期")
                             print("                    {}, {}".format(order["oristart"], order["start"]))
                             print("        变更服务费率区间，上限日期, 下限日期, 征收金额=订单价格*对应费率")
                             print("                        {}, {}, {} = {} * {}".format(fee[0][0], fee[0][1],
-                                                                                        fee[1] * self.datajson["订单价格"],
-                                                                                        self.datajson["订单价格"], fee[1]))
+                                                                                        fee[1] * order["orderprice"],
+                                                                                        order["orderprice"], fee[1]))
                             break
                 if order["start"] <= self.today_date and order["end"] >= self.today_date and order["saoid"] == "":
                     self.order_today_delaynum += 1
@@ -641,6 +648,9 @@ def main():
     plot_curve(fs_ins.x_label, ys, titles)
     # bar3dplot([fs_ins.x_label, titles, list(itertools.chain(*ys))])
     # exit()
+    titles = ["工资价格", "订单价格"]
+    ys = [fs_ins.salary_price_day, fs_ins.order_price_day]
+    plot_curve(fs_ins.x_label, ys, titles)
 
     titles = ["月嫂总量", "服务中月嫂数", "月嫂缺额数", "未利用月嫂数"]
     ys = [fs_ins.y_sao_total, fs_ins.y_sao_servicing, fs_ins.y_sao_short, fs_ins.y_sao_free]

@@ -80,6 +80,8 @@ def test_networkx(fall_list=["数的整除", "比和比例"]):
     #     # print(2)
     #     # print(res)
     # nx.draw(G, pos=nx.random_layout(G), node_color='b', edge_color='r', with_labels=True, font_size=18, node_size=20)
+    # nx.draw(G1, pos, node_color='b', edge_color='#000000', font_color='y', linewidths=1, style="dashdot",
+    #         alpha=0.9, font_size=15, node_size=500, with_labels=True)
     # lists = [("无理数", "实数", 500), ('有理数', "实数", 3.0)]
     # G.add_weighted_edges_from(lists)
     # node

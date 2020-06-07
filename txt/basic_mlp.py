@@ -115,6 +115,7 @@ def plot_curve(x, ys, titles):
     # plt.grid(b=True)
     plt.show()
 
+
 def bar3dplot(data):
     # titles = ["月嫂总量", "资金池累计", "订单总容量"]
     # ys = [np.array(fs_ins.y_sao_total) / max(fs_ins.y_sao_total), np.array(fs_ins.y_capital) / max(fs_ins.y_capital),
@@ -170,7 +171,6 @@ def bar3dplot(data):
     plt.show()
 
 
-
 # plot_single(ts['2014-01-01':'2015-12-31'], 20, title='test_org')
 # 股票均值
 def plot_line_stock(ts, w, title='time_sequence'):
@@ -193,6 +193,8 @@ def plot_line_stock(ts, w, title='time_sequence'):
     # plt.grid(True, axis='both')
     # plt.show()
     # plt.savefig('./PDF/' + title + '.pdf', format='pdf')
+    # plt.savefig("../123.eps", dpi=600,format='eps')
+    # plt.savefig("../123.svg", dpi=600,format='svg')
 
     a = [0, 0, 0, 0]
     for i in Close:
