@@ -9,6 +9,14 @@ import pandas as pd
 matplotlib.rcParams['font.sans-serif'] = ['SimHei']
 matplotlib.rcParams['font.family'] = 'sans-serif'
 import neo4j
+# https://www.osgeo.cn/networkx/tutorial.html
+
+from matplotlib.font_manager import *
+
+# 定义自定义字体，文件名从1.b查看系统中文字体中来
+myfont = FontProperties(fname='/usr/share/fonts/truetype/wqy/wqy-zenhei.ttc')
+# 解决负号'-'显示为方块的问题
+matplotlib.rcParams['axes.unicode_minus'] = False
 
 
 def test_neo4j(tx):
@@ -190,6 +198,12 @@ def 绘图方式():
         res = pdobj[(pdobj["subject"] == a) & (pdobj["object"] == b)]
         return res["value"].values[0]
 
+    # 修改颜色1
+    # valn_map = {node: "#ff0000" for node in gpath}
+    # node_values = [valn_map.get(node, "#0000ff") for node in G.nodes()]
+    # vale_map = {(gpath[idn], gpath[idn + 1]): "#ff0000" for idn in range(len(gpath) - 1)}
+    # edge_values = [vale_map.get(edge, '#0000ff') for edge in G.edges()]
+    # 修改颜色2
     node_colors = [val_map.get(node, "#000000") for node in G.nodes()]
     edge_colors = [map_colors(a, b) for a, b in G.edges()]
     # 画图
@@ -491,8 +505,88 @@ def rdf_build():
     nx.has_path(G,source,target)
     """
 
+def 图矩阵():
+    " 图相关矩阵 "
+    # 定义图的节点和边
+    nodes = ['0', '1', '2', '3', '4', '5', 'a', 'b', 'c']
+    edges = [('0', '0', 1), ('0', '1', 1), ('0', '5', 1), ('0', '5', 2), ('1', '2', 3), ('1', '4', 5), ('2', '1', 7),
+             ('2', '4', 6), ('a', 'b', 0.5), ('b', 'c', 0.5), ('c', 'a', 0.5)]
+
+    plt.subplots(1, 2, figsize=(10, 3))
+
+    # 定义一个无向图和有向图
+    G1 = nx.Graph()
+    G1.add_nodes_from(nodes)
+    G1.add_weighted_edges_from(edges)
+
+    G2 = nx.DiGraph()
+    G2.add_nodes_from(nodes)
+    G2.add_weighted_edges_from(edges)
+
+    pos1 = nx.circular_layout(G1)
+    pos2 = nx.circular_layout(G2)
+
+    # 画出无向图和有向图
+    plt.subplot(121)
+    nx.draw(G1, pos1, with_labels=True, font_weight='bold')
+    plt.title('无向图', fontproperties=myfont)
+    plt.axis('on')
+    plt.xticks([])
+    plt.yticks([])
+
+    plt.subplot(122)
+    nx.draw(G2, pos2, with_labels=True, font_weight='bold')
+    plt.title('有向图', fontproperties=myfont)
+    plt.axis('on')
+    plt.xticks([])
+    plt.yticks([])
+
+    plt.show()
+
+    # 控制numpy输出小数位数
+    import numpy as np
+
+    np.set_printoptions(precision=3)
+
+    # 邻接矩阵 点点是否连接的0 1 矩阵
+    A = nx.adjacency_matrix(G1)
+    print('邻接矩阵:\n', A.todense())
+
+    # 关联矩阵 点边是否关联 的 0无关 1起点 -1终点 矩阵
+    I = nx.incidence_matrix(G1)
+    print('\n关联矩阵:\n', I.todense())
+
+    # 拉普拉斯矩阵
+    L = nx.laplacian_matrix(G1)
+    print('\n拉普拉斯矩阵:\n', L.todense())
+
+    # 标准化的拉普拉斯矩阵
+    NL = nx.normalized_laplacian_matrix(G1)
+    print('\n标准化的拉普拉斯矩阵:\n', NL.todense())
+
+    # 有向图拉普拉斯矩阵
+    DL = nx.directed_laplacian_matrix(G2)
+    print('\n有向拉普拉斯矩阵:\n', DL)
+
+    # 拉普拉斯算子的特征值
+    LS = nx.laplacian_spectrum(G1)
+    print('\n拉普拉斯算子的特征值:\n', LS)
+
+    # 邻接矩阵的特征值
+    AS = nx.adjacency_spectrum(G1)
+    print('\n邻接矩阵的特征值:\n', AS)
+
+    # 无向图的代数连通性
+    AC = nx.algebraic_connectivity(G1)
+    print('\n无向图的代数连通性:\n', AC)
+
+    # 图的光谱排序
+    SO = nx.spectral_ordering(G1)
+    print('\n图的光谱排序:\n', SO)
+
 
 def 最短路径():
+    " 两点之间的最优解 "
     # dijkstra_path(G, source, target, weight='weight')             ————求最短路径
     # dijkstra_path_length(G, source, target, weight='weight')      ————求最短距离
     import networkx as nx
@@ -544,8 +638,235 @@ def 最短路径():
     distance = nx.dijkstra_path_length(G, source=7, target=0)
     print('节点7到0的距离为：', distance)
 
+    glenth = nx.shortest_path_length(G, "已知", "求证", weight='rel')
+    print('节点 已知 求证 的距离为：', glenth)
+
+    path = nx.all_pairs_shortest_path(G)
+    print('求无向图的任意两点间的最短路径：', path[0])
+
+def 最短路径2():
+    " 两点之间的最优解 "
+    G = nx.path_graph(5)
+    nx.add_path(G, [0, 5, 2])
+    nx.add_path(G, [0, 6, 4])
+    # 显示graph
+    nx.draw(G, with_labels=True)
+    plt.title('有x向图', fontproperties="myfont")
+    plt.axis('on')
+    plt.xticks([])
+    plt.yticks([])
+    plt.show()
+
+    # 一、计算最短路径
+    # 1. 无向图和有向图
+    print('0节点到4节点最短路径: ', nx.shortest_path(G, source=0, target=4))
+    p1 = nx.shortest_path(G, source=0)
+    print('0节点到所有节点最短路径: ', p1)
+
+    # 计算图中所有的最短路径
+    print('计算图中节点0到节点2的所有最短路径: ', [p for p in nx.all_shortest_paths(G, source=0, target=2)])
+
+    # 计算最短路径长度
+    p2 = nx.shortest_path_length(G, source=0, target=2)  # 最短路径长度
+    p3 = nx.average_shortest_path_length(G)  # 计算平均最短路径长度
+    print('节点0到节点2的最短路径长度:', p2, ' 平均最短路径长度: ', p3)
+
+    # 检测是否有路径
+    print('检测节点0到节点2是否有路径', nx.has_path(G, 0, 2))
+
+    # 直接输出路径和长度
+    print(nx.astar_path(G, 0, 4))
+    print(nx.astar_path_length(G, 0, 4))
+
+    # 2. 无权图
+    G = nx.path_graph(3)
+    nx.draw(G, with_labels=True)
+    plt.title('无权图', fontproperties=myfont)
+    plt.axis('on')
+    plt.xticks([])
+    plt.yticks([])
+    plt.show()
+
+    path1 = nx.single_source_shortest_path(G, 0)  # 计算当前源与所有可达节点的最短路径
+    length1 = nx.single_source_shortest_path_length(G, 0)  # 计算当前源与所有可达节点的最短路径的长度
+    path2 = dict(nx.all_pairs_shortest_path(G))  # 计算graph两两节点之间的最短路径
+    length2 = dict(nx.all_pairs_shortest_path_length(G))  # 计算graph两两节点之间的最短路径的长度
+    prede1 = nx.predecessor(G, 0)  # 返回G中从源到所有节点最短路径的前驱
+
+    print('当前源与所有可达节点的最短路径: ', path1, '\n当前源与所有可达节点的最短路径的长度: ', length1)
+    print('\ngraph两两节点之间的最短路径: ', path2, '\ngraph两两节点之间的最短路径的长度: ', length2)
+    print('\nG中从源到所有节点最短路径的前驱: ', prede1)
+
+    # 3. 有权图(迪杰斯特拉)
+    G = nx.path_graph(5, create_using=nx.DiGraph())
+    nx.draw(G, with_labels=True)
+    plt.title('有向图', fontproperties=myfont)
+    plt.axis('on')
+    plt.xticks([])
+    plt.yticks([])
+    plt.show()
+
+    # 计算加权图最短路径长度和前驱
+    pred, dist = nx.dijkstra_predecessor_and_distance(G, 0)
+    print('\n加权图最短路径长度和前驱: ', pred, dist)
+
+    # 返回G中从源到目标的最短加权路径,要求边权重必须为数值
+    print('\nG中从源0到目标4的最短加权路径: ', nx.dijkstra_path(G, 0, 4))
+    print('\nG中从源0到目标4的最短加权路径的长度: ', nx.dijkstra_path_length(G, 0, 4))  # 最短路径长度
+
+    # 单源节点最短加权路径和长度。
+    length1, path1 = nx.single_source_dijkstra(G, 0)
+    print('\n单源节点最短加权路径和长度: ', length1, path1)
+    # 下面两条和是前面的分解
+    # path2=nx.single_source_dijkstra_path(G,0)
+    # length2 = nx.single_source_dijkstra_path_length(G, 0)
+    # print(length1,'$', path1,'$',length2,'$',path2)
+
+    # 多源节点最短加权路径和长度。
+    path1 = nx.multi_source_dijkstra_path(G, {0, 4})
+    length1 = nx.multi_source_dijkstra_path_length(G, {0, 4})
+
+    print('\n多源节点最短加权路径和长度:', path1, length1)
+
+    # 两两节点之间最短加权路径和长度。
+    path1 = dict(nx.all_pairs_dijkstra_path(G))
+    length1 = dict(nx.all_pairs_dijkstra_path_length(G))
+    print('\n两两节点之间最短加权路径和长度: ', path1, length1)
+
+    # 双向搜索的迪杰斯特拉
+    length, path = nx.bidirectional_dijkstra(G, 0, 4)
+    print('\n双向搜索的迪杰斯特拉:', length, path)
+
+    # 4. 贝尔曼-福特(Bellman-Ford)算法
+    G = nx.path_graph(5, create_using=nx.DiGraph())
+    nx.draw(G, with_labels=True)
+    plt.title('有权图', fontproperties=myfont)
+    plt.axis('on')
+    plt.xticks([])
+    plt.yticks([])
+    plt.show()
+
+    print('G中从源到目标的最短加权路径: ', nx.bellman_ford_path(G, 0, 4))
+    print('\nG中从源到目标的最短加权路径的长度:', nx.bellman_ford_path_length(G, 0, 4))
+
+    path1 = nx.single_source_bellman_ford_path(G, 0)
+    length1 = dict(nx.single_source_bellman_ford_path_length(G, 0))
+    print('\n单源节点最短加权路径和长度: ', path1, '\n单源节点最短加权路径和长度: ', length1)
+
+    path2 = dict(nx.all_pairs_bellman_ford_path(G))
+    length2 = dict(nx.all_pairs_bellman_ford_path_length(G))
+    print('\n两两节点之间最短加权路径和长度: ', path2, length2)
+
+    length, path = nx.single_source_bellman_ford(G, 0)
+    pred, dist = nx.bellman_ford_predecessor_and_distance(G, 0)
+    print('\n加权图最短路径长度和前驱: ', pred, dist)
+
+    # 5. 检测负权重边
+    G = nx.cycle_graph(5, create_using=nx.DiGraph())
+    # 添加负权重边前后
+    print(nx.negative_edge_cycle(G))
+    G[1][2]['weight'] = -7
+    print(nx.negative_edge_cycle(G))
+
+    # 6. 使用约翰逊(Johnson)的算法
+    # 生成graph
+    G = nx.DiGraph()
+    G.add_weighted_edges_from([('0', '3', 3), ('0', '1', -5), ('0', '2', 2), ('1', '2', 4), ('2', '3', 1)])
+
+    # 边和节点信息
+    edge_labels = nx.get_edge_attributes(G, 'weight')
+    labels = {'0': '0', '1': '1', '2': '2', '3': '3'}
+
+    # 生成节点位置
+    pos = nx.spring_layout(G)
+
+    # 把节点画出来
+    nx.draw_networkx_nodes(G, pos, node_color='g', node_size=500, alpha=0.8)
+
+    # 把边画出来
+    nx.draw_networkx_edges(G, pos, width=1.0, alpha=0.5, edge_color='b')
+
+    # 把节点的标签画出来
+    nx.draw_networkx_labels(G, pos, labels, font_size=16)
+
+    # 把边权重画出来
+    nx.draw_networkx_edge_labels(G, pos, edge_labels)
+
+    # 显示graph
+    plt.title('有权图', fontproperties=myfont)
+    plt.axis('on')
+    plt.xticks([])
+    plt.yticks([])
+    plt.show()
+
+    # 使用johnson算法计算最短路径
+    paths = nx.johnson(G, weight='weight')
+    print(paths)
+
+    # 7. 弗洛伊德算法(Floyd-Warshall)
+    # 使用Floyd算法找到所有对最短路径长度。
+    G = nx.DiGraph()
+    G.add_weighted_edges_from([('0', '3', 3), ('0', '1', -5), ('0', '2', 2), ('1', '2', 4), ('2', '3', 1)])
+
+    # 边和节点信息
+    edge_labels = nx.get_edge_attributes(G, 'weight')
+    labels = {'0': '0', '1': '1', '2': '2', '3': '3'}
+
+    # 生成节点位置
+    pos = nx.spring_layout(G)
+
+    # 把节点画出来
+    nx.draw_networkx_nodes(G, pos, node_color='g', node_size=500, alpha=0.8)
+
+    # 把边画出来
+    nx.draw_networkx_edges(G, pos, width=1.0, alpha=0.5, edge_color='b')
+
+    # 把节点的标签画出来
+    nx.draw_networkx_labels(G, pos, labels, font_size=16)
+
+    # 把边权重画出来
+    nx.draw_networkx_edge_labels(G, pos, edge_labels)
+
+    # 显示graph
+    plt.title('有权图', fontproperties=myfont)
+    plt.axis('on')
+    plt.xticks([])
+    plt.yticks([])
+    plt.show()
+
+    # 计算最短路径长度
+    lenght = nx.floyd_warshall(G, weight='weight')
+
+    # 计算最短路径上的前驱与路径长度
+    predecessor, distance1 = nx.floyd_warshall_predecessor_and_distance(G, weight='weight')
+
+    # 计算两两节点之间的最短距离,并以numpy矩阵形式返回
+    distance2 = nx.floyd_warshall_numpy(G, weight='weight')
+
+    print(list(lenght))
+    print(predecessor)
+    print(list(distance1))
+    print(distance2)
+
+    # 8. A*算法
+    G = nx.path_graph(5)
+
+    # 显示graph
+    nx.draw(G, with_labels=True)
+    plt.title('有x向图', fontproperties=myfont)
+    plt.axis('on')
+    plt.xticks([])
+    plt.yticks([])
+    plt.show()
+
+    # 直接输出路径和长度
+    print(nx.astar_path(G, 0, 4))
+    print(nx.astar_path_length(G, 0, 4))
+
 
 def 最小生成树():
+    " 有权图，连接所有点的权重最小 "
+
     def prim(G, s):
         dist = {}  # dist记录到节点的最小距离
         parent = {}  # parent记录最小生成树的双亲表
@@ -607,6 +928,59 @@ def 最小生成树():
     draw(mtg)
 
 
+def 最小最大生成树问题():
+    " 有权图，连接所有点的权重最小 "
+    # 0. 生成graph
+    G.clear()
+    G = nx.Graph()
+    G.add_weighted_edges_from(
+        [('0', '1', 2), ('0', '2', 7), ('1', '2', 3), ('1', '3', 8), ('1', '4', 5), ('2', '3', 1), ('3', '4', 4)])
+
+    # 边和节点信息
+    edge_labels = nx.get_edge_attributes(G, 'weight')
+    labels = {'0': '0', '1': '1', '2': '2', '3': '3', '4': '4'}
+
+    # 生成节点位置
+    pos = nx.spring_layout(G)
+
+    # 把节点画出来
+    nx.draw_networkx_nodes(G, pos, node_color='g', node_size=500, alpha=0.8)
+
+    # 把边画出来
+    nx.draw_networkx_edges(G, pos, width=1.0, alpha=0.5, edge_color=['b', 'r', 'b', 'r', 'r', 'b', 'r'])
+
+    # 把节点的标签画出来
+    nx.draw_networkx_labels(G, pos, labels, font_size=16)
+
+    # 把边权重画出来
+    nx.draw_networkx_edge_labels(G, pos, edge_labels)
+
+    # 显示graph
+    plt.title('有权图', fontproperties=myfont)
+    plt.axis('on')
+    plt.xticks([])
+    plt.yticks([])
+    plt.show()
+
+    # 1. 求得最小生成树,algorithm可以是kruskal,prim,boruvka一种,默认是kruskal
+    KA = nx.minimum_spanning_tree(G, algorithm='kruskal')
+    print(KA.edges(data=True))
+
+    # 直接拿到构成最小生成树的边,algorithm可以是kruskal,prim,boruvka一种,默认是kruskal
+    mst = nx.minimum_spanning_edges(G, algorithm='kruskal', data=False)
+    edgelist = list(mst)
+    print(edgelist)
+
+    # 返回无向图G上的最大生成树或森林。
+    T = nx.maximum_spanning_tree(G)
+    print(sorted(T.edges(data=True)))
+
+    # 2. 直接拿到构成最大生成树,algorithm可以是kruskal,prim,boruvka一种,默认是kruskal
+    mst = nx.tree.maximum_spanning_edges(G, algorithm='kruskal', data=False)
+    edgelist = list(mst)
+    print(edgelist)
+
+
 def 最大联通子图及联通子图规模排序():
     import matplotlib.pyplot as plt
     import networkx as nx
@@ -624,6 +998,211 @@ def 最大联通子图及联通子图规模排序():
     # 找出最大联通成分，返回是一个set{0,1,2,3}
     print(largest_components)
     print(len(largest_components))  # 4
+
+
+class CPM(nx.DiGraph):
+    " 版本 nx.topological_sort(self, reverse=True) 修改为 list(reversed(list(nx.topological_sort(self)))) "
+
+    def __init__(self):
+        super().__init__()
+        self._dirty = True
+        self._critical_path_length = -1
+        self._criticalPath = None
+
+    def add_node(self, *args, **kwargs):
+        self._dirty = True
+        super().add_node(*args, **kwargs)
+
+    def add_nodes_from(self, *args, **kwargs):
+        self._dirty = True
+        super().add_nodes_from(*args, **kwargs)
+
+    def add_edge(self, *args):  # , **kwargs):
+        self._dirty = True
+        super().add_edge(*args)  # , **kwargs)
+
+    def add_edges_from(self, *args, **kwargs):
+        self._dirty = True
+        super().add_edges_from(*args, **kwargs)
+
+    def remove_node(self, *args, **kwargs):
+        self._dirty = True
+        super().remove_node(*args, **kwargs)
+
+    def remove_nodes_from(self, *args, **kwargs):
+        self._dirty = True
+        super().remove_nodes_from(*args, **kwargs)
+
+    def remove_edge(self, *args):  # , **kwargs):
+        self._dirty = True
+        super().remove_edge(*args)  # , **kwargs)
+
+    def remove_edges_from(self, *args, **kwargs):
+        self._dirty = True
+        super().remove_edges_from(*args, **kwargs)
+
+    # 根据前向拓扑排序算弧的最早发生时间
+    def _forward(self):
+        for n in nx.topological_sort(self):
+            es = max([self.node[j]['EF'] for j in self.predecessors(n)], default=0)
+            self.add_node(n, ES=es, EF=es + self.node[n]['duration'])
+
+    # 根据前向拓扑排序算弧的最迟发生时间
+    def _backward(self):
+        # for n in nx.topological_sort(self, reverse=True):
+        for n in list(reversed(list(nx.topological_sort(self)))):
+            lf = min([self.node[j]['LS'] for j in self.successors(n)], default=self._critical_path_length)
+            self.add_node(n, LS=lf - self.node[n]['duration'], LF=lf)
+
+    # 最早发生时间=最迟发生时间,则判断该节点为关键路径上的关键活动
+    def _compute_critical_path(self):
+        graph = set()
+        for n in self:
+            if self.node[n]['EF'] == self.node[n]['LF']:
+                graph.add(n)
+        self._criticalPath = self.subgraph(graph)
+
+    @property
+    def critical_path_length(self):
+        if self._dirty:
+            self._update()
+        return self._critical_path_length
+
+    @property
+    def critical_path(self):
+        if self._dirty:
+            self._update()
+        return sorted(self._criticalPath, key=lambda x: self.node[x]['ES'])
+
+    def _update(self):
+        self._forward()
+        self._critical_path_length = max(nx.get_node_attributes(self, 'EF').values())
+        self._backward()
+        self._compute_critical_path()
+        self._dirty = False
+
+
+def 关键路径():
+    " 项目不同任务的最短工期 "
+    # 构建graph
+    G = CPM()
+    G.add_node('A', duration=5)
+    G.add_node('B', duration=2)
+    G.add_node('C', duration=4)
+    G.add_node('D', duration=4)
+    G.add_node('E', duration=3)
+    G.add_node('F', duration=7)
+    G.add_node('G', duration=4)
+
+    G.add_edges_from([
+        ('A', 'B'),
+        ('A', 'C'),
+        ('C', 'D'),
+        ('C', 'E'),
+        ('C', 'G'),
+        ('B', 'D'),
+        ('D', 'F'),
+        ('E', 'F'),
+        ('G', 'F'),
+    ])
+
+    # 显示graph
+    nx.draw_spring(G, with_labels=True)
+    plt.title('AOE网络', fontproperties=myfont)
+    plt.axis('on')
+    plt.xticks([])
+    plt.yticks([])
+    plt.show()
+
+    print('关键活动为:')
+    print(G.critical_path_length, G.critical_path)
+
+    G.add_node('D', duration=2)
+    print('\n修改D活动持续时间4为2后的关键活动为:')
+
+    print(G.critical_path_length, G.critical_path)
+
+
+def 拓扑排序算法():
+    " TSA "
+    DG = nx.DiGraph(
+        [('a', 'b'), ('a', 'c'), ('b', 'e'), ('b', 'd'), ('c', 'e'), ('c', 'd'), ('d', 'f'), ('f', 'g'), ('e', 'g')])
+
+    # 显示graph
+    nx.draw_spring(DG, with_labels=True)
+    plt.title('有向无环图', fontproperties=myfont)
+    plt.axis('on')
+    plt.xticks([])
+    plt.yticks([])
+    plt.show()
+
+    # 这个graph拓扑排序序列有很多,这里只给出一种
+    print('扑排序序列:', list(nx.topological_sort(DG)))
+    print('逆扑排序序列:', list(reversed(list(nx.topological_sort(DG)))))
+
+
+def 最大流问题():
+    " 不同节点间的流量不同 "
+    # 构建graph
+    G = nx.DiGraph()
+    G.add_edge('x', 'a', capacity=3.0)
+    G.add_edge('x', 'b', capacity=1.0)
+    G.add_edge('a', 'c', capacity=3.0)
+    G.add_edge('b', 'c', capacity=5.0)
+    G.add_edge('b', 'd', capacity=4.0)
+    G.add_edge('d', 'e', capacity=2.0)
+    G.add_edge('c', 'y', capacity=2.0)
+    G.add_edge('e', 'y', capacity=3.0)
+    pos = nx.spring_layout(G)
+
+    # 显示graph
+    edge_labels = nx.get_edge_attributes(G, 'capacity')
+    nx.draw_networkx_nodes(G, pos)
+    nx.draw_networkx_labels(G, pos)
+    nx.draw_networkx_edges(G, pos)
+    nx.draw_networkx_edge_labels(G, pos, edge_labels)
+    plt.axis('on')
+    plt.xticks([])
+    plt.yticks([])
+    plt.show()
+
+    # 求最大流
+    flow_value, flow_dict = nx.maximum_flow(G, 'x', 'y')
+    print("最大流值: ", flow_value)
+    print("最大流流经途径: ", flow_dict)
+
+
+def 广度优先搜索算法():
+    "BFS"
+    # 构建一个长度为10的路径
+    G = nx.path_graph(10)
+
+    # 显示graph
+    nx.draw_spring(G, with_labels=True)
+    plt.axis('on')
+    plt.xticks([])
+    plt.yticks([])
+    plt.show()
+
+    # 以4为顶点,广度遍历
+    print(list(nx.bfs_tree(G, 4)))
+
+
+def 深度优先搜索算法():
+    " DFS "
+    # 构建一个长度为10的路径
+    G = nx.path_graph(10)
+
+    # 显示graph
+    nx.draw_spring(G, with_labels=True)
+    plt.axis('on')
+    plt.xticks([])
+    plt.yticks([])
+    plt.show()
+
+    # 以5为顶点,深度遍历,限定深度为3
+    T = nx.dfs_tree(G, source=5, depth_limit=3)
+    list(T)
 
 
 def GCN_format():

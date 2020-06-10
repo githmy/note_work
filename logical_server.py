@@ -12,6 +12,7 @@ import glob
 from builtins import str
 from twisted.internet import reactor, threads
 from twisted.internet.defer import inlineCallbacks, returnValue
+from twisted.internet.defer import Deferred
 from utils.path_tool import makesurepath
 from utils.timet import timeit
 import simplejson
@@ -23,6 +24,28 @@ import uuid
 import logging
 from klein import Klein
 import copy
+from multiprocessing import Process
+# from multiprocessing import Pool
+import multiprocessing
+from concurrent.futures import ProcessPoolExecutor as ProcessPool
+
+DEFERRED_RUN_IN_REACTOR_THREAD = True
+
+
+def packanalyizefunc(t_content, dbconfig, ansid):
+    # nodejson, edgelist = title_latex_prove(t_content)
+    edgelist = json.load(open("../edgejson.json", "r"))
+    nodejson = json.load(open("../nodejson.json", "r"))
+    edgelist = json.dumps(edgelist, ensure_ascii=False)
+    nodejson = json.dumps(nodejson, ensure_ascii=False)
+    if nodejson is None:
+        raise Exception("题目解析 或 生成思维树错误！")
+    insert_title_sql = """UPDATE `titletab` SET `condition` = '{}' , trees ='{}' WHERE titleid='{}'""".format(nodejson,
+                                                                                                              edgelist,
+                                                                                                              ansid)
+    mysql_ins = MysqlDB(dbconfig)
+    title_content = mysql_ins.exec_sql(insert_title_sql)
+    return title_content
 
 
 class MysqlDB:
@@ -36,6 +59,7 @@ class MysqlDB:
             'charset': 'utf8mb4',  # 支持1-4个字节字符
             'cursorclass': pymysql.cursors.DictCursor
         }
+        # self.config['cursorclass'] = pymysql.cursors.DictCursor
         self.conn = pymysql.connect(**self.config)
         self.cursor = self.conn.cursor()
         self.lock = threading.Lock()
@@ -57,7 +81,9 @@ class MysqlDB:
         try:
             self.lock.acquire()
             self.conn.ping(True)
+            # print("sql in")
             res = self.cursor.execute(strsql)
+            # print("sql res:",res)
             if strsql.strip().lower().startswith("select"):
                 res = self.cursor.fetchall()
             self.conn.commit()
@@ -148,7 +174,7 @@ class Delphis(object):
     def __init__(self, server_json):
         # 1. 路径
         self._server_json = server_json
-        config = {
+        self.dbconfig = {
             'host': self._server_json["database_ip"],
             'port': 3306,
             'database': self._server_json["database_name"],
@@ -157,12 +183,27 @@ class Delphis(object):
             'charset': 'utf8mb4',  # 支持1-4个字节字符
             'cursorclass': pymysql.cursors.DictCursor
         }
-        self.mysql = MysqlDB(config)
+        self.mysql = MysqlDB(self.dbconfig)
         # 临时固定图片，映射 题目字符串 和 解答字符串
         pic_sql = """SELECT * FROM `picmap` """
         pic_content = self.mysql.exec_sql(pic_sql)
         self.picmap = {pic["picid"]: [pic["titleid"], pic["ansid"]] for pic in pic_content}
         self.ins_LI = LogicalInference()
+        self.process_num = None
+        self.process_pool = self.prepare_process()
+        # result = self.process_pool.apply_async(long_time_task, args=(i,))
+
+    def __del__(self):
+        # self.process_pool.join()
+        # self.process_pool.close()
+        self.process_pool.shutdown()
+
+    def prepare_process(self):
+        print('Parent process %s.' % os.getpid())
+        cores = multiprocessing.cpu_count()
+        self.process_num = cores - 2
+        # reactor.suggestThreadPoolSize(self.process_num)
+        return ProcessPool(self.process_num)
 
     @app.route("/", methods=['GET', 'OPTIONS'])
     @check_cors
@@ -204,13 +245,49 @@ class Delphis(object):
                 trees = title_content[0]["trees"]
                 if condition is None or trees is None:
                     # 1. 解析题目，2. 序列化后写入数据库
-                    nodejson, edgelist = title_latex_prove(title_content[0]["content"])
-                    if nodejson is None:
-                        raise Exception("题目解析 或 生成思维树错误！")
-                    insert_title_sql = """INSERT INTO `titletab` (`condition`, trees) values ("{}","{}")""".format(nodejson, edgelist)
-                    print(insert_title_sql)
-                    title_content = self.mysql.exec_sql(insert_title_sql)
-            # 测试注销 end
+                    # print("b process")
+                    # paras0 = json.dumps(title_content[0]["content"], ensure_ascii=False)
+                    # paras1 = json.dumps(self.dbconfig, ensure_ascii=False)
+                    paras0 = title_content[0]["content"]
+                    paras1 = self.dbconfig
+
+                    def training_callback(model_path):
+                        print(model_path)
+                        return model_path
+
+                    def training_errback(failure):
+                        print("failure")
+                        print(failure)
+                        return failure
+
+                    def deferred_from_future(future):
+                        d = Deferred()
+
+                        def callback(future):
+                            e = future.exception()
+                            if e:
+                                if DEFERRED_RUN_IN_REACTOR_THREAD:
+                                    reactor.callFromThread(d.errback, e)
+                                else:
+                                    d.errback(e)
+                            else:
+                                if DEFERRED_RUN_IN_REACTOR_THREAD:
+                                    reactor.callFromThread(d.callback, future.result())
+                                else:
+                                    d.callback(future.result())
+
+                        future.add_done_callback(callback)
+                        return d
+
+                    result = self.process_pool.submit(packanalyizefunc, paras0, paras1, titleid)
+                    result = deferred_from_future(result)
+                    result.addCallback(training_callback)
+                    result.addErrback(training_errback)
+                    # packanalyizefunc(paras0, paras1, titleid)
+                    # retsig = self.process_pool.apply_async(packanalyizefunc, args=(paras0, paras1, titleid,))
+                    error["解答id"] = "对应题目没有解析, 处理中"
+        # 4. 测试注销 end
+        if len(error.keys()) == 0:
             ansin_sql = """SELECT anstrs, anspoints, ansreports FROM `answertab` where ansid={}""".format(ansid)
             ansin_content = self.mysql.exec_sql(ansin_sql)
             if len(ansin_content) == 0:
@@ -223,9 +300,15 @@ class Delphis(object):
                     pass
                 report = ansreports
             # 4. 返还信息
+            # print("tree ok branch")
+            report = json.dumps(report)
+            error = json.dumps(error)
             return report, error
         else:
             error = {"message": "图片没有对应的 题目id 或 解答id,待写入。"}
+            report = json.dumps(report)
+            error = json.dumps(error)
+            # print("tree waiting branch")
             return report, error
 
     @app.route("/recommand", methods=['POST', 'OPTIONS'])
@@ -268,7 +351,7 @@ class Delphis(object):
         #     {"content": "所以 三角形MBP 全等 三角形NPQ", "point": "全等三角形充分条件", "istrue": True},
         #     {"content": "所以 PB=PQ", "point": "全等三角形必要条件", "istrue": True},
         # ]
-        if len(error) > 0:
+        if error is not None:
             # print(error)
             # dumped = yield json.dumps(error, indent=4, ensure_ascii=False)
             dumped = yield error
