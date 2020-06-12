@@ -35,6 +35,10 @@
 集中销售会导致集中逾期，不利于月嫂的低预留策略。
 不论售卖订单或招募月嫂，越平均，对月嫂的利用率越高，也就是可以预留更少的月嫂作为储备。
 
+30 50 20
+每次1-2个月
+100
+
 本次修改:
 大客户存在日期变动，但不存在撤单和违约金
 延时的订单，全为散单
@@ -768,14 +772,14 @@ class FutureShow(object):
             # 9. 累计值生成
             # print(self.sao_day_nums)
             if dateid == 0:
-                self.y_capital.append(self.datajson["初始资金"])
-                self.y_1_capital.append(self.datajson["初始大客户资金"])
-                self.y_2_capital.append(self.datajson["初始散客资金"])
-                self.y_1subsidy.append(self.datajson["初始单头补资金"])  # 双头补金额累计
-                self.y_2subsidy.append(self.datajson["初始双头补资金"])  # 双头补金额累计
-                self.y_salary.append(self.datajson["初始发放工资"])  # 工资累计
-                self.y_creater.append(self.datajson["初始创始人资金"])  # 创始人收益累计
-                self.y_borrow.append(self.datajson["初始借贷"])  # 借贷累计
+                self.y_capital.append(self.datajson["初始资金"] + self.y_capital_change[dateid])
+                self.y_1_capital.append(self.datajson["初始大客户资金"] + self.y_1_capital_change[dateid])
+                self.y_2_capital.append(self.datajson["初始散客资金"] + self.y_2_capital_change[dateid])
+                self.y_1subsidy.append(self.datajson["初始单头补资金"] + self.y_1subsidy_change[dateid])  # 双头补金额累计
+                self.y_2subsidy.append(self.datajson["初始双头补资金"] + self.y_2subsidy_change[dateid])  # 双头补金额累计
+                self.y_salary.append(self.datajson["初始发放工资"] + self.y_salary_change[dateid])  # 工资累计
+                self.y_creater.append(self.datajson["初始创始人资金"] + self.y_creater_change[dateid])  # 创始人收益累计
+                self.y_borrow.append(self.datajson["初始借贷"] + self.y_borrow_change[dateid])  # 借贷累计
             else:
                 self.y_capital.append(self.y_capital[-1] + self.y_capital_change[dateid])  # 资金池
                 self.y_1_capital.append(self.y_1_capital[-1] + self.y_1_capital_change[dateid])
@@ -886,7 +890,8 @@ def main():
     titles = ["订单总容量", "订单散单容量", "订单大客户容量", "待服务总订单数", "待服务散客订单数", "待服务大客户订单数"]
     ys = [fs_ins.y_order_total, fs_ins.y_order_small_total, fs_ins.y_order_big_total,
           fs_ins.y_order_waiting, fs_ins.y_order_small_waiting, fs_ins.y_order_big_waiting,
-          fs_ins.y_order_servicing, fs_ins.y_order_small_servicing, fs_ins.y_order_big_servicing]
+          ]
+    plot_curve(fs_ins.x_label, ys, titles)
     titles = ["服务中总订单数", "服务中散客订单数", "服务中大客户订单数", "大客户延迟订单数", "散客延迟订单数", "总延迟订单数", "未开发订单数"]
     ys = [fs_ins.y_order_servicing, fs_ins.y_order_small_servicing, fs_ins.y_order_big_servicing,
           fs_ins.y_order_big_delay, fs_ins.y_order_small_delay, fs_ins.y_order_delay, fs_ins.y_order_free]
