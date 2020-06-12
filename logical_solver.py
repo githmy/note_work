@@ -223,7 +223,7 @@ class BasicalSpace(object):
             self._relation_trip = {}
             self._questproperbj = {}
             self._questtriobj = {}
-            self._setobj = {"等价集合": [], "全等集合": [], "全等三角形集合": [], "垂直集合": [], "平行集合": [],
+            self._setobj = {"等价集合": [], "全等集合": [], "全等三角形集合": [], "垂直集合": [], "平行集合": [], "角集合": set(),
                             "锐角集合": set(), "钝角集合": set(), "直角集合": set(), "平角集合": set(), "直角三角形集合": set(),
                             "等腰三角形集合": set(), "等边三角形集合": set(), "余角集合": [], "补角集合": [], "表达式集合": set()}
             self._stopobj = {}
@@ -839,6 +839,11 @@ class LogicalInference(object):
         if not self.gstack.is_inspace_list(space_name, scene_name, field_name):
             space_ins = BasicalSpace(space_name=space_name, field_name=field_name, scene_name=scene_name)
             self.gstack.loadspace(space_name, scene_name, field_name, space_ins)
+        basic_space_ins = self.gstack.readspace(space_name, scene_name, field_name)
+        self.listset_obj = [objset for objset in basic_space_ins._setobj if
+                            basic_space_ins._setobj[objset]["结构形式"].startswith("一级列表二级")]
+        self.set_obj = [objset for objset in basic_space_ins._setobj if
+                        basic_space_ins._setobj[objset]["结构形式"].startswith("一级集合")]
         space_name = "customer"
         if not self.gstack.is_inspace_list(space_name, scene_name, field_name):
             space_ins = BasicalSpace(space_name=space_name, field_name=field_name, scene_name=scene_name)
@@ -860,9 +865,7 @@ class LogicalInference(object):
         # self.get_condition_tree()
         return self.inference()
 
-    def analysis_tree(self, inconditon, intree):
-        # print("self.answer_json")
-        # print(len(self.answer_json), self.answer_json)
+    def analysis_tree(self, inconditon, intree, checkpoints=[]):
         # 1. 获取原始json
         nodejson = json.load(open(inconditon, "r"))
         edgelist = json.load(open(intree, "r"))
@@ -870,53 +873,102 @@ class LogicalInference(object):
         # edgelist = json.loads(intree, encoding="utf-8")
         # print(edgelist)
         print(nodejson)
-        # 2. 根据默认模式 精简原始json 和答案json
+        # 2. 设置默认自动模块
+        # 2.1 默认识别的集合
         cannotigore = list(nodejson["求证"]["condjson"].keys())
-        ignoreset = ["默认集合", "点集合", "角集合", "线段集合", "直线集合", "三角形集合", "锐角集合", "钝角集合"]
-        ignoreset = [item for item in ignoreset if item not in cannotigore]
-        simple_nodejson, self.answer_json = self.simplify_node(nodejson, self.answer_json, ignoreset)
-        print(len(self.answer_json), self.answer_json)
-        # 3. 答案json，分布到 原始精简json上
-        cond_node, errordesc = self.add_answer2node(simple_nodejson, self.answer_json)
-        print("描述错误的答案：", errordesc)
+        self.ignoreset = ["默认集合", "点集合", "角集合", "线段集合", "直线集合", "三角形集合", "正方形集合", "锐角集合", "钝角集合"]
+        self.ignoreset = [item for item in self.ignoreset if item not in cannotigore]
+        # 2.2 默认连接的知识点
+        self.ignorepoint = ["@@已知",
+                            "@@直角相等", "@@平角相等", "@@自等性质", "@@角度角类型", "@@余角性质",
+                            "@@直线得出表达式", "@@直线得出补角", "@@补角属性",
+                            "@@平行线间平行线等值", "@@平行属性",
+                            "@@垂直性质", "@@垂直直角的属性", "@@垂直直线的线段属性",
+                            "@@正方形平行属性", "@@正方形垂直属性", "@@正方形等边属性", "@@正方形直角属性",
+                            "@@直角三角形属性必要条件",
+                            "@@同位角对顶角内错角属性", "@@等值钝角传递", "@@等值锐角传递",
+                            "@@表达式传递",
+                            "@@全等三角形充分条件边角边", "@@全等三角形充分条件角边角", "@@全等三角形必要条件",
+                            "@@等边三角形充分条件角", "@@等边三角形充分条件边",
+                            "@@等腰三角形必要条件角", "@@等腰三角形必要条件边",
+                            "@@等腰三角形充分条件角", "@@等腰三角形充分条件边",
+                            ]
+        for key in self.listset_obj:
+            if setobj[key]["结构形式"] in ["一级列表二级集合"] and "二级传递" in setobj[key]["函数"]:
+                self.ignorepoint.append("@@{}间传递".format(key.replace("集合", "")))
+        self.ignorepoint.append("@@{}{}等反传递".format("平行", "垂直"))
+        self.ignorepoint.append("@@{}{}反等传递".format("余角", "等值"))
+        self.ignorepoint.append("@@{}{}反等传递".format("补角", "等值"))
+        self.ignorepoint.append("@@{}{}反等传递".format("垂直", "平行"))
+        self.ignorepoint = [point for point in self.ignorepoint if point not in checkpoints]
+        # 2.3 默认 不校验 的 答案 中的某些集合
+        self.ignoreerror = ["表达式集合", "角集合"]
+        # 3. 答案json，分布到 原始json上，返回报告，仅步骤，不考虑 连通性。
+        cond_node, reportjson1, mention_node = self.add_answer2node(nodejson, self.answer_json)
+        print("字面报告：", len(reportjson1), reportjson1)
         print("答案可以导出的节点", len(cond_node), cond_node)
-        # for node in cond_node:
-        #     print(node, nodejson[node])
         # 4. 遍历 原始edgelist，得到最近点的路径，删除每条路径上的默认点，剩余点取数量阈值作为连接的判断。
-        reportjson = self.find_answer_path(simple_nodejson, edgelist, cond_node)
+        reportjson = self.find_answer_path(nodejson, cond_node, mention_node)
         return json.dumps(reportjson, ensure_ascii=False)
 
-    def find_answer_path(self, simple_nodejson, edgelist, cond_node):
-        # todo: 1. 对比 get_condition_tree 对应树上的报告
-        reportjson = {}
-        G1 = nx.DiGraph()
-        G1.add_edges_from(edgelist)
-        # print("最后一步相关解法：", [edge for edge in G1.edges() if edge[1] == "求证"])
-        gpath = nx.shortest_path(G1, "已知", "求证")
-        glenth = nx.shortest_path_length(G1, "已知", "求证", weight='rel')
-        print("最优求解路径：", glenth, gpath)
-        gstr = []
-        gedge = []
-        # counter = 0
-        for mainnode in cond_node:
-            for clinnode in cond_node:
-                try:
-                    tpath = nx.shortest_path(G1, mainnode, clinnode)
-                    # counter += 1
-                    # print(counter, tpath)
-                except Exception as e:
-                    continue
-                tlenth = len(tpath)
-                for idn in range(tlenth - 1):
-                    tedge = (tpath[idn], tpath[idn + 1])
-                    tstr = "_".join(tedge)
-                    if tstr not in gstr:
-                        gstr.append(tstr)
-                        gedge.append(tedge)
-        gpath = set(itertools.chain(*gedge))
-        print("path new")
-        print(len(gpath), gpath)
-        print(len(gedge), gedge)
+    def find_answer_path(self, nodejson, cond_node, mention_node):
+        " 只能从已知找，如果中断不连通 由于存在自引循环，无法从另一个联通区域继续往下推 "
+        # 1. 默认节点
+        ignorepointset = set(self.ignorepoint)
+        defaultnode = []
+        for node in nodejson:
+            if ignorepointset.issuperset(set(nodejson[node]["points"])):
+                defaultnode.append(node)
+        # 2. 不足已知默认条件
+        nodename = "已知"
+        for mkey in self.listset_obj + self.set_obj:
+            if mkey not in self.ignoreset:
+                continue
+            if mkey not in nodejson[nodename]["outjson"]:
+                nodejson[nodename]["outjson"][mkey] = []
+            tlist = nodejson[nodename]["outjson"][mkey]
+            for node in nodejson:
+                for ckey in nodejson[node]["outjson"]:
+                    if mkey != ckey:
+                        continue
+                    if ckey in self.listset_obj:
+                        for onelist in nodejson[node]["outjson"][ckey]:
+                            findsig = 0
+                            for onetlist in tlist:
+                                if operator.eq(set(onetlist), set(onelist)):
+                                    findsig = 1
+                                    break
+                            if findsig == 0:
+                                tlist.append(onelist)
+                    elif ckey in self.set_obj:
+                        tlist += nodejson[node]["outjson"][ckey]
+                        tlist = list(set(tlist))
+                    else:
+                        raise Exception("没有考虑到的情况".format(ckey))
+            nodejson[nodename]["outjson"][mkey] = tlist
+        print(nodename, "改变后节点：", nodejson[nodename])
+        # 3. 连接下行树
+        new_cond_node = defaultnode + cond_node
+        new_nodejson = {node: nodejson[node] for node in nodejson if node in new_cond_node}
+        G1 = self.gene_downtree_from(new_nodejson, nodename)
+        # noinnode = [node for node in cond_node if node not in G1.nodes]
+        noinnode = [node for node in mention_node if node not in G1.nodes]
+        print("知识点掌握，但没有声明全量条件的节点：", len(noinnode), noinnode)
+        print("知识点掌握，但没有声明全量条件的节点：", [nodejson[node]["points"] for node in noinnode])
+        print("知识点掌握，但没有声明全量条件的节点：", [nodejson[node] for node in noinnode])
+        # tmjson = {"content": tstt, "point": "只有正确才可能判断知识点", "istrue": "错误"}
+        # reportjson.append(tmjson)
+        # 2. 判断 对错
+        pos = nx.kamada_kawai_layout(G1)
+        plt.figure(figsize=(10, 6))
+        nx.draw(G1, pos, font_color='y', linewidths=0.1, style="dashdot", alpha=0.9, font_size=15, node_size=500,
+                with_labels=True)
+        plt.axis('on')
+        plt.xticks([])
+        plt.yticks([])
+        plt.savefig("../345.svg", dpi=600, format='svg')
+        # plt.show()
+        raise 456
         # 颜色修改
         valn_map = {node: "#ff0000" for node in gpath}
         node_values = [valn_map.get(node, "#0000ff") for node in G1.nodes()]
@@ -934,159 +986,89 @@ class LogicalInference(object):
         plt.yticks([])
         # plt.savefig("../123.png")
         plt.savefig("../123.svg", dpi=600, format='svg')
-        raise 456
         plt.show()
-        reportjson = {}
-        return reportjson
+        return None
 
-    def add_answer2node(self, simple_nodejson, answer_json):
-        # 3. 函数定义： 子集合并判断充分条件的超集，子集判断共性，是否可连接
-        field_name = "数学"
-        scene_name = "解题"
-        space_name = "basic"
-        basic_space_ins = self.gstack.readspace(space_name, scene_name, field_name)
-        listset_obj = [objset for objset in basic_space_ins._setobj if
-                       basic_space_ins._setobj[objset]["结构形式"].startswith("一级列表二级")]
-        set_obj = [objset for objset in basic_space_ins._setobj if
-                   basic_space_ins._setobj[objset]["结构形式"].startswith("一级集合")]
-
-        def a_commonset_b(a, b):
-            commenset = {}
-            for obja in a:
-                for objb in b:
-                    if objb == obja:
-                        if obja in listset_obj:
-                            commenset[obja] = []
-                            for onea in a[obja]:
-                                for oneb in b[objb]:
-                                    comelem = set(onea).issuperset(set(oneb))
-                                    if comelem:
-                                        commenset[obja].append(list(set(oneb)))
-                            if len(commenset[obja]) == 0:
-                                del commenset[obja]
-                        elif obja in set_obj:
-                            comelem = set(a[obja]).issuperset(set(b[objb]))
-                            if comelem:
-                                commenset[obja] = list(set(b[objb]))
-            if len(commenset) == 0:
-                return False
-            else:
-                return commenset
-
-        def genesuperset(listsobj):
-            superset = {}
-            for nodejso in listsobj:
-                for obj in nodejso:
-                    if obj not in superset:
-                        superset[obj] = []
-                    if obj in listset_obj:
-                        for onelist in nodejso[obj]:
-                            superset[obj].append(onelist)
-                    elif obj in set_obj:
-                        superset[obj] += nodejso[obj]
-                        superset[obj] = list(set(superset[obj]))
-                    else:
-                        raise Exception("没有考虑到的集合。")
-            # superset = self.listlist_deliverall(superset)
-            return superset
-
-        def a_supset_b(a, b):
-            "判断a是b的超集"
-            for objb in b:
-                if objb not in a:
-                    return False
-                if objb in listset_obj:
-                    for oneb in b[objb]:
-                        setsig = 0
-                        for onea in a[objb]:
-                            if set(onea).issuperset(set(oneb)):
-                                setsig = 1
-                                break
-                        if setsig == 0:
-                            return False
-                elif objb in set_obj:
-                    if not set(a[objb]).issuperset(set(b[objb])):
-                        return False
-                else:
-                    raise Exception("unknow error")
-            # 没有发现异常，最后输出相同
-            return True
-
-        # 1. 答案描述是否存在于树上
+    def add_answer2node(self, nodejson, answer_json):
+        " 包含自引条件 可导出的节点 说明掌握知识点，但可能没找到对应的条件 "
+        # 1. 答案字面条件 不存在判断
         errordesc = []
+        reportjson = []
         for item in answer_json:
             tca_item = list(item.values())[0]
             havsig = 0
-            for node in simple_nodejson:
+            for node in nodejson:
                 # 1.1 提取 该节点相关的答案
-                tcondilist = []
                 # 因为 所以 都可以算为后续步骤的 已知条件
-                tmc_item = simple_nodejson[node]["condjson"]
-                tmo_item = simple_nodejson[node]["outjson"]
-                condi_cmmon = a_commonset_b(tmc_item, tca_item)
-                out_cmmon = a_commonset_b(tmo_item, tca_item)
+                tmc_item = nodejson[node]["condjson"]
+                tmo_item = nodejson[node]["outjson"]
+                condi_cmmon = self.a_commonset_b(tmc_item, tca_item)
+                out_cmmon = self.a_commonset_b(tmo_item, tca_item)
                 if condi_cmmon or out_cmmon:
                     havsig = 1
                     break
             if havsig == 0:
                 errordesc.append(item)
-        # 2. 答案json，分布到 原始精简json上
+                # print(item)
+                # 得出同一结论可能用到的是隔层原因，所以无法判断知识点。
+                tstt = self.nodejson2reportstr(tca_item)
+                if tstt != "":
+                    tmjson = {"content": tstt, "point": "只有正确才可能判断知识点", "istrue": "错误"}
+                    reportjson.append(tmjson)
+        # 2. 默认条件
+        ignorepointset = set(self.ignorepoint)
+        tcondilist = []
+        for node in nodejson:
+            if ignorepointset.issuperset(set(nodejson[node]["points"])):
+                tcondilist.append(nodejson[node]["outjson"])
+        default_supersets = self.genesuperset(tcondilist)
+        # 3. 答案json，分布到 原始精简json上
         cond_node = []
-        for node in simple_nodejson:
-            # 1.1 提取 该节点相关的答案
-            tcondilist = []
-            tmc_item = simple_nodejson[node]["condjson"]
+        mention_node = []
+        for node in nodejson:
+            # 1.1 提取 该节点相关的答案信息
+            tcondilist = [default_supersets]
+            tmc_item = nodejson[node]["condjson"]
             for item in answer_json:
                 # 因为 所以 都可以算为后续步骤的 已知条件
                 tca_item = list(item.values())[0]
-                common_elem = a_commonset_b(tmc_item, tca_item)
+                common_elem = self.a_commonset_b(tmc_item, tca_item)
                 if common_elem:
                     tcondilist.append(common_elem)
             toutlist = []
-            tmo_item = simple_nodejson[node]["outjson"]
+            tmo_item = nodejson[node]["outjson"]
             for item in answer_json:
                 # 只有所以 都可以算为 输出条件
                 if "outjson" in item:
-                    common_elem = a_commonset_b(tmo_item, item["outjson"])
+                    common_elem = self.a_commonset_b(tmo_item, item["outjson"])
                     if common_elem:
                         toutlist.append(common_elem)
             # 1.2 判断该节点的输入是否有效 生成超集
-            condi_supersets = genesuperset(tcondilist)
-            out_supersets = genesuperset(toutlist)
-            if a_supset_b(condi_supersets, tmc_item) and a_supset_b(tmo_item, out_supersets):
+            condi_supersets = self.genesuperset(tcondilist)
+            out_supersets = self.genesuperset(toutlist)
+            if self.a_supset_b(condi_supersets, tmc_item) and self.a_supset_b(tmo_item, out_supersets):
+                # 寻找该点下所有的答案
+                for item in answer_json:
+                    tca_item = list(item.values())[0]
+                    self.a_supset_b(tmo_item, tca_item)
+                    havsig = 0
+                    for node in nodejson:
+                        # 1.1 提取 该节点相关的答案
+                        # 因为 所以 都可以算为后续步骤的 已知条件
+                        tmc_item = nodejson[node]["condjson"]
                 cond_node.append(node)
-                # 1.3 判断该节点的输出是否有效 生成超集
-        return cond_node, errordesc
-
-    def simplify_node(self, orinode, ansnode, ignoreset):
-        # 1 精简题目json
-        simple_nodejson = {}
-        for node in orinode:
-            tconjson = {}
-            for item in orinode[node]["condjson"]:
-                if item not in ignoreset:
-                    tconjson[item] = orinode[node]["condjson"][item]
-            toujson = {}
-            for item in orinode[node]["outjson"]:
-                if item not in ignoreset:
-                    toujson[item] = orinode[node]["outjson"][item]
-            simple_nodejson[node] = {"condjson": tconjson, "points": orinode[node]["points"], "outjson": toujson}
-        # 2 精简答案json
-        anserlenth = len(ansnode)
-        for idn in range(anserlenth - 1, -1, -1):
-            tconjson = {}
-            item = ansnode[idn]
-            for key in item:
-                # 每个就一条
-                tconjson[key] = {}
-                for filkey in item[key]:
-                    if filkey not in ignoreset:
-                        tconjson[key][filkey] = item[key][filkey]
-                if tconjson[key] != {}:
-                    ansnode[idn] = tconjson
-                else:
-                    ansnode.pop(idn)
-        return simple_nodejson, ansnode
+                # 节点不忽略，只在报告里忽略。
+                if not ignorepointset.issuperset(set(nodejson[node]["points"])):
+                    tpoint = [point.replace("@@", "") for point in nodejson[node]["points"]]
+                    tstt = self.nodejson2reportstr(out_supersets)
+                    # print(nodejson[node]["points"])
+                    # print(out_supersets)
+                    # print(tstt)
+                    mention_node.append(node)
+                    if tstt != "":
+                        tmjson = {"content": tstt, "point": ",".join(tpoint), "istrue": "正确"}
+                        reportjson.append(tmjson)
+        return cond_node, reportjson, mention_node
 
     def get_condition_tree(self):
         " 根据条件构建 思维树 "
@@ -1279,6 +1261,90 @@ class LogicalInference(object):
         # childnodes = self.checknode_child(G1, nodename, steps=1)
         # print("{} 的子节点有 {} {}".format(nodename, len(childnodes), childnodes))
         return None, None
+
+    def a_commonset_b(self, a, b):
+        commenset = {}
+        for obja in a:
+            for objb in b:
+                if objb == obja:
+                    if obja in self.listset_obj:
+                        commenset[obja] = []
+                        for onea in a[obja]:
+                            for oneb in b[objb]:
+                                comelem = set(onea).issuperset(set(oneb))
+                                if comelem:
+                                    commenset[obja].append(list(set(oneb)))
+                        if len(commenset[obja]) == 0:
+                            del commenset[obja]
+                    elif obja in self.set_obj:
+                        comelem = set(a[obja]).issuperset(set(b[objb]))
+                        if comelem:
+                            commenset[obja] = list(set(b[objb]))
+        if len(commenset) == 0:
+            return False
+        else:
+            return commenset
+
+    def genesuperset(self, listsobj):
+        superset = {}
+        for nodejso in listsobj:
+            for obj in nodejso:
+                if obj not in superset:
+                    superset[obj] = []
+                if obj in self.listset_obj:
+                    for onelist in nodejso[obj]:
+                        superset[obj].append(onelist)
+                elif obj in self.set_obj:
+                    superset[obj] += nodejso[obj]
+                    superset[obj] = list(set(superset[obj]))
+                else:
+                    raise Exception("没有考虑到的集合。")
+        # superset = self.listlist_deliverall(superset)
+        return superset
+
+    def a_supset_b(self, a, b):
+        "判断a是b的超集"
+        for objb in b:
+            if objb not in a:
+                return False
+            if objb in self.listset_obj:
+                for oneb in b[objb]:
+                    setsig = 0
+                    for onea in a[objb]:
+                        if set(onea).issuperset(set(oneb)):
+                            setsig = 1
+                            break
+                    if setsig == 0:
+                        return False
+            elif objb in self.set_obj:
+                if not set(a[objb]).issuperset(set(b[objb])):
+                    return False
+            else:
+                raise Exception("unknow error")
+        # 没有发现异常，最后输出相同
+        return True
+
+    def nodejson2reportstr(self, innodejson):
+        backlist = []
+        for item in innodejson:
+            if item in self.ignoreerror:
+                continue
+            if item in self.listset_obj:
+                if innodejson[item] == []:
+                    continue
+                tstrlist = []
+                for oneset in innodejson[item]:
+                    setstr = ",".join([elem.strip("{}").replace("@", "") for elem in oneset])
+                    tstrlist.append(" ".join([setstr, "是", item.replace("集合", "")]))
+                backlist.append(";".join(tstrlist))
+            elif item in self.set_obj:
+                if innodejson[item] == []:
+                    continue
+                tstrlist = []
+                for elem in innodejson[item]:
+                    tstrlist.append(" ".join([elem.strip("{}").replace("@", ""), "是", item.replace("集合", "")]))
+                backlist.append(",".join(tstrlist))
+        return ";".join(backlist)
 
     def gene_uptree_from(self, nodejson, nodename):
         # 3. 函数定义： 子集合并判断充分条件的超集，子集判断共性，是否可连接
@@ -3170,7 +3236,7 @@ class LogicalInference(object):
                                 # tripleobjlist.append(
                                 #     [[[[[elem, ruijiao]], "是", "等值"], [[ruijiao], "是", "锐角"]], ["@@等值钝角传递"],
                                 #      [[elem], "是", "锐角"]])
-                                tripleobjlist.append([[[[0], "是", "默认"]], ["@@等值钝角传递"], [[elem], "是", "锐角"]])
+                                tripleobjlist.append([[[[0], "是", "默认"]], ["@@等值锐角传递"], [[elem], "是", "锐角"]])
         for dunjiao in oldsetobj["钝角集合"]:
             for equals in oldsetobj["等值集合"]:
                 if dunjiao in equals:
@@ -4472,14 +4538,14 @@ def title_latex_prove(instr):
     return nodejson, edgelist
 
 
-def answer_latex_prove(instr, inconditon, intree):
+def answer_latex_prove(instr, inconditon, intree, checkpoints=[]):
     "输入：解答字符串，输出：序列化要素，相关知识点报告"
     # 1. 答案字符标准化
     ans_inlist = recog_str2list(instr)
     # 2. 分解答案
     li_ins = LogicalInference()
     li_ins.answer2normal(ans_inlist)
-    anastr = li_ins.analysis_tree(inconditon, intree)
+    anastr = li_ins.analysis_tree(inconditon, intree, checkpoints=checkpoints)
     outelem = "res"
     outreport = "res"
     return outelem, outreport
@@ -4534,6 +4600,7 @@ if __name__ == '__main__':
     handestr3 = "$ \\therefore AM=PM, \\because AB=MN,\\therefore MB=PN,\\because \\angle {BPQ}=90 ^ {\\circ},\\therefore \\angle {BPM} + \\angle {NPQ} = 90 ^ {\\circ},\\because \\angle {MBP} + \\angle {BPM} = 90 ^ {\\circ},\\therefore \\angle {MBP} = \\angle {NPQ},\\because \\triangle {BPM}$ 是直角三角形。$\\because \\triangle {NPQ}$ 是直角三角形$ \\therefore \\triangle {BPM} \\cong \\triangle {NPQ},\\therefore PB = PQ $"
     # 对的 2
     handestr3 = "$ \\therefore AM=PM, \\because AB=MN,\\therefore MB=PN,\\because \\angle {BPQ}=90 ^ {\\circ},\\therefore \\angle {BPM} + \\angle {NPQ} = 90 ^ {\\circ},\\because \\angle {NPQ} + \\angle {NQP} = 90 ^ {\\circ},\\therefore \\angle {MPB} = \\angle {NQP},\\because \\triangle {BPM}$ 是直角三角形。$\\because \\triangle {NPQ}$ 是直角三角形$ \\therefore \\triangle {BPM} \\cong \\triangle {NPQ},\\therefore PB = PQ $"
+    handestr3 = "正方形 $ABCD , \\because \\angle {PAM} = \\angle {APM},\\therefore \\triangle {PAM}$ 是等腰三角形 $ \\therefore AM=PM, \\because AB=MN,\\therefore MB=PN,\\because \\angle {BPQ}=90 ^ {\\circ},\\therefore \\angle {BPM} + \\angle {NPQ} = 90 ^ {\\circ},\\because \\angle {NPQ} + \\angle {NQP} = 90 ^ {\\circ},\\therefore \\angle {MPB} = \\angle {NQP},\\because \\triangle {BPM}$ 是直角三角形。$\\because \\triangle {NPQ}$ 是直角三角形$ \\therefore \\triangle {BPM} \\cong \\triangle {NPQ},\\therefore PB = PQ $"
     # \\therefore PB = PQ
     # outelem, outtree = title_latex_prove(printstr3)
     # raise 123
@@ -4543,7 +4610,8 @@ if __name__ == '__main__':
     intree = "../edgejson.json"
     # print("原答案")
     # print(handestr3)
-    outelem, outreport = answer_latex_prove(handestr3, inconditon, intree)
+    checkpoints = ["@@全等三角形充分条件边角边", "@@全等三角形充分条件角边角", "@@全等三角形必要条件"]
+    outelem, outreport = answer_latex_prove(handestr3, inconditon, intree, checkpoints=checkpoints)
     print("end")
     exit()
 
