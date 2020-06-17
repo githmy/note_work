@@ -22,6 +22,7 @@ from meta_property import triobj, properobj, setobj
 from utils.path_tool import makesurepath
 import json
 import networkx as nx
+from pprint import pprint
 import matplotlib.pyplot as plt
 import matplotlib as mpl
 from datetime import datetime
@@ -860,6 +861,16 @@ class LogicalInference(object):
 
     def analysis_tree(self, inconditon, intree, checkpoints=[]):
         # 1. 获取原始json
+        self.answer_json = [{'condjson': {'等值集合': [{'{角@APM}', '{角@MAP}'}]}}, {'outjson': {'等腰三角形集合': {'{三角形@AMP}'}}},
+                            {'outjson': {'等值集合': [{'{线段@AM}', '{线段@MP}'}]}},
+                            {'condjson': {'等值集合': [{'{线段@MN}', '{线段@AB}'}]}},
+                            {'outjson': {'等值集合': [{'{线段@BM}', '{线段@NP}'}]}},
+                            {'condjson': {'等值集合': [{'{角@BPQ}', '9 0 ^ { \\circ }'}]}},
+                            {'outjson': {'表达式集合': {'{角@BPM} + {角@NPQ} = 9 0 ^ { \\circ }'}}},
+                            {'condjson': {'表达式集合': {'{角@NPQ} + {角@NQP} = 9 0 ^ { \\circ }'}}},
+                            {'outjson': {'等值集合': [{'{角@BPM}', '{角@NQP}'}]}},
+                            {'outjson': {'全等三角形集合': [{'{三角形@BMP}', '{三角形@NPQ}'}]}},
+                            {'outjson': {'等值集合': [{'{线段@PQ}', '{线段@BP}'}]}}]
         nodejson = json.load(open(inconditon, "r"))
         edgelist = json.load(open(intree, "r"))
         # nodejson = json.loads(inconditon, encoding="utf-8")
@@ -900,14 +911,15 @@ class LogicalInference(object):
         print("答案json", self.answer_json)
         print("原始所有节点", len(nodejson), nodejson)
         defaultnode = []
-        ignorepointset = set(self.defaultpoint)
+        defaultpointset = set(self.defaultpoint)
         for node in nodejson:
-            if ignorepointset.issuperset(set(nodejson[node]["points"])):
+            if defaultpointset.issuperset(set(nodejson[node]["points"])):
                 defaultnode.append(node)
         # print("默认节点数量：{}, {}".format(len(defaultnode), defaultnode))
         # print("原始节点有默认没有的：{}".format([[node, nodejson[node]] for node in nodejson if node not in defaultnode]))
         # 4. 简化默认节点条件
         simple_nodejson, self.answer_json = self.simplify_node(nodejson, self.answer_json, self.ignoreset)
+        print("简化 answer_json", self.answer_json)
         print("简化所有节点", len(simple_nodejson), simple_nodejson)
         # 5. 节点信息判断
         cond_node, reportjson1, mention_node = self.add_answer2node(simple_nodejson, self.answer_json)
@@ -918,45 +930,50 @@ class LogicalInference(object):
         # 6. 遍历 原始edgelist，得到最近点的路径，删除每条路径上的默认点，剩余点取数量阈值作为连接的判断。
         reportjson = self.find_answer_path(simple_nodejson, usefulnode, mention_node)
         reportjson = reportjson1 + reportjson
-        print("字面报告：", len(reportjson), reportjson)
+        print("字面报告：", len(reportjson))
+        pprint(reportjson)
         return json.dumps(reportjson, ensure_ascii=False)
 
     def find_answer_path(self, nodejson, usefulnode, mention_node):
         " 只能从已知找，如果中断不连通 由于存在自引循环，无法从另一个联通区域继续往下推 "
-        # 1. 默认节点
-        # ignorepointset = set(self.defaultpoint)
-        # defaultnode = []
-        # for node in nodejson:
-        #     if ignorepointset.issuperset(set(nodejson[node]["points"])):
-        #         defaultnode.append(node)
         # 2. 连接下行树
         nodename = "已知"
-        # print(len(defaultnode), defaultnode)
-        # print(len(cond_node), cond_node)
         # new_cond_node = defaultnode + cond_node
         answer_nodejson = {node: nodejson[node] for node in nodejson if node in usefulnode}
-        print("answer_nodejson: {}, {}".format(len(answer_nodejson), answer_nodejson.keys()))
         # print(answer_nodejson)
         sstime = time.time()
-        G1 = self.gene_downtree_from(answer_nodejson, nodename)
-        # G1 = self.gene_downtree_nocyc_from(answer_nodejson, nodename)
-        # G1 = self.gene_downtree_nocyc_from(nodejson, nodename)
+        # G1 = self.gene_downtree_from(answer_nodejson, nodename)
+        G1, treportjson = self.gene_downtree_semi_from(answer_nodejson, nodename)
         fintime = time.time() - sstime
         logger1.info("生成下行树 耗时 {}s：".format(fintime))
-        # print(len(G1.nodes), len(G1.edges))
-        reportjson = []
+        print(len(G1.nodes), len(G1.edges), G1.nodes)
+        # print([nodejson[node] for node in G1.nodes])
+        defaultnode = []
+        defaultpointset = set(self.defaultpoint)
+        for node in nodejson:
+            if defaultpointset.issuperset(set(nodejson[node]["points"])):
+                defaultnode.append(node)
+        downdefault = [node for node in G1.nodes if node in defaultnode]
+        downcheck = [node for node in G1.nodes if node not in downdefault]
+        logger1.info("下行树默认节点 {} {}".format(len(downdefault), downdefault))
+        logger1.info("下行树考点节点 {} {}".format(len(downcheck), downcheck))
+        reportjson = treportjson
         con_des_node = [node for node in G1.nodes if node in mention_node]
-        for node in con_des_node:
-            tstt = self.nodejson2reportstr(nodejson[node]["outjson"])
-            if tstt != "":
-                tpoint = nodejson[node]["points"]
-                tmjson = {"content": tstt, "point": ",".join(tpoint), "istrue": "连通描述正确"}
-                reportjson.append(tmjson)
-        logger1.info("知识点掌握，且有 连通已知 的节点：{}, {}".format(len(con_des_node), con_des_node))
-        print([nodejson[node] for node in con_des_node])
+        # for node in con_des_node:
+        #     tstb = self.nodejson2reportstr(nodejson[node]["condjson"])
+        #     tstt = self.nodejson2reportstr(nodejson[node]["outjson"])
+        #     tstt = "因为:" + tstb + ". 所以:" + tstt
+        #     if tstt != "":
+        #         tpoint = nodejson[node]["points"]
+        #         tmjson = {"content": tstt, "point": ",".join(tpoint), "istrue": "连通描述正确"}
+        #         reportjson.append(tmjson)
+        logger1.info("知识点掌握，且 连通已知 的节点：{}, {}".format(len(con_des_node), con_des_node))
+        # print([nodejson[node] for node in con_des_node])
         nocon_node = [node for node in mention_node if node not in G1.nodes]
         for node in nocon_node:
+            tstb = self.nodejson2reportstr(nodejson[node]["condjson"])
             tstt = self.nodejson2reportstr(nodejson[node]["outjson"])
+            tstt = "因为:" + tstb + ". 所以:" + tstt
             if tstt != "":
                 tpoint = nodejson[node]["points"]
                 tmjson = {"content": tstt, "point": ",".join(tpoint), "istrue": "未连通描述正确"}
@@ -968,7 +985,8 @@ class LogicalInference(object):
         else:
             logger1.info("证明失败")
             sstime = time.time()
-            G2 = self.gene_uptree_from(answer_nodejson, nodename)
+            # G2 = self.gene_uptree_from(answer_nodejson, nodename)
+            G2 = self.gene_uptree_from(nodejson, nodename)
             fintime = time.time() - sstime
             logger1.info("生成上行树 耗时 {}s：".format(fintime))
             unconnectnode = [node for node in G2.nodes if node not in G1.nodes]
@@ -977,10 +995,13 @@ class LogicalInference(object):
             logger1.info("未下连通考点 {}，{}".format(len(pointnode), pointnode))
             print([nodejson[node]["points"] for node in pointnode])
             logger1.info([nodejson[node]["condjson"] for node in pointnode])
-            nocon_no_des_node = [node for node in pointnode if node not in nocon_node]
-            logger1.info("未下连通且未描述考点 {}，{}".format(len(nocon_no_des_node), nocon_no_des_node))
+            nocon_no_des_node = []
+            # nocon_no_des_node = [node for node in pointnode if node not in nocon_node]
+            # logger1.info("未下连通且未描述考点 {}，{}".format(len(nocon_no_des_node), nocon_no_des_node))
             for node in nocon_no_des_node:
+                tstb = self.nodejson2reportstr(nodejson[node]["condjson"])
                 tstt = self.nodejson2reportstr(nodejson[node]["outjson"])
+                tstt = "因为:" + tstb + ". 所以:" + tstt
                 if tstt != "":
                     tpoint = nodejson[node]["points"]
                     tmjson = {"content": tstt, "point": ",".join(tpoint), "istrue": "可选未连通未描述知识点"}
@@ -1041,10 +1062,10 @@ class LogicalInference(object):
                     tmjson = {"content": tstt, "point": "只有正确才可能判断知识点", "istrue": "描述错误"}
                     reportjson.append(tmjson)
         # 2. 默认条件
-        ignorepointset = set(self.defaultpoint)
+        defaultpointset = set(self.defaultpoint)
         tcondilist = []
         for node in nodejson:
-            if ignorepointset.issuperset(set(nodejson[node]["points"])):
+            if defaultpointset.issuperset(set(nodejson[node]["points"])):
                 tcondilist.append(nodejson[node]["outjson"])
         default_supersets = self.genesuperset(tcondilist)
         # 3. 答案json，分布到 原始精简json上
@@ -1074,21 +1095,78 @@ class LogicalInference(object):
             if self.a_supset_b(condi_supersets, tmc_item) and self.a_supset_b(tmo_item, out_supersets):
                 cond_node.append(node)
                 # 节点不忽略，只在报告里忽略。
-                if not ignorepointset.issuperset(set(nodejson[node]["points"])):
+                if not defaultpointset.issuperset(set(nodejson[node]["points"])):
                     # tpoint = [point.replace("@@", "") for point in nodejson[node]["points"]]
                     for onejson in toutlist:
                         tstt = self.nodejson2reportstr(onejson)
                         if tstt != "":
                             mention_node.append(node)
-                            # ttree = self.gene_downtree_from(nodejson, node)
-                            # if node not in ttree.nodes:
-                            #     if node == "817":
-                            #         print(node)
-                            #         print(toutlist)
-                            #         print(answer_json)
-                            #         print(nodejson[node])
-                            # tmjson = {"content": tstt, "point": ",".join(tpoint), "istrue": "描述正确"}
-                            # reportjson.append(tmjson)
+        mention_node = list(set(mention_node))
+        return cond_node, reportjson, mention_node
+
+    def add_answer2node_bak(self, nodejson, answer_json):
+        " 包含自引条件 可导出的节点 说明掌握知识点，但可能没找到对应的条件 "
+        # 1. 答案字面条件 不存在判断
+        reportjson = []
+        for item in answer_json:
+            tca_item = list(item.values())[0]
+            havsig = 0
+            for node in nodejson:
+                # 1.1 提取 该节点相关的答案
+                # 因为 所以 都可以算为后续步骤的 已知条件
+                tmc_item = nodejson[node]["condjson"]
+                tmo_item = nodejson[node]["outjson"]
+                condi_cmmon = self.a_commonset_b(tmc_item, tca_item)
+                out_cmmon = self.a_commonset_b(tmo_item, tca_item)
+                if condi_cmmon or out_cmmon:
+                    havsig = 1
+                    break
+            if havsig == 0:
+                # 得出同一结论可能用到的是隔层原因，所以无法判断知识点。
+                tstt = self.nodejson2reportstr(tca_item)
+                if tstt != "":
+                    tmjson = {"content": tstt, "point": "只有正确才可能判断知识点", "istrue": "描述错误"}
+                    reportjson.append(tmjson)
+        # 2. 默认条件
+        defaultpointset = set(self.defaultpoint)
+        tcondilist = []
+        for node in nodejson:
+            if defaultpointset.issuperset(set(nodejson[node]["points"])):
+                tcondilist.append(nodejson[node]["outjson"])
+        default_supersets = self.genesuperset(tcondilist)
+        # 3. 答案json，分布到 原始精简json上
+        cond_node = []
+        mention_node = []
+        for node in nodejson:
+            # 1.1 提取 该节点相关的答案信息
+            tcondilist = [default_supersets]
+            tmc_item = nodejson[node]["condjson"]
+            for item in answer_json:
+                # 因为 所以 都可以算为后续步骤的 已知条件
+                tca_item = list(item.values())[0]
+                common_elem = self.a_commonset_b(tmc_item, tca_item)
+                if common_elem:
+                    tcondilist.append(common_elem)
+            toutlist = []
+            tmo_item = nodejson[node]["outjson"]
+            for item in answer_json:
+                # 只有所以 都可以算为 输出条件
+                if "outjson" in item:
+                    common_elem = self.a_commonset_b(tmo_item, item["outjson"])
+                    if common_elem:
+                        toutlist.append(common_elem)
+            # 1.2 判断该节点的输入是否有效 生成超集
+            condi_supersets = self.genesuperset(tcondilist)
+            out_supersets = self.genesuperset(toutlist)
+            if self.a_supset_b(condi_supersets, tmc_item) and self.a_supset_b(tmo_item, out_supersets):
+                cond_node.append(node)
+                # 节点不忽略，只在报告里忽略。
+                if not defaultpointset.issuperset(set(nodejson[node]["points"])):
+                    # tpoint = [point.replace("@@", "") for point in nodejson[node]["points"]]
+                    for onejson in toutlist:
+                        tstt = self.nodejson2reportstr(onejson)
+                        if tstt != "":
+                            mention_node.append(node)
         mention_node = list(set(mention_node))
         return cond_node, reportjson, mention_node
 
@@ -1434,41 +1512,237 @@ class LogicalInference(object):
                             edgepairs.append("_".join([condnode, waitenode]))
         return G
 
-    def gene_downtree_nocyc_from(self, nodejson, nodename):
+    def gene_downtree_semi_from(self, nodejson, nodename):
+        " 默认节点自动连接，考点 答题描述连接，从而生成整棵树。"
+        # 0. 默认节点
+        defaultpointset = set(self.defaultpoint)
+        reportjson = []
+        ansidlist = []
+        defaultnode = []
+        for node in nodejson:
+            if defaultpointset.issuperset(set(nodejson[node]["points"])):
+                defaultnode.append(node)
         G = nx.DiGraph()
-        knownodes = {nodename: [nodename]}
+        knownodes = {nodename}
         waitenodes = list(nodejson.keys())
         waitenodes.remove(nodename)
-        # waitenodes.remove("求证")
         edgepairs = []
         oldlenth = -1
-        # 生成全树
+        # 1. 查找新描述条件：循环1，直到没有新know set节点。
+        # langlength = len([1 for item in self.answer_json if "outjson" in item])
+        for idl in range(len(self.answer_json)):
+            if "condjson" in self.answer_json[idl]:
+                continue
+            # print("loop 1")
+            # print(idl)
+            # 2. 先 循环1内循环2，know set为已知输出内容，从默认节点找，直到没有新know set。 自动连接循环
+            oldlenth2 = -1
+            while True:
+                newlenth2 = len(knownodes)
+                if oldlenth2 == newlenth2:
+                    break
+                oldlenth2 = newlenth2
+                # print("loop 2")
+                for waitenode in copy.deepcopy(defaultnode):
+                    tcondilist = {}
+                    # 提取公共元素
+                    for knownode in knownodes:
+                        if knownode != waitenode:
+                            # a的部分是b的部分，不做交集检查
+                            common_elem = self.a_commonset_b(nodejson[knownode]["outjson"],
+                                                             nodejson[waitenode]["condjson"])
+                            if common_elem:
+                                tcondilist[knownode] = common_elem
+                    # 生成超集
+                    supersets = self.genesuperset(tcondilist.values())
+                    if self.a_supset_b(supersets, nodejson[waitenode]["condjson"]):
+                        knownodes.add(waitenode)
+                        for condnode in tcondilist:
+                            if "_".join([condnode, waitenode]) not in edgepairs:
+                                G.add_edge(condnode, waitenode, weight=1)
+                                edgepairs.append("_".join([condnode, waitenode]))
+            # print(len(knownodes))
+            # 3. 再 循环1内循环3，只找answer json 描述过的，输入或输出 在 know set为已知输出内容，。 输入连接循环
+            # answer json 输出 在 所有节点 的输出，匹配加入know set 同时该条写入报告 ，直到没有新knowset节点。
+            # 可能作为已知条件的 已知节点的输出
+            answer_condi_main_set = {}
+            for idn, answer_item in enumerate(self.answer_json):
+                if idn >= idl:
+                    break
+                if "condjson" in answer_item:
+                    answer_content = answer_item["condjson"]
+                elif "outjson" in answer_item:
+                    answer_content = answer_item["outjson"]
+                else:
+                    raise Exception("答案格式不是预期值。")
+                tcondilist = {}
+                for knownode in copy.deepcopy(knownodes):
+                    out_cmmon = self.a_commonset_b(nodejson[knownode]["outjson"], answer_content)
+                    if out_cmmon:
+                        tcondilist[knownode] = out_cmmon
+                out_supersets = self.genesuperset(tcondilist.values())
+                if self.a_supset_b(out_supersets, answer_content):
+                    answer_condi_main_set[idn] = list(tcondilist.keys())
+            # 考点节点 非考点节点 所有可作为条件的相关节点。节点的输入 先验条件已经 knownodes 中过滤。
+            answer_condi_client_set = set()
+            for node in nodejson:
+                if self.a_supset_b(nodejson[node]["outjson"], self.answer_json[idl]["outjson"]):
+                    answer_condi_client_set.add(node)
+            # 合并（书写条件 节点的交集），是 书写答案 的超集
+            # print("answer_condi_client_set")
+            # print(len(answer_condi_client_set))
+            for outnode in answer_condi_client_set:
+                tcondilist = {}
+                for idn in range(idl):
+                    out_cmmon = self.a_commonset_b(list(self.answer_json[idn].values())[0], nodejson[outnode]["condjson"])
+                    if out_cmmon:
+                        tcondilist[outnode] = out_cmmon
+                out_supersets = self.genesuperset(tcondilist.values())
+                # print(out_supersets)
+                if self.a_supset_b(out_supersets, nodejson[outnode]["condjson"]):
+                    # print(outnode)
+                    knownodes.add(outnode)
+                    tstb = self.nodejson2reportstr(nodejson[outnode]["condjson"])
+                    tsts = self.nodejson2reportstr(self.answer_json[idl]["outjson"])
+                    tstt = "因为:" + tstb + ". 所以:" + tsts
+                    tpoint = nodejson[outnode]["points"]
+                    if not defaultpointset.issuperset(set(tpoint)) and idl not in ansidlist and tstb != "" and \
+                                    tsts != "":
+                        ansidlist.append(idl)
+                        tmjson = {"content": tstt, "point": ",".join(tpoint), "istrue": "连通描述正确"}
+                        reportjson.append(tmjson)
+        return G, reportjson
+
+    def gene_downtree_semi_from_bak(self, nodejson, nodename):
+        " 默认节点自动连接，考点 答题描述连接，从而生成整棵树。"
+        # 0. 默认节点
+        defaultpointset = set(self.defaultpoint)
+        reportjson = []
+        defaultnode = []
+        for node in nodejson:
+            if defaultpointset.issuperset(set(nodejson[node]["points"])):
+                defaultnode.append(node)
+                # if node == "859":
+                #     print(defaultpointset)
+                #     print(nodejson[node]["points"])
+                #     print("859", nodejson[node])
+                #     raise 9879798
+        G = nx.DiGraph()
+        knownodes = {nodename}
+        waitenodes = list(nodejson.keys())
+        waitenodes.remove(nodename)
+        edgepairs = []
+        oldlenth = -1
+        # 1. 查找新描述条件：循环1，直到没有新know set节点。
         while True:
             newlenth = len(knownodes)
             if oldlenth == newlenth:
                 break
             oldlenth = newlenth
-            # 遍历每一层的节点输出端，输出构成待处理节点输入充分条件的，该节点加入连接信息，移除待处理节点。
-            for waitenode in copy.deepcopy(waitenodes):
-                tcondilist = {}
-                # 提取公共元素
-                for knownode in knownodes:
-                    if knownode != waitenode:
-                        # a的部分是b的部分，不做交集检查
-                        common_elem = self.a_commonset_b(nodejson[knownode]["outjson"], nodejson[waitenode]["condjson"])
-                        if common_elem:
-                            tcondilist[knownode] = common_elem
-                # 生成超集
-                supersets = self.genesuperset(tcondilist.values())
-                if self.a_supset_b(supersets, nodejson[waitenode]["condjson"]):
-                    tnodes = [knownodes[node] for node in tcondilist.keys()]
-                    tnodes = set(itertools.chain(*tnodes))
-                    for condnode in tcondilist:
-                        if waitenode not in tnodes:
-                            tnodes.add(waitenode)
-                            knownodes[waitenode] = list(tnodes)
-                            G.add_edge(condnode, waitenode, weight=1)
-        return G
+            # print("loop 1")
+            # 2. 先 循环1内循环2，know set为已知输出内容，从默认节点找，直到没有新know set。 自动连接循环
+            oldlenth2 = -1
+            while True:
+                newlenth2 = len(knownodes)
+                if oldlenth2 == newlenth2:
+                    break
+                oldlenth2 = newlenth2
+                # print("loop 2")
+                for waitenode in copy.deepcopy(defaultnode):
+                    tcondilist = {}
+                    # 提取公共元素
+                    for knownode in knownodes:
+                        if knownode != waitenode:
+                            # a的部分是b的部分，不做交集检查
+                            # if self.a_supset_b(nodejson[knownode]["outjson"], {"等值集合": [["{角@APM}", "{角@MAP}"]]}):
+                            # if self.a_supset_b(nodejson[knownode]["outjson"], {"等值集合": [["{线段@AM}", "{线段@MP}"]]}):
+                            #     print(7, knownode, nodejson[knownode])
+                            #     if knownode not in ["917", "903", "974","725","861", "863", "641", "1062"]:
+                            #         print(7, knownode, nodejson[knownode])
+                            #         raise 4445677
+                            # if "等腰三角形集合" in nodejson[knownode]["condjson"]:
+                            #     raise 44456
+                            common_elem = self.a_commonset_b(nodejson[knownode]["outjson"],
+                                                             nodejson[waitenode]["condjson"])
+                            if common_elem:
+                                tcondilist[knownode] = common_elem
+                    # 生成超集
+                    supersets = self.genesuperset(tcondilist.values())
+                    if self.a_supset_b(supersets, nodejson[waitenode]["condjson"]):
+                        # if waitenode == "859":
+                        #     print("859", nodejson[waitenode])
+                        #     raise 1231321
+                        knownodes.add(waitenode)
+                        for condnode in tcondilist:
+                            if "_".join([condnode, waitenode]) not in edgepairs:
+                                G.add_edge(condnode, waitenode, weight=1)
+                                edgepairs.append("_".join([condnode, waitenode]))
+            # print(len(knownodes))
+            # 3. 再 循环1内循环3，只找answer json 描述过的，输入或输出 在 know set为已知输出内容，。 输入连接循环
+            # answer json 输出 在 所有节点 的输出，匹配加入know set 同时该条写入报告 ，直到没有新knowset节点。
+            oldlenth3 = -1
+            while True:
+                # print("loop 3")
+                newlenth3 = len(knownodes)
+                # print(newlenth3)
+                if oldlenth3 == newlenth3:
+                    break
+                oldlenth3 = newlenth3
+                # 可能作为已知条件的 已知节点的输出
+                answer_condi_main_set = {}
+                for knownode in copy.deepcopy(knownodes):
+                    for idn, answer_item in enumerate(self.answer_json):
+                        if "condjson" in answer_item:
+                            answer_content = answer_item["condjson"]
+                        elif "outjson" in answer_item:
+                            answer_content = answer_item["outjson"]
+                        else:
+                            raise Exception("答案格式不是预期值。")
+                        if self.a_supset_b(nodejson[knownode]["outjson"], answer_content):
+                            # if self.a_supset_b(nodejson[knownode]["outjson"], {"等值集合": [["{角@APM}", "{角@MAP}"]]}):
+                            #     print(5, idn, knownode, self.answer_json[idn], nodejson[knownode])
+                            if idn not in answer_condi_main_set:
+                                answer_condi_main_set[idn] = []
+                            answer_condi_main_set[idn].append(knownode)
+                # 考点节点 非考点节点 所有可作为条件的相关节点。节点的输入 先验条件已经 knownodes 中过滤。
+                answer_condi_client_set = {}
+                for node in nodejson:
+                    for idn in answer_condi_main_set:
+                        if self.a_supset_b(nodejson[node]["condjson"], list(self.answer_json[idn].values())[0]):
+                            # if self.a_supset_b(list(self.answer_json[idn].values())[0], nodejson[node]["condjson"]):
+                            if idn not in answer_condi_client_set:
+                                answer_condi_client_set[idn] = []
+                            answer_condi_client_set[idn].append(node)
+                            # if self.a_supset_b(nodejson[node]["condjson"], {"等值集合": [["{角@APM}", "{角@MAP}"]]}):
+                            #     print(3, elem, node, nodejson[node])
+                for idm, answer_item in enumerate(self.answer_json):
+                    if "outjson" in answer_item:
+                        for idn in answer_condi_client_set:
+                            if idm < idn or idn not in answer_condi_main_set:
+                                continue
+                            for outnode in answer_condi_client_set[idn]:
+                                if self.a_supset_b(nodejson[outnode]["outjson"], answer_item["outjson"]):
+                                    # if self.a_supset_b(answer_item["outjson"], nodejson[outnode]["outjson"]):
+                                    # print(answer_condi_main_set)
+                                    # print(answer_condi_client_set)
+                                    if outnode not in knownodes:
+                                        knownodes.add(outnode)
+                                        tstb = self.nodejson2reportstr(nodejson[outnode]["condjson"])
+                                        tstt = self.nodejson2reportstr(answer_item["outjson"])
+                                        tstt = "因为:" + tstb + ". 所以:" + tstt
+                                        if tstt != "":
+                                            tpoint = nodejson[outnode]["points"]
+                                            tmjson = {"content": tstt, "point": ",".join(tpoint), "istrue": "连通描述正确"}
+                                            reportjson.append(tmjson)
+                                            # if outnode == "859":
+                                            #     print("859", nodejson[outnode])
+                                            #     raise 789798
+                                    # 点一次性加入，边连接 可能会增加
+                                    for condnode in answer_condi_main_set[idn]:
+                                        if condnode != outnode and "_".join([condnode, outnode]) not in edgepairs:
+                                            G.add_edge(condnode, outnode, weight=1)
+                                            edgepairs.append("_".join([condnode, outnode]))
+        return G, reportjson
 
     def gene_fulltree_from(self, nodejson):
         G = nx.DiGraph()
@@ -3685,6 +3959,7 @@ class LogicalInference(object):
             outjson.append([last4seg, "是", "等值"])
 
             # 角
+            equangle = []
             tanglist = tlist + tlist[0:2]
             for idangle in range(4):
                 tname = self.language.name_symmetric(" ".join(tanglist[idangle:idangle + 3])).replace(" ", "")
@@ -3697,16 +3972,21 @@ class LogicalInference(object):
                 tname = "{角@" + tname + "}"
                 outjson.append([tname, "是", "角"])
                 outjson.append([tname, "是", "锐角"])
+                equangle.append(tname)
                 tname = self.language.name_symmetric(" ".join([tanglist[idangle], tanglist[idangle + 2],
                                                                tanglist[idangle + 1]])).replace(" ", "")
                 tname = "{角@" + tname + "}"
                 outjson.append([tname, "是", "角"])
                 outjson.append([tname, "是", "锐角"])
+                equangle.append(tname)
                 tname = self.language.name_cyc_one(" ".join(tanglist[idangle:idangle + 3])).replace(" ", "")
                 tname = "{三角形@" + tname + "}"
                 outjson.append([tname, "是", "三角形"])
                 outjson.append([tname, "是", "直角三角形"])
                 tripleobjlist.append([[[[obj], "是", "正方形"]], ["@@正方形直角属性"], [[tname], "是", "直角三角形"]])
+            equangle = list(set(equangle))
+            outjson.append([equangle, "是", "等值"])
+            tripleobjlist.append([[[[obj], "是", "正方形"]], ["@@正方形等边属性"], [[equangle], "是", "等值"]])
         if self.treesig:
             if self.debugsig:
                 print("square2elements")
@@ -4481,17 +4761,15 @@ if __name__ == '__main__':
     printstr3 = "已知：正方形 $ABCD, A、P、C $ 在一条直线上。$MN \\parallel BC, \\angle {BPQ} =90 ^{\\circ},A、M、B $ 在一条直线上，$M、P、N $ 在一条直线上，$\\angle {APM}$是锐角，$\\angle {NPQ} +\\angle {BPQ} +\\angle {BPM} =180^{\\circ }, \\angle {ACB}$是锐角。 $C、Q、 N、D $ 在一条直线上。求证 $PB = PQ$"
     # 1. 正确，不同路径的demo1. （考点为 等腰三角形 全等三角形 表达式传递）
     handestr3 = "$ \\because \\angle {MAP} = \\angle {MPA}, \\therefore \\triangle {AMP} $是等腰三角形, $ \\therefore AM=PM, \\because AB=MN,\\therefore MB=PN,\\because \\angle {BPQ}=90 ^ {\\circ},\\therefore \\angle {BPM} + \\angle {NPQ} = 90 ^ {\\circ},\\because \\angle {NPQ} + \\angle {NQP} = 90 ^ {\\circ},\\therefore \\angle {MPB} = \\angle {NQP},\\because \\triangle {BPM}$ 是直角三角形。$\\because \\triangle {NPQ}$ 是直角三角形$ \\therefore \\triangle {BPM} \\cong \\triangle {NPQ},\\therefore PB = PQ $"
-    # 2. 正确，不同路径的demo1. （考点为 等腰三角形 全等三角形 表达式传递）
-    handestr3 = "$ \\because \\angle {NCP} = \\angle {NPC}, \\therefore \\triangle {NPC} $是等腰三角形, $ \\therefore CN=PN, \\because CN=MB,\\therefore MB=PN,\\because \\angle {BPQ}=90 ^ {\\circ},\\therefore \\angle {BPM} + \\angle {NPQ} = 90 ^ {\\circ},\\because \\angle {NPQ} + \\angle {NQP} = 90 ^ {\\circ},\\therefore \\angle {MPB} = \\angle {NQP},\\because \\triangle {BPM}$ 是直角三角形。$\\because \\triangle {NPQ}$ 是直角三角形$ \\therefore \\triangle {BPM} \\cong \\triangle {NPQ},\\therefore PB = PQ $"
-    # 3. 考点描述不全, 证明有断层。（未描述等腰三角形）
-    handestr3 = "$ \\therefore AM=PM, \\because AB=MN,\\therefore MB=PN,\\because \\angle {BPQ}=90 ^ {\\circ},\\therefore \\angle {BPM} + \\angle {NPQ} = 90 ^ {\\circ},\\because \\angle {MBP} + \\angle {BPM} = 90 ^ {\\circ},\\therefore \\angle {MBP} = \\angle {NPQ},\\because \\triangle {BPM}$ 是直角三角形。$\\because \\triangle {NPQ}$ 是直角三角形$ \\therefore \\triangle {BPM} \\cong \\triangle {NPQ},\\therefore PB = PQ $"
-    # 4. 答题文字如3 但题目考点不考等腰三角形，证明成功。
-    handestr3 = "$ \\therefore AM=PM, \\because AB=MN,\\therefore MB=PN,\\because \\angle {BPQ}=90 ^ {\\circ},\\therefore \\angle {BPM} + \\angle {NPQ} = 90 ^ {\\circ},\\because \\angle {MBP} + \\angle {BPM} = 90 ^ {\\circ},\\therefore \\angle {MBP} = \\angle {NPQ},\\because \\triangle {BPM}$ 是直角三角形。$\\because \\triangle {NPQ}$ 是直角三角形$ \\therefore \\triangle {BPM} \\cong \\triangle {NPQ},\\therefore PB = PQ $"
-    # 5. 描述错误，但不影响答案。
+    # # 2. 正确，不同路径的demo1. （考点为 等腰三角形 全等三角形 表达式传递）
+    # handestr3 = "$ \\because \\angle {NCP} = \\angle {NPC}, \\therefore \\triangle {NPC} $是等腰三角形, $ \\therefore CN=PN, \\because CN=MB,\\therefore MB=PN,\\because \\angle {BPQ}=90 ^ {\\circ},\\therefore \\angle {BPM} + \\angle {NPQ} = 90 ^ {\\circ},\\because \\angle {NPQ} + \\angle {NQP} = 90 ^ {\\circ},\\therefore \\angle {MPB} = \\angle {NQP},\\because \\triangle {BPM}$ 是直角三角形。$\\because \\triangle {NPQ}$ 是直角三角形$ \\therefore \\triangle {BPM} \\cong \\triangle {NPQ},\\therefore PB = PQ $"
+    # # 3. 考点描述不全, 证明有断层。（未描述等腰三角形）
+    # handestr3 = "$ \\therefore AM=PM, \\because AB=MN,\\therefore MB=PN,\\because \\angle {BPQ}=90 ^ {\\circ},\\therefore \\angle {BPM} + \\angle {NPQ} = 90 ^ {\\circ},\\because \\angle {MBP} + \\angle {BPM} = 90 ^ {\\circ},\\therefore \\angle {MBP} = \\angle {NPQ},\\because \\triangle {BPM}$ 是直角三角形。$\\because \\triangle {NPQ}$ 是直角三角形$ \\therefore \\triangle {BPM} \\cong \\triangle {NPQ},\\therefore PB = PQ $"
+    # # 4. 答题文字如3 但题目考点不考等腰三角形，证明成功。
+    # handestr3 = "$ \\therefore AM=PM, \\because AB=MN,\\therefore MB=PN,\\because \\angle {BPQ}=90 ^ {\\circ},\\therefore \\angle {BPM} + \\angle {NPQ} = 90 ^ {\\circ},\\because \\angle {MBP} + \\angle {BPM} = 90 ^ {\\circ},\\therefore \\angle {MBP} = \\angle {NPQ},\\because \\triangle {BPM}$ 是直角三角形。$\\because \\triangle {NPQ}$ 是直角三角形$ \\therefore \\triangle {BPM} \\cong \\triangle {NPQ},\\therefore PB = PQ $"
+    # # 5. 描述错误，但不影响答案。
     # todo: 这个应该不通，但自引闭环，使之可以走通。1. 下行树 去掉闭环条件，2. 假图展示
-    handestr3 = "$ \\because \\angle {MAF} = \\angle {MPA}, \\therefore \\triangle {AMP} $是等腰三角形, $ \\therefore AM=PM, \\because AB=MN,\\therefore MB=PN,\\because \\angle {BPQ}=90 ^ {\\circ},\\therefore \\angle {BPM} + \\angle {NPQ} = 90 ^ {\\circ},\\because \\angle {NPQ} + \\angle {NQP} = 90 ^ {\\circ},\\therefore \\angle {MPB} = \\angle {NQP},\\because \\triangle {BPM}$ 是直角三角形。$\\because \\triangle {NPQ}$ 是直角三角形$ \\therefore \\triangle {BPM} \\cong \\triangle {NPQ},\\therefore PB = PQ $"
-    # handestr3 = "正方形 $ABCD , \\because \\angle {PAM} = \\angle {APM},\\therefore \\triangle {PAM}$ 是等腰三角形 $ \\therefore AM=PM, \\because AB=MN,\\therefore MB=PN,\\because \\angle {BPQ}=90 ^ {\\circ},\\therefore \\angle {BPM} + \\angle {NPQ} = 90 ^ {\\circ},\\because \\angle {NPQ} + \\angle {NQP} = 90 ^ {\\circ},\\therefore \\angle {MPB} = \\angle {NQP},\\because \\triangle {BPM}$ 是直角三角形。$\\because \\triangle {NPQ}$ 是直角三角形$ \\therefore \\triangle {BPM} \\cong \\triangle {NPQ},\\therefore PB = PQ $"
-    # \\therefore PB = PQ
+    # handestr3 = "$ \\because \\angle {MAF} = \\angle {MPA}, \\therefore \\triangle {AMP} $是等腰三角形, $ \\therefore AM=PM, \\because AB=MN,\\therefore MB=PN,\\because \\angle {BPQ}=90 ^ {\\circ},\\therefore \\angle {BPM} + \\angle {NPQ} = 90 ^ {\\circ},\\because \\angle {NPQ} + \\angle {NQP} = 90 ^ {\\circ},\\therefore \\angle {MPB} = \\angle {NQP},\\because \\triangle {BPM}$ 是直角三角形。$\\because \\triangle {NPQ}$ 是直角三角形$ \\therefore \\triangle {BPM} \\cong \\triangle {NPQ},\\therefore PB = PQ $"
     # outelem, outtree = title_latex_prove(printstr3)
     # raise 123
     inconditon = "../nodejson.json"
@@ -4499,6 +4777,7 @@ if __name__ == '__main__':
     # print("原答案")
     # print(handestr3)
     checkpoints = [
+        # "@@求证",
         "@@表达式传递",
         "@@全等三角形充分条件边角边", "@@全等三角形充分条件角边角", "@@全等三角形必要条件",
         # "@@等边三角形充分条件角", "@@等边三角形充分条件边",
