@@ -17,7 +17,7 @@ from utils.path_tool import makesurepath
 from utils.timet import timeit
 import simplejson
 from logical_solver import LogicalInference
-from logical_solver import title_latex_prove
+from logical_solver import title_latex_prove, answer_latex_prove
 import pymysql
 import threading
 import uuid
@@ -221,31 +221,39 @@ class Delphis(object):
         pic_sql = """SELECT * FROM `picmap` """
         pic_content = self.mysql.exec_sql(pic_sql)
         self.picmap = {pic["picid"]: [pic["titleid"], pic["ansid"]] for pic in pic_content}
-        report = {"aa": 123}
+        # report = {"aa": 123}
+        report = {}
         error = {}
         if picid not in self.picmap:
             error["图片id"] = "没有对应 题目id 和 解答id"
             pic_sql = """INSERT INTO `picmap` (picid) values ("{}")""".format(picid)
             pic_content = self.mysql.exec_sql(pic_sql)
-            print("newpicture uuid:", picid)
             pic_sql = """SELECT * FROM `picmap` """
             pic_content = self.mysql.exec_sql(pic_sql)
             self.picmap = {pic["picid"]: [pic["titleid"], pic["ansid"]] for pic in pic_content}
+            print("picture map:", self.picmap)
+            # error["图片映射部分问题"] = "没有pict mape"
+            # print(error)
+            return report, error
         # 3. 如果有title内容，没有思维树，生成思维树，写入
         titleid, ansid = self.picmap[picid]
         if titleid is not None and ansid is not None:
             # 测试注销 start
-            titlein_sql = """SELECT content, `condition`, trees FROM `titletab` where titleid={}""".format(titleid)
+            titlein_sql = """SELECT content, `condition`, trees, checkpoints FROM `titletab` where titleid={}""".format(
+                titleid)
             # print(titlein_sql)
             title_content = self.mysql.exec_sql(titlein_sql)
             if len(title_content) == 0:
-                error["题目id"] = "没有对应内容, 待写入"
+                print("没有思维树")
+                error["题目id"] = "没有该行对应的内容, 待写入树和节点"
+                return report, error
             else:
                 condition = title_content[0]["condition"]
                 trees = title_content[0]["trees"]
+                checkpoi = title_content[0]["checkpoints"]
                 if condition is None or trees is None:
                     # 1. 解析题目，2. 序列化后写入数据库
-                    # print("b process")
+                    error["题目id"] = "有对应内容, 但树节点为空"
                     # paras0 = json.dumps(title_content[0]["content"], ensure_ascii=False)
                     # paras1 = json.dumps(self.dbconfig, ensure_ascii=False)
                     paras0 = title_content[0]["content"]
@@ -285,29 +293,32 @@ class Delphis(object):
                     result.addErrback(training_errback)
                     # packanalyizefunc(paras0, paras1, titleid)
                     # retsig = self.process_pool.apply_async(packanalyizefunc, args=(paras0, paras1, titleid,))
-                    error["解答id"] = "对应题目没有解析, 处理中"
+                    return report, error
         # 4. 测试注销 end
-        if len(error.keys()) == 0:
-            ansin_sql = """SELECT anstrs, anspoints, ansreports FROM `answertab` where ansid={}""".format(ansid)
+        if condition is not None and trees is not None:
+            ansin_sql = """SELECT anstrs, ansreports FROM `answertab` where ansid={}""".format(ansid)
             ansin_content = self.mysql.exec_sql(ansin_sql)
             if len(ansin_content) == 0:
-                error["解答id"] = "没有对应内容, 待写入"
+                error["解答id"] = "没有答案描述, 待写入"
+                return report, error
             else:
-                anspoints = ansin_content[0]["anspoints"]
                 ansreports = ansin_content[0]["ansreports"]
-                if anspoints is None or ansreports is None:
+                if ansreports is None:
                     # 1. 解析答案，2. 对比内容，3. 序列化后写入数据库
-                    pass
+                    error["解答id"] = "答案描述没有对应报告, 待写入"
+                    condition = json.loads(condition, encoding="utf-8")
+                    trees = json.loads(trees, encoding="utf-8")
+                    checkpoi = json.loads(checkpoi, encoding="utf-8")
+                    anstrs = ansin_content[0]["anstrs"]
+                    outreport = answer_latex_prove(anstrs, condition, trees, checkpoints=checkpoi)
+                    # todo: 计入线程 outreport
+                    return report, error
                 report = ansreports
             # 4. 返还信息
             # print("tree ok branch")
-            report = json.dumps(report)
-            error = json.dumps(error)
             return report, error
         else:
             error = {"message": "图片没有对应的 题目id 或 解答id,待写入。"}
-            report = json.dumps(report)
-            error = json.dumps(error)
             # print("tree waiting branch")
             return report, error
 
@@ -327,38 +338,15 @@ class Delphis(object):
         response, error = self.get_report(piccontent)
         # return json.dumps({'info': 'new model trained: {}'.format(datas)}, indent=4, ensure_ascii=False)
         # error = {}
-        # response = [
-        #     {"content": "因为 AM=PM","point": "平行定理", "istrue": True},
-        #     {"content": "所以 AM=PM","point": "平行定理", "istrue": True},
-        #     {"content": "因为 AB=MN","point": "全等三角形充分条件", "istrue": True},
-        #     {"content": "所以 MB=PN","point": "全等三角形必要条件", "istrue": True},
-        #     {"content": "因为 角BPQ=90度", "point": "平行定理", "istrue": True},
-        #     {"content": "所以 角BPM+角NPQ=90度", "point": "全等三角形充分条件", "istrue": True},
-        #     {"content": "因为 角MBP+角BPM=90度", "point": "全等三角形必要条件", "istrue": True},
-        #     {"content": "所以 角MBP=角NPQ", "point": "平行定理", "istrue": True},
-        #     {"content": "所以 三角形MBP 全等 三角形NPQ", "point": "全等三角形充分条件", "istrue": True},
-        #     {"content": "所以 PB=PQ", "point": "全等三角形必要条件", "istrue": True},
-        # ]
-        # response = [
-        #     {"content": "因为 AM=PM","point": "平行定理", "istrue": True},
-        #     {"content": "所以 AM=PM","point": "平行定理", "istrue": True},
-        #     {"content": "因为 AB=MN","point": "全等三角形充分条件", "istrue": True},
-        #     {"content": "所以 MB=PN","point": "全等三角形必要条件", "istrue": True},
-        #     {"content": "因为 角BPQ=90度", "point": "平行定理", "istrue": True},
-        #     {"content": "所以 角BPM+角NPQ=90度", "point": "全等三角形充分条件", "istrue": True},
-        #     {"content": "因为 角MBP+角BPM=90度", "point": "全等三角形必要条件", "istrue": True},
-        #     {"content": "所以 角MPB=角NQP", "point": "平行定理", "istrue": True},
-        #     {"content": "所以 三角形MBP 全等 三角形NPQ", "point": "全等三角形充分条件", "istrue": True},
-        #     {"content": "所以 PB=PQ", "point": "全等三角形必要条件", "istrue": True},
-        # ]
         if error is not None:
             # print(error)
-            # dumped = yield json.dumps(error, indent=4, ensure_ascii=False)
-            dumped = yield error
+            dumped = yield json.dumps(error, indent=4, ensure_ascii=False)
+            # dumped = yield error
         else:
             # print(response)
-            # dumped = yield json.dumps(response, indent=4, ensure_ascii=False)
-            dumped = yield response
+            dumped = yield json.dumps(response, indent=4, ensure_ascii=False)
+            # dumped = yield response
+        print("outing ", dumped)
         returnValue(dumped)
 
 
