@@ -121,7 +121,7 @@ def bar3dplot(data):
     plt.show()
 
 
-def plot_curve(x, ys, titles):
+def plot_curve(x, ys, titles, headstr=""):
     yins = [np.array(y) for y in ys]
     xin = np.arange(0, len(ys[0]))
     nums = len(ys)
@@ -146,7 +146,7 @@ def plot_curve(x, ys, titles):
     # plt.xticks(xin, x, rotation=90, fontsize=5)
     # yticks = np.arange(0, 500, 10)
     # plt.yticks(yticks)
-    # plt.title(title)
+    plt.title(headstr)
     # plt.grid(b=True)
     # plt.savefig('../cap.png')
     plt.show()
@@ -215,8 +215,8 @@ class FutureShow(object):
             "平台开销": 0,
             # "日期偏移标准差": 0,
             # "日期偏移期望值": 0,
-            "日期偏移标准差": 2,  # todo: 统计订单的 初始日期 和 最后落实日期
-            "日期偏移期望值": -1,  # todo: 统计订单的 初始日期 和 最后落实日期
+            "日期偏移标准差": 20,
+            "日期偏移期望值": -1,
             # "日期偏移标准差": 5,
             # "日期偏移期望值": -4,
             "活期利率": 0.02,
@@ -472,7 +472,7 @@ class FutureShow(object):
                 1000 if rn < self.datajson["变更服务费率"][0][0][0] or rn > self.datajson["变更服务费率"][-1][0][1] else rn for rn
                 in randshifts]
             shiftsstart = [int(round(rn) + self.futurestart_int) for rn in randshifts]
-            shiftsend = [rn + self.datajson["服务期"] for rn in shiftsstart]
+            shiftsend = [rn + self.datajson["服务期"] if rn < 1000 else self.futurestart_int + self.datajson["服务期"] for rn in shiftsstart]
             shiftscalc = [rn + self.datajson["结算期"] for rn in shiftsend]
             self.order_small_today_sale_list = [{"orderid": "saoidx_" + self.tomorrow_str,  # saoid 只为防止重复占位，跟绑定月嫂无关。
                                                  "waitdate": self.tomorrow_str,
@@ -563,6 +563,9 @@ class FutureShow(object):
             if order["status"] == "servicing":
                 self.order_small_today_servicingnum += 1
                 self.sao_today_servicingnum += 1
+            # elif order["status"] == "servicing":
+            #     self.order_small_today_servicingnum += 1
+            #     self.sao_today_servicingnum += 1
             elif order["status"] == "waiting":
                 # if today_date>order["start"]:
                 self.order_small_today_waitingnum += 1
@@ -581,6 +584,10 @@ class FutureShow(object):
                             break
                 if order["start"] <= self.today_date and order["end"] >= self.today_date and order["saoid"] == "":
                     self.order_small_today_delaynum += 1
+            # 取消订单在服务期的数量
+            if order["start"] > order["calcdate"]:
+                self.order_small_today_cancel += 1
+                # raise 111222
             # 明天订单在服务期的数量 即使未分配月嫂，也占一个位置
             if order["start"] <= self.tomorrow_str and order["end"] >= self.tomorrow_str:
                 self.sao_tomorrow_planservicing_num += 1
@@ -594,6 +601,8 @@ class FutureShow(object):
         print("    {}".format(self.order_small_today_waitingnum))
         print("    当天散单延迟服务订单数量")
         print("    {}".format(self.order_small_today_delaynum))
+        print("    当天散单取消服务订单数量")
+        print("    {}".format(self.order_small_today_cancel))
         print("    当天大客户服务中订单数量")
         print("    {}".format(self.order_big_today_servicingnum))
         print("    当天大客户等待服务中订单数量")
@@ -637,6 +646,7 @@ class FutureShow(object):
         self.y_order_small_waiting = []  # 待服务订单数 = 未到期订单数 + 月嫂的缺额
         self.y_order_small_servicing = []  # 服务中订单数 = 服务中月嫂数
         self.y_order_small_delay = []  # 延期且未开订单数 = 月嫂的缺额
+        self.y_order_small_cancel = []  # 延期且未开订单数 = 月嫂的缺额
         self.y_order_big_total = []  # 订单总容量 包含待服务的 不含未开发的，上限为 当天月嫂总量
         self.y_order_big_waiting = []  # 待服务订单数 = 未到期订单数 + 月嫂的缺额
         self.y_order_big_servicing = []  # 服务中订单数 = 服务中月嫂数
@@ -680,6 +690,7 @@ class FutureShow(object):
             self.order_small_today_servicingnum = 0
             self.order_small_today_waitingnum = 0
             self.order_small_today_delaynum = 0
+            self.order_small_today_cancel = 0
             self.order_big_today_servicingnum = 0
             self.order_big_today_waitingnum = 0
             self.order_big_today_delaynum = 0
@@ -754,6 +765,7 @@ class FutureShow(object):
             self.y_order_small_waiting.append(self.order_small_today_waitingnum)  # 待服务订单数
             self.y_order_small_servicing.append(self.order_small_today_servicingnum)  # 服务中订单数 = 服务中月嫂数
             self.y_order_small_delay.append(self.order_small_today_delaynum)  # 延迟订单数
+            self.y_order_small_cancel.append(self.order_small_today_cancel)  # 取消订单数
             self.y_order_big_total.append(order_big_today_length)  # 订单总容量 包含待服务的 和 服务中的。不含未开发的
             self.y_order_big_waiting.append(self.order_big_today_waitingnum)  # 待服务订单数
             self.y_order_big_servicing.append(self.order_big_today_servicingnum)  # 服务中订单数 = 服务中月嫂数
@@ -849,31 +861,37 @@ def main():
     # plot_curve(fs_ins.x_label, ys, titles)
     # bar3dplot([fs_ins.x_label, titles, list(itertools.chain(*ys))])
     # exit()
+    headstr = "折扣图"
     titles = ["工资价格", "订单价格"]
     ys = [fs_ins.salary_price_day, fs_ins.order_small_price_day]
-    plot_curve(fs_ins.x_label, ys, titles)
+    plot_curve(fs_ins.x_label, ys, titles, headstr=headstr)
 
+    headstr = "月嫂数量：月嫂总量 = 服务中月嫂数 + 未利用月嫂数。\n" \
+              "通过增加月嫂招募数量和预留月嫂数量，来减小月嫂的缺额"
     titles = ["月嫂总量", "服务中月嫂数", "月嫂缺额数", "未利用月嫂数"]
     ys = [fs_ins.y_sao_total, fs_ins.y_sao_servicing, fs_ins.y_sao_short, fs_ins.y_sao_free]
-    plot_curve(fs_ins.x_label, ys, titles)
+    plot_curve(fs_ins.x_label, ys, titles, headstr=headstr)
     # 每日资金 每日月嫂
     # print(fs_ins.y_capital_change)
     # print(fs_ins.y_salary_change)
     # print(fs_ins.y_creater_change)
+    headstr = "资金池增量：总资金池增量 = 大客户资金池增量 + 散单资金池增量 - 借贷增量 = 订单销售增量 - 工资增量 - 创始人收益增量 - 借贷增量"
     titles = ["总资金池增量", "大客户资金池增量", "散单资金池增量", "双头补金额增量", "单补金额增量", "借贷增量", "工资增量", "创始人收益增量"]
     ys = [fs_ins.y_capital_change, fs_ins.y_1_capital_change, fs_ins.y_2_capital_change, fs_ins.y_2subsidy_change,
           fs_ins.y_1subsidy_change, fs_ins.y_borrow_change, fs_ins.y_salary_change, fs_ins.y_creater_change]
-    plot_curve(fs_ins.x_label, ys, titles)
+    plot_curve(fs_ins.x_label, ys, titles, headstr=headstr)
     # print(fs_ins.y_capital)
     # print(fs_ins.y_salary)
     # print(fs_ins.y_creater)
     # titles = ["总资金池累计", "大客户资金池累计", "散单资金池累计", "双头补金额累积", "单头补金额累积", "借贷累计", "工资累积", "创始人收益累积"]
     # ys = [fs_ins.y_capital, fs_ins.y_1_capital, fs_ins.y_2_capital, fs_ins.y_2subsidy, fs_ins.y_1subsidy,
     #       fs_ins.y_borrow, fs_ins.y_salary, fs_ins.y_creater]
+    headstr = "资金池累计：总资金池累计 = 大客户资金池累计 + 散单资金池累计 - 借贷累计 = 订单销售累计 - 工资累计 - 创始人收益累计 - 借贷累计\n" \
+              "通过折扣力度来控制资金池的增长"
     titles = ["总资金池累计", "大客户资金池累计", "散单资金池累计", "双头补金额累积", "单头补金额累积", "借贷累计", "创始人收益累积"]
     ys = [fs_ins.y_capital, fs_ins.y_1_capital, fs_ins.y_2_capital, fs_ins.y_2subsidy, fs_ins.y_1subsidy,
           fs_ins.y_borrow, fs_ins.y_creater]
-    plot_curve(fs_ins.x_label, ys, titles)
+    plot_curve(fs_ins.x_label, ys, titles, headstr=headstr)
     # print(fs_ins.y_order_small_total)
     # print(fs_ins.y_order_small_waiting)
     # print(fs_ins.y_order_small_servicing)
@@ -887,15 +905,17 @@ def main():
     #       fs_ins.y_order_servicing, fs_ins.y_order_small_servicing, fs_ins.y_order_big_servicing,
     #       fs_ins.y_order_big_delay, fs_ins.y_order_small_delay, fs_ins.y_order_delay,
     #       fs_ins.y_order_free]
-    titles = ["订单总容量", "订单散单容量", "订单大客户容量", "待服务总订单数", "待服务散客订单数", "待服务大客户订单数"]
+    headstr = "订单容量：订单总容量 = 订单散单容量 + 订单大客户容量 = 总待服务订单数 + 总延迟订单数 + 总服务中订单数 + 散客取消单数"
+    titles = ["订单总容量", "订单散单容量", "订单大客户容量", "待服务总订单数", "待服务散客订单数", "待服务大客户订单数", "未开发订单数"]
     ys = [fs_ins.y_order_total, fs_ins.y_order_small_total, fs_ins.y_order_big_total,
-          fs_ins.y_order_waiting, fs_ins.y_order_small_waiting, fs_ins.y_order_big_waiting,
+          fs_ins.y_order_waiting, fs_ins.y_order_small_waiting, fs_ins.y_order_big_waiting, fs_ins.y_order_free,
           ]
-    plot_curve(fs_ins.x_label, ys, titles)
-    titles = ["服务中总订单数", "服务中散客订单数", "服务中大客户订单数", "大客户延迟订单数", "散客延迟订单数", "总延迟订单数", "未开发订单数"]
+    plot_curve(fs_ins.x_label, ys, titles, headstr=headstr)
+    headstr = "通过增加预留月嫂数量，来减少延迟订单数"
+    titles = ["服务中总订单数", "服务中散客订单数", "服务中大客户订单数", "大客户延迟订单数", "散客延迟订单数", "总延迟订单数", "散客取消单数"]
     ys = [fs_ins.y_order_servicing, fs_ins.y_order_small_servicing, fs_ins.y_order_big_servicing,
-          fs_ins.y_order_big_delay, fs_ins.y_order_small_delay, fs_ins.y_order_delay, fs_ins.y_order_free]
-    plot_curve(fs_ins.x_label, ys, titles)
+          fs_ins.y_order_big_delay, fs_ins.y_order_small_delay, fs_ins.y_order_delay, fs_ins.y_order_small_cancel]
+    plot_curve(fs_ins.x_label, ys, titles, headstr=headstr)
 
 
 if __name__ == '__main__':
