@@ -32,17 +32,28 @@ from concurrent.futures import ProcessPoolExecutor as ProcessPool
 DEFERRED_RUN_IN_REACTOR_THREAD = True
 
 
-def packanalyizefunc(t_content, dbconfig, ansid):
-    # nodejson, edgelist = title_latex_prove(t_content)
-    edgelist = json.load(open("../edgejson.json", "r"))
-    nodejson = json.load(open("../nodejson.json", "r"))
+def packanalyizefunc(dbconfig, t_content, ansid):
+    nodejson, edgelist = title_latex_prove(t_content)
+    # edgelist = json.load(open("../edgejson.json", "r"))
+    # nodejson = json.load(open("../nodejson.json", "r"))
     edgelist = json.dumps(edgelist, ensure_ascii=False)
     nodejson = json.dumps(nodejson, ensure_ascii=False)
     if nodejson is None:
         raise Exception("题目解析 或 生成思维树错误！")
-    insert_title_sql = """UPDATE `titletab` SET `condition` = '{}' , trees ='{}' WHERE titleid='{}'""".format(nodejson,
-                                                                                                              edgelist,
-                                                                                                              ansid)
+    insert_title_sql = """UPDATE `titletab` SET `condition` = {} , trees ={} WHERE titleid='{}'""".format(nodejson,
+                                                                                                          edgelist,
+                                                                                                          ansid)
+    mysql_ins = MysqlDB(dbconfig)
+    title_content = mysql_ins.exec_sql(insert_title_sql)
+    return title_content
+
+
+def packanswerfunc(dbconfig, t_content, nodejson, edgelist, checkpoints, ansid):
+    outreport = answer_latex_prove(t_content, nodejson, edgelist, checkpoints=checkpoints)
+    outreport = json.dumps(outreport, ensure_ascii=False)
+    if outreport is None:
+        raise Exception("题目解析 或 生成思维树错误！")
+    insert_title_sql = """UPDATE `answertab` SET `ansreports` = {} WHERE ansid='{}'""".format(outreport, ansid)
     mysql_ins = MysqlDB(dbconfig)
     title_content = mysql_ins.exec_sql(insert_title_sql)
     return title_content
@@ -213,6 +224,34 @@ class Delphis(object):
         return "hello from delphis: "
 
     def get_report(self, piccontent):
+        def training_callback(model_path):
+            print(model_path)
+            return model_path
+
+        def training_errback(failure):
+            print("failure")
+            print(failure)
+            return failure
+
+        def deferred_from_future(future):
+            d = Deferred()
+
+            def callback(future):
+                e = future.exception()
+                if e:
+                    if DEFERRED_RUN_IN_REACTOR_THREAD:
+                        reactor.callFromThread(d.errback, e)
+                    else:
+                        d.errback(e)
+                else:
+                    if DEFERRED_RUN_IN_REACTOR_THREAD:
+                        reactor.callFromThread(d.callback, future.result())
+                    else:
+                        d.callback(future.result())
+
+            future.add_done_callback(callback)
+            return d
+
         # 1. 图片转成 token
         namespace = uuid.NAMESPACE_URL
         picid = str(uuid.uuid3(namespace, piccontent))
@@ -248,45 +287,18 @@ class Delphis(object):
                 error["题目id"] = "没有该行对应的内容, 待写入树和节点"
                 return report, error
             else:
+                # condition = title_content[0]["condition"].strip('"')
+                # trees = title_content[0]["trees"].strip('"')
                 condition = title_content[0]["condition"]
                 trees = title_content[0]["trees"]
                 checkpoi = title_content[0]["checkpoints"]
                 if condition is None or trees is None:
                     # 1. 解析题目，2. 序列化后写入数据库
-                    error["题目id"] = "有对应内容, 但树节点为空"
+                    error["题目id"] = "titletab有对应内容, 但树节点为空, 生成中。。。"
                     # paras0 = json.dumps(title_content[0]["content"], ensure_ascii=False)
                     # paras1 = json.dumps(self.dbconfig, ensure_ascii=False)
-                    paras0 = title_content[0]["content"]
-                    paras1 = self.dbconfig
-
-                    def training_callback(model_path):
-                        print(model_path)
-                        return model_path
-
-                    def training_errback(failure):
-                        print("failure")
-                        print(failure)
-                        return failure
-
-                    def deferred_from_future(future):
-                        d = Deferred()
-
-                        def callback(future):
-                            e = future.exception()
-                            if e:
-                                if DEFERRED_RUN_IN_REACTOR_THREAD:
-                                    reactor.callFromThread(d.errback, e)
-                                else:
-                                    d.errback(e)
-                            else:
-                                if DEFERRED_RUN_IN_REACTOR_THREAD:
-                                    reactor.callFromThread(d.callback, future.result())
-                                else:
-                                    d.callback(future.result())
-
-                        future.add_done_callback(callback)
-                        return d
-
+                    paras0 = self.dbconfig
+                    paras1 = title_content[0]["content"]
                     result = self.process_pool.submit(packanalyizefunc, paras0, paras1, titleid)
                     result = deferred_from_future(result)
                     result.addCallback(training_callback)
@@ -305,17 +317,31 @@ class Delphis(object):
                 ansreports = ansin_content[0]["ansreports"]
                 if ansreports is None:
                     # 1. 解析答案，2. 对比内容，3. 序列化后写入数据库
-                    error["解答id"] = "答案描述没有对应报告, 待写入"
+                    error["解答id"] = "答案描述没有对应报告, 生成中，约30s后查看报告。"
                     condition = json.loads(condition, encoding="utf-8")
                     trees = json.loads(trees, encoding="utf-8")
                     checkpoi = json.loads(checkpoi, encoding="utf-8")
                     anstrs = ansin_content[0]["anstrs"]
-                    outreport = answer_latex_prove(anstrs, condition, trees, checkpoints=checkpoi)
-                    # todo: 计入线程 outreport
+                    paras0 = self.dbconfig
+                    paras1 = anstrs
+                    paras2 = condition
+                    paras3 = trees
+                    result = self.process_pool.submit(packanswerfunc, paras0, paras1, paras2, paras3, checkpoi, ansid)
+                    result = deferred_from_future(result)
+                    result.addCallback(training_callback)
+                    result.addErrback(training_errback)
                     return report, error
-                report = ansreports
             # 4. 返还信息
-            # print("tree ok branch")
+            print("tree ok branch")
+            mapstr_sql = """SELECT processtr, `name` ,`ptype` FROM `processmap` where processtr is not null"""
+            mapstr_content = self.mysql.exec_sql(mapstr_sql)
+            mapname_content = {item["processtr"]: [item["name"], item["ptype"]] for item in mapstr_content}
+            report = json.loads(ansreports, encoding="utf-8")
+            for idn, onerep in enumerate(report):
+                if onerep["point"] in mapname_content:
+                    report[idn]["point"], report[idn]["ptype"] = mapname_content[onerep["point"]]
+            print(report)
+            print(error)
             return report, error
         else:
             error = {"message": "图片没有对应的 题目id 或 解答id,待写入。"}
@@ -328,24 +354,18 @@ class Delphis(object):
     # @timeit
     def recommand_back(self, request):
         bstr = request.content.read()
-        # print(111)
-        # bstr = copy.deepcopy(bstr)
-        # print(bstr)
-        # print(bstr.decode('utf-8', 'strict'))
         request_params = simplejson.loads(bstr.decode('utf-8', 'strict'))
         # print(request_params)
         piccontent = request_params["content"]
         response, error = self.get_report(piccontent)
-        # return json.dumps({'info': 'new model trained: {}'.format(datas)}, indent=4, ensure_ascii=False)
-        # error = {}
-        if error is not None:
-            # print(error)
-            dumped = yield json.dumps(error, indent=4, ensure_ascii=False)
-            # dumped = yield error
+        if not (error is None or error == {}):
+            # print("error")
+            dumped = yield json.dumps(error, ensure_ascii=False)
+            # dumped = yield json.dumps(error, indent=4, ensure_ascii=False)
         else:
-            # print(response)
-            dumped = yield json.dumps(response, indent=4, ensure_ascii=False)
-            # dumped = yield response
+            # print("response")
+            dumped = yield json.dumps(response, ensure_ascii=False)
+            # dumped = yield json.dumps(response, indent=4, ensure_ascii=False)
         print("outing ", dumped)
         returnValue(dumped)
 

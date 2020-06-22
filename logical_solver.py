@@ -240,32 +240,6 @@ class BasicalSpace(object):
         elif operstr == "w":
             return True
 
-    def triple_oper_bak(self, add={"properobj": {}, "triobj": []}, dele={"properobj": [], "triobj": []}):
-        """内存：triple交互操作"""
-        for oneproper in add["properobj"]:
-            self._proper_trip[oneproper] = add["properobj"][oneproper]
-        for onetri in add["triobj"]:
-            havesig = 0
-            for oritri in self._relation_trip:
-                patch = jsonpatch.JsonPatch.from_diff(onetri, oritri)
-                if list(patch) == []:
-                    havesig = 1
-                    break
-            if havesig == 0:
-                self._relation_trip.append(onetri)
-        for oneproper in dele["properobj"]:
-            try:
-                del self._proper_trip[oneproper]
-            except Exception as e:
-                logger1.info("delete %s error %s" % (oneproper, e))
-        for onetri in dele["triobj"]:
-            lenth = len(self._relation_trip)
-            for id1 in range(lenth - 1, -1, -1):
-                patch = jsonpatch.JsonPatch.from_diff(onetri, self._relation_trip[id1])
-                if list(patch) == []:
-                    del self._relation_trip[id1]
-                    break
-
     def property_oper(self, properobj, addc={}, delec=[]):
         """内存：triple交互操作"""
         for oneproper in addc:
@@ -504,27 +478,6 @@ class NLPtool(object):
                     strlist[i1 + 1] = self.name_symmetric(" ".join(strlist[i1 + 1])).replace(" ", "")
                 else:
                     strlist[i1 + 1] = strlist[i1 + 1]
-                if not strlist[i1 + 1].startswith("{"):
-                    strlist[i1 + 1] = "{ " + self.latex_map[key] + "@" + strlist[i1 + 1] + " }"
-                else:
-                    strlist[i1 + 1] = "{ " + self.latex_map[key] + "@" + strlist[i1 + 1].strip("{ }") + " }"
-                strlist[i1 + 1] = self.name_normal(strlist[i1 + 1])
-                matchlist.append([strlist[i1 + 1], "是", self.latex_map[key]])
-                keyindexlist.append(i1)
-        strlist = [strlist[i1] for i1 in range(slenth) if i1 not in keyindexlist]
-        return " ".join(strlist), matchlist
-
-    def get_extract_bak(self, strlist, key):
-        """获取 抽象概念属性 词"""
-        slenth = len(strlist)
-        matchlist = []
-        keyindexlist = []
-        if slenth < 2:
-            return " ".join(strlist), matchlist
-        for i1 in range(slenth - 2, -1, -1):
-            # print(17)
-            # print(strlist,i1)
-            if strlist[i1] == key:
                 if not strlist[i1 + 1].startswith("{"):
                     strlist[i1 + 1] = "{ " + self.latex_map[key] + "@" + strlist[i1 + 1] + " }"
                 else:
@@ -4196,6 +4149,8 @@ class LogicalInference(object):
         outjson = []
         eae_list = []
         aea_list = []
+        # aae_list = []
+        eee_list = []
         dictest = {}
         for onetriangle in triang_pointlist:
             for elem in onetriangle:
@@ -4219,12 +4174,15 @@ class LogicalInference(object):
                 ttrian = "{三角形@" + tname + "}"
                 eae_list.append([tseg1, tseg2, tanle0, ttrian])
                 aea_list.append([tseg0, tanle1, tanle2, ttrian])
+                # aae_list.append([tseg0, tseg1, tseg2, ttrian])
+                eee_list.append([tseg0, tseg1, tseg2, ttrian])
         comb_lenth = len(aea_list)
         for idmain in range(comb_lenth - 1, 0, -1):
             for idcli in range(idmain - 1, -1, -1):
                 # 判断边
                 aea_sig = [0, 0, 0, 0, 0]
                 eae_sig = [0, 0, 0, 0, 0]
+                eee_sig = [0, 0, 0, 0, 0, 0, 0, 0, 0]  # 00 11 22 01 10 02 20 12 21
                 for equset in equalsetobj:
                     if aea_list[idmain][-1] != aea_list[idcli][-1]:
                         # 角边角
@@ -4248,20 +4206,25 @@ class LogicalInference(object):
                         if aea_sig[0] == 1 and (aea_sig[1] + aea_sig[4] == 2 or aea_sig[2] + aea_sig[3] == 2):
                             outjson.append([[aea_list[idmain][-1], aea_list[idcli][-1]], "是", "全等三角形"])
                             if self.treesig:
-                                keyelem = [aea_list[idmain][0], aea_list[idcli][0]]
+                                t0list = list(set([aea_list[idmain][0], aea_list[idcli][0]]))
+                                keyelem = ["".join(t0list)]
                                 taea_equal = []
-                                taea_equal.append([[[aea_list[idmain][0], aea_list[idcli][0]]], "是", "等值"])
+                                taea_equal.append([[t0list], "是", "等值"])
                                 if aea_sig[1] + aea_sig[4] == 2:
-                                    taea_equal.append([[[aea_list[idmain][1], aea_list[idcli][1]]], "是", "等值"])
-                                    taea_equal.append([[[aea_list[idmain][2], aea_list[idcli][2]]], "是", "等值"])
-                                    keyelem += [aea_list[idmain][1], aea_list[idcli][1]]
-                                    keyelem += [aea_list[idmain][2], aea_list[idcli][2]]
+                                    t1list = list(set([aea_list[idmain][1], aea_list[idcli][1]]))
+                                    t2list = list(set([aea_list[idmain][2], aea_list[idcli][2]]))
+                                    taea_equal.append([[t1list], "是", "等值"])
+                                    taea_equal.append([[t2list], "是", "等值"])
+                                    keyelem.append("".join(t2list))
+                                    keyelem.append("".join(t1list))
                                 if aea_sig[2] + aea_sig[3] == 2:
-                                    taea_equal.append([[[aea_list[idmain][1], aea_list[idcli][2]]], "是", "等值"])
-                                    taea_equal.append([[[aea_list[idmain][2], aea_list[idcli][1]]], "是", "等值"])
-                                    keyelem += [aea_list[idmain][1], aea_list[idcli][2]]
-                                    keyelem += [aea_list[idmain][2], aea_list[idcli][1]]
-                                tkstr = "".join(keyelem)
+                                    t1list = list(set([aea_list[idmain][1], aea_list[idcli][2]]))
+                                    t2list = list(set([aea_list[idmain][2], aea_list[idcli][1]]))
+                                    taea_equal.append([[t1list], "是", "等值"])
+                                    taea_equal.append([[t2list], "是", "等值"])
+                                    keyelem.append("".join(t2list))
+                                    keyelem.append("".join(t1list))
+                                tkstr = "".join(set(keyelem))
                                 if tkstr not in dictest:
                                     dictest[tkstr] = []
                                 tvstr = "".join([aea_list[idmain][-1], aea_list[idcli][-1]])
@@ -4292,20 +4255,27 @@ class LogicalInference(object):
                         if eae_sig[4] == 1 and (eae_sig[0] + eae_sig[3] == 2 or eae_sig[1] + eae_sig[2] == 2):
                             outjson.append([[eae_list[idmain][-1], eae_list[idcli][-1]], "是", "全等三角形"])
                             if self.treesig:
-                                keyelem = [eae_list[idmain][2], eae_list[idcli][2]]
+                                t0list = list(set([eae_list[idmain][2], eae_list[idcli][2]]))
+                                keyelem = ["".join(t0list)]
                                 teae_equal = []
-                                teae_equal.append([[[eae_list[idmain][2], eae_list[idcli][2]]], "是", "等值"])
+                                teae_equal.append([[t0list], "是", "等值"])
                                 if eae_sig[0] + eae_sig[3] == 2:
-                                    teae_equal.append([[[eae_list[idmain][0], eae_list[idcli][0]]], "是", "等值"])
-                                    teae_equal.append([[[eae_list[idmain][1], eae_list[idcli][1]]], "是", "等值"])
-                                    keyelem += [eae_list[idmain][1], eae_list[idcli][1]]
-                                    keyelem += [eae_list[idmain][0], eae_list[idcli][0]]
-                                if eae_sig[1] + eae_sig[2] == 2:
-                                    teae_equal.append([[[eae_list[idmain][0], eae_list[idcli][1]]], "是", "等值"])
-                                    teae_equal.append([[[eae_list[idmain][1], eae_list[idcli][0]]], "是", "等值"])
-                                    keyelem += [eae_list[idmain][1], eae_list[idcli][0]]
-                                    keyelem += [eae_list[idmain][0], eae_list[idcli][1]]
-                                tkstr = "".join(keyelem)
+                                    t1list = list(set([eae_list[idmain][1], eae_list[idcli][1]]))
+                                    t2list = list(set([eae_list[idmain][0], eae_list[idcli][0]]))
+                                    # tkstr = "".join(keyelem)
+                                    teae_equal.append([[t1list], "是", "等值"])
+                                    teae_equal.append([[t2list], "是", "等值"])
+                                    keyelem.append("".join(t2list))
+                                    keyelem.append("".join(t1list))
+                                elif eae_sig[1] + eae_sig[2] == 2:
+                                    t1list = list(set([eae_list[idmain][0], eae_list[idcli][1]]))
+                                    t2list = list(set([eae_list[idmain][1], eae_list[idcli][0]]))
+                                    # tkstr = "".join(keyelem)
+                                    teae_equal.append([[t1list], "是", "等值"])
+                                    teae_equal.append([[t2list], "是", "等值"])
+                                    keyelem.append("".join(t2list))
+                                    keyelem.append("".join(t1list))
+                                tkstr = "".join(set(keyelem))
                                 if tkstr not in dictest:
                                     dictest[tkstr] = []
                                 tvstr = "".join([aea_list[idmain][-1], aea_list[idcli][-1]])
@@ -4314,18 +4284,118 @@ class LogicalInference(object):
                                     tripleobjlist.append([teae_equal, ["@@全等三角形充分条件边角边"],
                                                           [[[eae_list[idmain][-1], eae_list[idcli][-1]]], "是",
                                                            "全等三角形"]])
-        # field_name = "数学"
-        # scene_name = "解题"
-        # space_name = "customer"
-        # space_ins = self.gstack.readspace(space_name, scene_name, field_name)
+                        # 边边边  # 00 11 22 01 10 02 20 12 21
+                        judgequllist = [eee_list[idmain][0], eee_list[idcli][0]]
+                        if set(judgequllist).issubset(equset):
+                            eee_sig[0] = 1
+                        judgequllist = [eee_list[idmain][1], eee_list[idcli][1]]
+                        if set(judgequllist).issubset(equset):
+                            eee_sig[1] = 1
+                        judgequllist = [eee_list[idmain][2], eee_list[idcli][2]]
+                        if set(judgequllist).issubset(equset):
+                            eee_sig[2] = 1
+                        judgequllist = [eee_list[idmain][0], eee_list[idcli][1]]
+                        if set(judgequllist).issubset(equset):
+                            eee_sig[3] = 1
+                        judgequllist = [eee_list[idmain][1], eee_list[idcli][0]]
+                        if set(judgequllist).issubset(equset):
+                            eee_sig[4] = 1
+                        judgequllist = [eee_list[idmain][0], eee_list[idcli][2]]
+                        if set(judgequllist).issubset(equset):
+                            eee_sig[5] = 1
+                        judgequllist = [eee_list[idmain][2], eee_list[idcli][0]]
+                        if set(judgequllist).issubset(equset):
+                            eee_sig[6] = 1
+                        judgequllist = [eee_list[idmain][1], eee_list[idcli][2]]
+                        if set(judgequllist).issubset(equset):
+                            eee_sig[7] = 1
+                        judgequllist = [eee_list[idmain][2], eee_list[idcli][1]]
+                        if set(judgequllist).issubset(equset):
+                            eee_sig[8] = 1
+                        # if sum(eee_sig) > 3:
+                        #     print("eee_sig", eee_sig)
+                        #     print(eee_list[idmain][-1], eee_list[idcli][-1])
+                        if eee_sig[0] + eee_sig[1] + eee_sig[2] == 3 or eee_sig[0] + eee_sig[7] + eee_sig[8] == 3 or \
+                            eee_sig[3] + eee_sig[7] + eee_sig[6] == 3 or eee_sig[1] + eee_sig[5] + eee_sig[6] == 3 or \
+                            eee_sig[4] + eee_sig[5] + eee_sig[8] == 3 or eee_sig[2] + eee_sig[3] + eee_sig[4] == 3:
+                            outjson.append([[eee_list[idmain][-1], eee_list[idcli][-1]], "是", "全等三角形"])
+                            if self.treesig:
+                                keyelem = []
+                                teee_equal = []
+                                if eee_sig[0] + eee_sig[1] + eee_sig[2] == 3 :
+                                    t0list = list(set([eee_list[idmain][0], eee_list[idcli][0]]))
+                                    t1list = list(set([eee_list[idmain][1], eee_list[idcli][1]]))
+                                    t2list = list(set([eee_list[idmain][2], eee_list[idcli][2]]))
+                                    teee_equal.append([[t0list], "是", "等值"])
+                                    teee_equal.append([[t1list], "是", "等值"])
+                                    teee_equal.append([[t2list], "是", "等值"])
+                                    keyelem.append("".join(t0list))
+                                    keyelem.append("".join(t1list))
+                                    keyelem.append("".join(t2list))
+                                elif eee_sig[0] + eee_sig[7] + eee_sig[8] == 3:
+                                    t0list = list(set([eee_list[idmain][0], eee_list[idcli][0]]))
+                                    t1list = list(set([eee_list[idmain][1], eee_list[idcli][2]]))
+                                    t2list = list(set([eee_list[idmain][2], eee_list[idcli][1]]))
+                                    teee_equal.append([[t0list], "是", "等值"])
+                                    teee_equal.append([[t1list], "是", "等值"])
+                                    teee_equal.append([[t2list], "是", "等值"])
+                                    keyelem.append("".join(t0list))
+                                    keyelem.append("".join(t1list))
+                                    keyelem.append("".join(t2list))
+                                elif eee_sig[3] + eee_sig[7] + eee_sig[6] == 3:
+                                    t0list = list(set([eee_list[idmain][0], eee_list[idcli][1]]))
+                                    t1list = list(set([eee_list[idmain][1], eee_list[idcli][2]]))
+                                    t2list = list(set([eee_list[idmain][2], eee_list[idcli][0]]))
+                                    teee_equal.append([[t0list], "是", "等值"])
+                                    teee_equal.append([[t1list], "是", "等值"])
+                                    teee_equal.append([[t2list], "是", "等值"])
+                                    keyelem.append("".join(t0list))
+                                    keyelem.append("".join(t1list))
+                                    keyelem.append("".join(t2list))
+                                elif eee_sig[1] + eee_sig[5] + eee_sig[6] == 3 :
+                                    t0list = list(set([eee_list[idmain][1], eee_list[idcli][1]]))
+                                    t1list = list(set([eee_list[idmain][0], eee_list[idcli][2]]))
+                                    t2list = list(set([eee_list[idmain][2], eee_list[idcli][0]]))
+                                    teee_equal.append([[t0list], "是", "等值"])
+                                    teee_equal.append([[t1list], "是", "等值"])
+                                    teee_equal.append([[t2list], "是", "等值"])
+                                    keyelem.append("".join(t0list))
+                                    keyelem.append("".join(t1list))
+                                    keyelem.append("".join(t2list))
+                                elif eee_sig[4] + eee_sig[5] + eee_sig[8] == 3 :
+                                    t0list = list(set([eee_list[idmain][1], eee_list[idcli][0]]))
+                                    t1list = list(set([eee_list[idmain][0], eee_list[idcli][2]]))
+                                    t2list = list(set([eee_list[idmain][2], eee_list[idcli][1]]))
+                                    teee_equal.append([[t0list], "是", "等值"])
+                                    teee_equal.append([[t1list], "是", "等值"])
+                                    teee_equal.append([[t2list], "是", "等值"])
+                                    keyelem.append("".join(t0list))
+                                    keyelem.append("".join(t1list))
+                                    keyelem.append("".join(t2list))
+                                elif eee_sig[2] + eee_sig[3] + eee_sig[4] == 3 :
+                                    t0list = list(set([eee_list[idmain][2], eee_list[idcli][2]]))
+                                    t1list = list(set([eee_list[idmain][1], eee_list[idcli][0]]))
+                                    t2list = list(set([eee_list[idmain][0], eee_list[idcli][1]]))
+                                    teee_equal.append([[t0list], "是", "等值"])
+                                    teee_equal.append([[t1list], "是", "等值"])
+                                    teee_equal.append([[t2list], "是", "等值"])
+                                    keyelem.append("".join(t0list))
+                                    keyelem.append("".join(t1list))
+                                    keyelem.append("".join(t2list))
+                                tkstr = "".join(set(keyelem))
+                                if tkstr not in dictest:
+                                    dictest[tkstr] = []
+                                tvstr = "".join([eee_list[idmain][-1], eee_list[idcli][-1]])
+                                if tvstr not in dictest[tkstr]:
+                                    dictest[tkstr].append(tvstr)
+                                    tripleobjlist.append([teee_equal, ["@@全等三角形充分条件边边边"],
+                                                          [[[eee_list[idmain][-1], eee_list[idcli][-1]]], "是",
+                                                           "全等三角形"]])
         if self.treesig:
             if self.debugsig:
                 print("element2conception")
             self.step_node_write(tripleobjlist)
         return self.math_solver_write(outjson)
-        # space_ins._setobj = self.math_solver_write(outjson)
-        # space_ins._setobj = self.listset_deliverall(space_ins._setobj)
-        # return space_ins._setobj
 
     def judge_stop(self, oldsetobj, newsetobj, stopobj, basic_space_ins):
         "每步推理的具体操作 true为应该结束"
@@ -4448,7 +4518,7 @@ if __name__ == '__main__':
     handestr3 = "$ \\because \\angle {MAP} = \\angle {MPA}, \\therefore AM=PM, \\because AB=MN,\\therefore MB=PN,\\because \\angle {BPQ}=90 ^ {\\circ},\\therefore \\angle {BPM} + \\angle {NPQ} = 90 ^ {\\circ},\\because \\angle {NPQ} + \\angle {NQP} = 90 ^ {\\circ},\\therefore \\angle {MBP} = \\angle {NPQ},\\because \\triangle {BPM}$ 是直角三角形。$\\because \\triangle {NPQ}$ 是直角三角形$ \\therefore \\angle {BMP} = \\angle {PNQ}, \\therefore \\triangle {BPM} \\cong \\triangle {NPQ},\\therefore PB = PQ $"
     # 5. 描述错误，但不影响答案。
     handestr3 = "$ \\because \\angle {MAF} = \\angle {MPA}, \\because \\angle {MAP} = \\angle {MPA}, \\therefore \\triangle {AMP} $是等腰三角形, $ \\therefore AM=PM, \\because AB=MN,\\therefore MB=PN,\\because \\angle {BPQ}=90 ^ {\\circ},\\therefore \\angle {BPM} + \\angle {NPQ} = 90 ^ {\\circ},\\because \\angle {NPQ} + \\angle {NQP} = 90 ^ {\\circ},\\therefore \\angle {MBP} = \\angle {NPQ},\\because \\triangle {BPM}$ 是直角三角形。$\\because \\triangle {NPQ}$ 是直角三角形$ \\therefore \\angle {BMP} = \\angle {PNQ}, \\therefore \\triangle {BPM} \\cong \\triangle {NPQ},\\therefore PB = PQ $"
-    # outelem, outtree = title_latex_prove(printstr3)
+    outelem, outtree = title_latex_prove(printstr3)
     # raise 123
     # print("原答案")
     # print(handestr3)

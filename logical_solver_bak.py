@@ -240,32 +240,6 @@ class BasicalSpace(object):
         elif operstr == "w":
             return True
 
-    def triple_oper_bak(self, add={"properobj": {}, "triobj": []}, dele={"properobj": [], "triobj": []}):
-        """内存：triple交互操作"""
-        for oneproper in add["properobj"]:
-            self._proper_trip[oneproper] = add["properobj"][oneproper]
-        for onetri in add["triobj"]:
-            havesig = 0
-            for oritri in self._relation_trip:
-                patch = jsonpatch.JsonPatch.from_diff(onetri, oritri)
-                if list(patch) == []:
-                    havesig = 1
-                    break
-            if havesig == 0:
-                self._relation_trip.append(onetri)
-        for oneproper in dele["properobj"]:
-            try:
-                del self._proper_trip[oneproper]
-            except Exception as e:
-                logger1.info("delete %s error %s" % (oneproper, e))
-        for onetri in dele["triobj"]:
-            lenth = len(self._relation_trip)
-            for id1 in range(lenth - 1, -1, -1):
-                patch = jsonpatch.JsonPatch.from_diff(onetri, self._relation_trip[id1])
-                if list(patch) == []:
-                    del self._relation_trip[id1]
-                    break
-
     def property_oper(self, properobj, addc={}, delec=[]):
         """内存：triple交互操作"""
         for oneproper in addc:
@@ -504,27 +478,6 @@ class NLPtool(object):
                     strlist[i1 + 1] = self.name_symmetric(" ".join(strlist[i1 + 1])).replace(" ", "")
                 else:
                     strlist[i1 + 1] = strlist[i1 + 1]
-                if not strlist[i1 + 1].startswith("{"):
-                    strlist[i1 + 1] = "{ " + self.latex_map[key] + "@" + strlist[i1 + 1] + " }"
-                else:
-                    strlist[i1 + 1] = "{ " + self.latex_map[key] + "@" + strlist[i1 + 1].strip("{ }") + " }"
-                strlist[i1 + 1] = self.name_normal(strlist[i1 + 1])
-                matchlist.append([strlist[i1 + 1], "是", self.latex_map[key]])
-                keyindexlist.append(i1)
-        strlist = [strlist[i1] for i1 in range(slenth) if i1 not in keyindexlist]
-        return " ".join(strlist), matchlist
-
-    def get_extract_bak(self, strlist, key):
-        """获取 抽象概念属性 词"""
-        slenth = len(strlist)
-        matchlist = []
-        keyindexlist = []
-        if slenth < 2:
-            return " ".join(strlist), matchlist
-        for i1 in range(slenth - 2, -1, -1):
-            # print(17)
-            # print(strlist,i1)
-            if strlist[i1] == key:
                 if not strlist[i1 + 1].startswith("{"):
                     strlist[i1 + 1] = "{ " + self.latex_map[key] + "@" + strlist[i1 + 1] + " }"
                 else:
@@ -859,30 +812,12 @@ class LogicalInference(object):
         # self.get_condition_tree()
         return self.inference()
 
-    def analysis_tree(self, inconditon, intree, checkpoints=[]):
-        # 1. 获取原始json
-        self.answer_json = [{'condjson': {'等值集合': [{'{角@APM}', '{角@MAP}'}]}}, {'outjson': {'等腰三角形集合': {'{三角形@AMP}'}}},
-                            {'outjson': {'等值集合': [{'{线段@AM}', '{线段@MP}'}]}},
-                            {'condjson': {'等值集合': [{'{线段@MN}', '{线段@AB}'}]}},
-                            {'outjson': {'等值集合': [{'{线段@BM}', '{线段@NP}'}]}},
-                            {'condjson': {'等值集合': [{'{角@BPQ}', '9 0 ^ { \\circ }'}]}},
-                            {'outjson': {'表达式集合': {'{角@BPM} + {角@NPQ} = 9 0 ^ { \\circ }'}}},
-                            {'condjson': {'表达式集合': {'{角@NPQ} + {角@NQP} = 9 0 ^ { \\circ }'}}},
-                            {'outjson': {'等值集合': [{'{角@BPM}', '{角@NQP}'}]}},
-                            {'outjson': {'全等三角形集合': [{'{三角形@BMP}', '{三角形@NPQ}'}]}},
-                            {'outjson': {'等值集合': [{'{线段@PQ}', '{线段@BP}'}]}}]
-        nodejson = json.load(open(inconditon, "r"))
-        edgelist = json.load(open(intree, "r"))
-        # nodejson = json.loads(inconditon, encoding="utf-8")
-        # edgelist = json.loads(intree, encoding="utf-8")
-        # print(edgelist)
-        # print(nodejson)
-        # 2. 设置默认自动模块
-        # 2.1 默认识别的集合
+    def analysis_tree(self, nodejson, edgelist, checkpoints=[]):
+        # 1.1. 设置默认自动模块, 默认识别的集合
         cannotigore = list(nodejson["求证"]["condjson"].keys())
         self.ignoreset = ["默认集合", "点集合", "角集合", "线段集合", "直线集合", "三角形集合", "锐角集合", "钝角集合"]
         self.ignoreset = [item for item in self.ignoreset if item not in cannotigore]
-        # 2.2 默认连接的知识点
+        # 1.2. 默认连接的知识点
         self.defaultpoint = ["@@已知", "@@求证",
                              "@@直角相等", "@@平角相等", "@@自等性质", "@@角度角类型", "@@余角性质",
                              "@@直线得出表达式", "@@直线得出补角", "@@补角属性",
@@ -905,9 +840,9 @@ class LogicalInference(object):
         self.defaultpoint.append("@@{}{}反等传递".format("补角", "等值"))
         self.defaultpoint.append("@@{}{}反等传递".format("垂直", "平行"))
         self.defaultpoint = [point for point in self.defaultpoint if point not in checkpoints]
-        # 2.3 默认 不校验 的 答案 中的某些集合
+        # 1.3 默认 不校验 的 答案 中的某些集合
         self.ignoreerror = ["表达式集合", "角集合"]
-        # 3. 答案json，分布到 原始json上，返回报告，仅步骤，不考虑 连通性。
+        # 2. 答案json，分布到 原始json上，返回报告，仅步骤，不考虑 连通性。
         print("答案json", self.answer_json)
         print("原始所有节点", len(nodejson), nodejson)
         defaultnode = []
@@ -1039,72 +974,6 @@ class LogicalInference(object):
         # return None
 
     def add_answer2node(self, nodejson, answer_json):
-        " 包含自引条件 可导出的节点 说明掌握知识点，但可能没找到对应的条件 "
-        # 1. 答案字面条件 不存在判断
-        reportjson = []
-        for item in answer_json:
-            tca_item = list(item.values())[0]
-            havsig = 0
-            for node in nodejson:
-                # 1.1 提取 该节点相关的答案
-                # 因为 所以 都可以算为后续步骤的 已知条件
-                tmc_item = nodejson[node]["condjson"]
-                tmo_item = nodejson[node]["outjson"]
-                condi_cmmon = self.a_commonset_b(tmc_item, tca_item)
-                out_cmmon = self.a_commonset_b(tmo_item, tca_item)
-                if condi_cmmon or out_cmmon:
-                    havsig = 1
-                    break
-            if havsig == 0:
-                # 得出同一结论可能用到的是隔层原因，所以无法判断知识点。
-                tstt = self.nodejson2reportstr(tca_item)
-                if tstt != "":
-                    tmjson = {"content": tstt, "point": "只有正确才可能判断知识点", "istrue": "描述错误"}
-                    reportjson.append(tmjson)
-        # 2. 默认条件
-        defaultpointset = set(self.defaultpoint)
-        tcondilist = []
-        for node in nodejson:
-            if defaultpointset.issuperset(set(nodejson[node]["points"])):
-                tcondilist.append(nodejson[node]["outjson"])
-        default_supersets = self.genesuperset(tcondilist)
-        # 3. 答案json，分布到 原始精简json上
-        cond_node = []
-        mention_node = []
-        for node in nodejson:
-            # 1.1 提取 该节点相关的答案信息
-            tcondilist = [default_supersets]
-            tmc_item = nodejson[node]["condjson"]
-            for item in answer_json:
-                # 因为 所以 都可以算为后续步骤的 已知条件
-                tca_item = list(item.values())[0]
-                common_elem = self.a_commonset_b(tmc_item, tca_item)
-                if common_elem:
-                    tcondilist.append(common_elem)
-            toutlist = []
-            tmo_item = nodejson[node]["outjson"]
-            for item in answer_json:
-                # 只有所以 都可以算为 输出条件
-                if "outjson" in item:
-                    common_elem = self.a_commonset_b(tmo_item, item["outjson"])
-                    if common_elem:
-                        toutlist.append(common_elem)
-            # 1.2 判断该节点的输入是否有效 生成超集
-            condi_supersets = self.genesuperset(tcondilist)
-            out_supersets = self.genesuperset(toutlist)
-            if self.a_supset_b(condi_supersets, tmc_item) and self.a_supset_b(tmo_item, out_supersets):
-                cond_node.append(node)
-                # 节点不忽略，只在报告里忽略。
-                if not defaultpointset.issuperset(set(nodejson[node]["points"])):
-                    # tpoint = [point.replace("@@", "") for point in nodejson[node]["points"]]
-                    for onejson in toutlist:
-                        tstt = self.nodejson2reportstr(onejson)
-                        if tstt != "":
-                            mention_node.append(node)
-        mention_node = list(set(mention_node))
-        return cond_node, reportjson, mention_node
-
-    def add_answer2node_bak(self, nodejson, answer_json):
         " 包含自引条件 可导出的节点 说明掌握知识点，但可能没找到对应的条件 "
         # 1. 答案字面条件 不存在判断
         reportjson = []
@@ -1515,27 +1384,46 @@ class LogicalInference(object):
     def gene_downtree_semi_from(self, nodejson, nodename):
         " 默认节点自动连接，考点 答题描述连接，从而生成整棵树。"
         # 0. 默认节点
-        defaultpointset = set(self.defaultpoint)
         reportjson = []
-        ansidlist = []
+        defaultpointset = set(self.defaultpoint)
         defaultnode = []
         for node in nodejson:
             if defaultpointset.issuperset(set(nodejson[node]["points"])):
                 defaultnode.append(node)
+        nodejson_dyn = copy.deepcopy(nodejson)
+        for node in nodejson_dyn:
+            if node not in defaultnode:
+                nodejson_dyn[node]["outjson"] = {}
         G = nx.DiGraph()
         knownodes = {nodename}
         waitenodes = list(nodejson.keys())
         waitenodes.remove(nodename)
         edgepairs = []
-        oldlenth = -1
-        # 1. 查找新描述条件：循环1，直到没有新know set节点。
-        # langlength = len([1 for item in self.answer_json if "outjson" in item])
+        # 1. 循环查找 描述所以的语句
         for idl in range(len(self.answer_json)):
             if "condjson" in self.answer_json[idl]:
                 continue
-            # print("loop 1")
-            # print(idl)
-            # 2. 先 循环1内循环2，know set为已知输出内容，从默认节点找，直到没有新know set。 自动连接循环
+                # 2. 先 循环1内循环2，know set为已知输出内容，从默认节点找，直到没有新know set。 自动连接循环
+                # print(idl)
+                # for knownode in knownodes:
+                #     if "等值集合" in nodejson[knownode]["outjson"]:
+                #         if self.a_supset_b(nodejson[knownode]["outjson"], {"等值集合": [["{线段@NP}", "{线段@BM}"]]}):
+                #             print("ttt1")
+                #             print(nodejson[knownode]["outjson"]["等值集合"])
+                #         if self.a_supset_b(nodejson[knownode]["outjson"], {"等值集合": [["{角@PNQ}", "{角@BMP}"]]}):
+                #             print("ttt2")
+                #             print(nodejson[knownode]["outjson"]["等值集合"])
+                #         if self.a_supset_b(nodejson[knownode]["outjson"], {"等值集合": [["{角@NPQ}", "{角@MBP}"]]}):
+                #             print("ttt3")
+                #             print(nodejson[knownode]["outjson"]["等值集合"])
+                # if nodejson[knownode]["points"][0].startswith("@@全等三角形"):
+                #     print(nodejson[knownode])
+                # if self.a_supset_b(nodejson[knownode]["condjson"], {'全等三角形集合': [['{三角形@BMP}', '{三角形@NPQ}']]}):
+                #     print("condjson")
+                #     print(nodejson[knownode])
+                # if self.a_supset_b(nodejson[knownode]["outjson"], {'全等三角形集合': [['{三角形@BMP}', '{三角形@NPQ}']]}):
+                #     print("info")
+                #     print(nodejson[knownode])
             oldlenth2 = -1
             while True:
                 newlenth2 = len(knownodes)
@@ -1549,19 +1437,19 @@ class LogicalInference(object):
                     for knownode in knownodes:
                         if knownode != waitenode:
                             # a的部分是b的部分，不做交集检查
-                            common_elem = self.a_commonset_b(nodejson[knownode]["outjson"],
-                                                             nodejson[waitenode]["condjson"])
+                            common_elem = self.a_commonset_b(nodejson_dyn[knownode]["outjson"],
+                                                             nodejson_dyn[waitenode]["condjson"])
                             if common_elem:
                                 tcondilist[knownode] = common_elem
                     # 生成超集
                     supersets = self.genesuperset(tcondilist.values())
-                    if self.a_supset_b(supersets, nodejson[waitenode]["condjson"]):
+                    if self.a_supset_b(supersets, nodejson_dyn[waitenode]["condjson"]):
                         knownodes.add(waitenode)
+                        # print(nodejson[waitenode]["points"])
                         for condnode in tcondilist:
                             if "_".join([condnode, waitenode]) not in edgepairs:
                                 G.add_edge(condnode, waitenode, weight=1)
                                 edgepairs.append("_".join([condnode, waitenode]))
-            # print(len(knownodes))
             # 3. 再 循环1内循环3，只找answer json 描述过的，输入或输出 在 know set为已知输出内容，。 输入连接循环
             # answer json 输出 在 所有节点 的输出，匹配加入know set 同时该条写入报告 ，直到没有新knowset节点。
             # 可能作为已知条件的 已知节点的输出
@@ -1583,165 +1471,67 @@ class LogicalInference(object):
                 out_supersets = self.genesuperset(tcondilist.values())
                 if self.a_supset_b(out_supersets, answer_content):
                     answer_condi_main_set[idn] = list(tcondilist.keys())
+            answer_condi_main_keys = list(answer_condi_main_set.keys())
             # 考点节点 非考点节点 所有可作为条件的相关节点。节点的输入 先验条件已经 knownodes 中过滤。
             answer_condi_client_set = set()
             for node in nodejson:
                 if self.a_supset_b(nodejson[node]["outjson"], self.answer_json[idl]["outjson"]):
                     answer_condi_client_set.add(node)
             # 合并（书写条件 节点的交集），是 书写答案 的超集
-            # print("answer_condi_client_set")
-            # print(len(answer_condi_client_set))
             for outnode in answer_condi_client_set:
                 tcondilist = {}
                 for idn in range(idl):
-                    out_cmmon = self.a_commonset_b(list(self.answer_json[idn].values())[0], nodejson[outnode]["condjson"])
+                    if idn not in answer_condi_main_keys:
+                        continue
+                    out_cmmon = self.a_commonset_b(list(self.answer_json[idn].values())[0],
+                                                   nodejson[outnode]["condjson"])
                     if out_cmmon:
-                        tcondilist[outnode] = out_cmmon
+                        tcondilist[idn] = out_cmmon
                 out_supersets = self.genesuperset(tcondilist.values())
-                # print(out_supersets)
                 if self.a_supset_b(out_supersets, nodejson[outnode]["condjson"]):
-                    # print(outnode)
+                    # 连边
+                    # print(out_supersets)
+                    # print(nodejson[outnode]["condjson"])
                     knownodes.add(outnode)
                     tstb = self.nodejson2reportstr(nodejson[outnode]["condjson"])
                     tsts = self.nodejson2reportstr(self.answer_json[idl]["outjson"])
                     tstt = "因为:" + tstb + ". 所以:" + tsts
                     tpoint = nodejson[outnode]["points"]
-                    if not defaultpointset.issuperset(set(tpoint)) and idl not in ansidlist and tstb != "" and \
-                                    tsts != "":
-                        ansidlist.append(idl)
+                    # if tpoint[0].startswith("@@全等三角形"):
+                    #     print("answer")
+                    #     print(outnode,nodejson[outnode])
+                    #     for idn in tcondilist:
+                    #         if idn not in answer_condi_main_set:
+                    #             continue
+                    #         for condnode in answer_condi_main_set[idn]:
+                    #             print(condnode, nodejson[condnode])
+                    for idn in tcondilist:
+                        if idn not in answer_condi_main_set:
+                            continue
+                        for condnode in answer_condi_main_set[idn]:
+                            if "_".join([condnode, outnode]) not in edgepairs:
+                                G.add_edge(condnode, outnode, weight=1)
+                                edgepairs.append("_".join([condnode, outnode]))
+                    if not defaultpointset.issuperset(set(tpoint)) and tstb != "" and tsts != "":
+                        # 根据新结论描述，写入条件节点
+                        nodejson_dyn[outnode]["outjson"] = self.genesuperset(
+                            [nodejson_dyn[outnode]["outjson"], self.answer_json[idl]["outjson"]])
                         tmjson = {"content": tstt, "point": ",".join(tpoint), "istrue": "连通描述正确"}
                         reportjson.append(tmjson)
-        return G, reportjson
-
-    def gene_downtree_semi_from_bak(self, nodejson, nodename):
-        " 默认节点自动连接，考点 答题描述连接，从而生成整棵树。"
-        # 0. 默认节点
-        defaultpointset = set(self.defaultpoint)
-        reportjson = []
-        defaultnode = []
-        for node in nodejson:
-            if defaultpointset.issuperset(set(nodejson[node]["points"])):
-                defaultnode.append(node)
-                # if node == "859":
-                #     print(defaultpointset)
-                #     print(nodejson[node]["points"])
-                #     print("859", nodejson[node])
-                #     raise 9879798
-        G = nx.DiGraph()
-        knownodes = {nodename}
-        waitenodes = list(nodejson.keys())
-        waitenodes.remove(nodename)
-        edgepairs = []
-        oldlenth = -1
-        # 1. 查找新描述条件：循环1，直到没有新know set节点。
-        while True:
-            newlenth = len(knownodes)
-            if oldlenth == newlenth:
-                break
-            oldlenth = newlenth
-            # print("loop 1")
-            # 2. 先 循环1内循环2，know set为已知输出内容，从默认节点找，直到没有新know set。 自动连接循环
-            oldlenth2 = -1
-            while True:
-                newlenth2 = len(knownodes)
-                if oldlenth2 == newlenth2:
-                    break
-                oldlenth2 = newlenth2
-                # print("loop 2")
-                for waitenode in copy.deepcopy(defaultnode):
-                    tcondilist = {}
-                    # 提取公共元素
-                    for knownode in knownodes:
-                        if knownode != waitenode:
-                            # a的部分是b的部分，不做交集检查
-                            # if self.a_supset_b(nodejson[knownode]["outjson"], {"等值集合": [["{角@APM}", "{角@MAP}"]]}):
-                            # if self.a_supset_b(nodejson[knownode]["outjson"], {"等值集合": [["{线段@AM}", "{线段@MP}"]]}):
-                            #     print(7, knownode, nodejson[knownode])
-                            #     if knownode not in ["917", "903", "974","725","861", "863", "641", "1062"]:
-                            #         print(7, knownode, nodejson[knownode])
-                            #         raise 4445677
-                            # if "等腰三角形集合" in nodejson[knownode]["condjson"]:
-                            #     raise 44456
-                            common_elem = self.a_commonset_b(nodejson[knownode]["outjson"],
-                                                             nodejson[waitenode]["condjson"])
-                            if common_elem:
-                                tcondilist[knownode] = common_elem
-                    # 生成超集
-                    supersets = self.genesuperset(tcondilist.values())
-                    if self.a_supset_b(supersets, nodejson[waitenode]["condjson"]):
-                        # if waitenode == "859":
-                        #     print("859", nodejson[waitenode])
-                        #     raise 1231321
-                        knownodes.add(waitenode)
-                        for condnode in tcondilist:
-                            if "_".join([condnode, waitenode]) not in edgepairs:
-                                G.add_edge(condnode, waitenode, weight=1)
-                                edgepairs.append("_".join([condnode, waitenode]))
-            # print(len(knownodes))
-            # 3. 再 循环1内循环3，只找answer json 描述过的，输入或输出 在 know set为已知输出内容，。 输入连接循环
-            # answer json 输出 在 所有节点 的输出，匹配加入know set 同时该条写入报告 ，直到没有新knowset节点。
-            oldlenth3 = -1
-            while True:
-                # print("loop 3")
-                newlenth3 = len(knownodes)
-                # print(newlenth3)
-                if oldlenth3 == newlenth3:
-                    break
-                oldlenth3 = newlenth3
-                # 可能作为已知条件的 已知节点的输出
-                answer_condi_main_set = {}
-                for knownode in copy.deepcopy(knownodes):
-                    for idn, answer_item in enumerate(self.answer_json):
-                        if "condjson" in answer_item:
-                            answer_content = answer_item["condjson"]
-                        elif "outjson" in answer_item:
-                            answer_content = answer_item["outjson"]
-                        else:
-                            raise Exception("答案格式不是预期值。")
-                        if self.a_supset_b(nodejson[knownode]["outjson"], answer_content):
-                            # if self.a_supset_b(nodejson[knownode]["outjson"], {"等值集合": [["{角@APM}", "{角@MAP}"]]}):
-                            #     print(5, idn, knownode, self.answer_json[idn], nodejson[knownode])
-                            if idn not in answer_condi_main_set:
-                                answer_condi_main_set[idn] = []
-                            answer_condi_main_set[idn].append(knownode)
-                # 考点节点 非考点节点 所有可作为条件的相关节点。节点的输入 先验条件已经 knownodes 中过滤。
-                answer_condi_client_set = {}
-                for node in nodejson:
-                    for idn in answer_condi_main_set:
-                        if self.a_supset_b(nodejson[node]["condjson"], list(self.answer_json[idn].values())[0]):
-                            # if self.a_supset_b(list(self.answer_json[idn].values())[0], nodejson[node]["condjson"]):
-                            if idn not in answer_condi_client_set:
-                                answer_condi_client_set[idn] = []
-                            answer_condi_client_set[idn].append(node)
-                            # if self.a_supset_b(nodejson[node]["condjson"], {"等值集合": [["{角@APM}", "{角@MAP}"]]}):
-                            #     print(3, elem, node, nodejson[node])
-                for idm, answer_item in enumerate(self.answer_json):
-                    if "outjson" in answer_item:
-                        for idn in answer_condi_client_set:
-                            if idm < idn or idn not in answer_condi_main_set:
-                                continue
-                            for outnode in answer_condi_client_set[idn]:
-                                if self.a_supset_b(nodejson[outnode]["outjson"], answer_item["outjson"]):
-                                    # if self.a_supset_b(answer_item["outjson"], nodejson[outnode]["outjson"]):
-                                    # print(answer_condi_main_set)
-                                    # print(answer_condi_client_set)
-                                    if outnode not in knownodes:
-                                        knownodes.add(outnode)
-                                        tstb = self.nodejson2reportstr(nodejson[outnode]["condjson"])
-                                        tstt = self.nodejson2reportstr(answer_item["outjson"])
-                                        tstt = "因为:" + tstb + ". 所以:" + tstt
-                                        if tstt != "":
-                                            tpoint = nodejson[outnode]["points"]
-                                            tmjson = {"content": tstt, "point": ",".join(tpoint), "istrue": "连通描述正确"}
-                                            reportjson.append(tmjson)
-                                            # if outnode == "859":
-                                            #     print("859", nodejson[outnode])
-                                            #     raise 789798
-                                    # 点一次性加入，边连接 可能会增加
-                                    for condnode in answer_condi_main_set[idn]:
-                                        if condnode != outnode and "_".join([condnode, outnode]) not in edgepairs:
-                                            G.add_edge(condnode, outnode, weight=1)
-                                            edgepairs.append("_".join([condnode, outnode]))
+        # 4. 答案描述结束后，结果判断
+        outnode = "求证"
+        tcondilist = {}
+        for knownode in knownodes:
+            out_cmmon = self.a_commonset_b(nodejson[knownode]["outjson"], nodejson["求证"]["condjson"])
+            if out_cmmon:
+                tcondilist[knownode] = out_cmmon
+        out_supersets = self.genesuperset(tcondilist.values())
+        if self.a_supset_b(out_supersets, nodejson[outnode]["condjson"]):
+            knownodes.add(outnode)
+            for condnode in tcondilist:
+                if "_".join([condnode, outnode]) not in edgepairs:
+                    G.add_edge(condnode, outnode, weight=1)
+                    edgepairs.append("_".join([condnode, outnode]))
         return G, reportjson
 
     def gene_fulltree_from(self, nodejson):
@@ -2022,6 +1812,8 @@ class LogicalInference(object):
         propertyjson = [{"因为": i1} for i1 in propertyjson]
         self.language2answer(basic_space_ins._setobj, addc=propertyjson)
         # 4. 语法提取 字面关系
+        # 加入过程是逆序
+        outlatex.reverse()
         propertyjson = self.deriv_relationelement(outlatex)
         self.language2answer(basic_space_ins._setobj, addc=propertyjson)
         # 清理
@@ -2211,7 +2003,7 @@ class LogicalInference(object):
                                 del contlist[i1 - 1]
                             break
             if keylist[i1] == "text" and keylist[i1 - 1] == "latex":
-                ttypelist = ["在一条直线上", "是锐角", "是等腰三角形"]  # 目前仅支持一种模式: \\angle {xxx}
+                ttypelist = ["在一条直线上", "是锐角", "是等腰三角形", "是直角三角形"]  # 目前仅支持一种模式: \\angle {xxx}
                 for jsonkey in ttypelist:
                     mt = re.sub(u"^{}".format(jsonkey), "", contlist[i1])
                     if mt != contlist[i1]:
@@ -2236,7 +2028,7 @@ class LogicalInference(object):
                                     break
                         elif jsonkey == "是锐角":
                             posind = 0 if siglist[0] > 0 else -1
-                        elif jsonkey == "是等腰三角形":
+                        elif jsonkey in ["是等腰三角形", "是直角三角形"]:
                             posind = 0 if siglist[0] > 0 else -1
                         if posind == -1:
                             raise Exception("在一条直线上 或 是锐角 前面不应为空")
@@ -2266,7 +2058,7 @@ class LogicalInference(object):
                                         tnewstr = "{ 角@" + i2.strip("{}") + " }"
                                         tnewstr = self.language.name_normal(tnewstr)
                                         ins_json.append({typsig: [tnewstr, "是", "锐角"]})
-                            elif jsonkey == "是等腰三角形":
+                            elif jsonkey in ["是等腰三角形", "是直角三角形"]:
                                 tstrli = [i2 for i2 in tstrli[-1] if i2 != "\\triangle"]
                                 typsig = "因为"
                                 for i2 in tstrli:
@@ -2276,7 +2068,7 @@ class LogicalInference(object):
                                         tnewstr = i2.strip("{}")
                                         tnewstr = self.language.name_cyc_one(tnewstr).replace(" ", "")
                                         tnewstr = "{三角形@" + tnewstr + "}"
-                                        ins_json.append({typsig: [tnewstr, "是", "等腰三角形"]})
+                                        ins_json.append({typsig: [tnewstr, "是", jsonkey.lstrip("是")]})
                             else:
                                 print(jsonkey)
                                 raise Exception("在一条直线上")
@@ -2286,185 +2078,6 @@ class LogicalInference(object):
         space_name = "customer"
         space_ins = self.gstack.readspace(space_name, scene_name, field_name)
         # ins_json = [{"因为": i1} for i1 in ins_json]
-        self.language.json2space(ins_json, basic_space_ins, space_ins)
-        # 6. 提取所有 抽象类。对应实例，改变字符。属性
-        olenth = len(contlist)
-        # print(keylist)
-        # print(contlist)
-        analist = [[{keylist[i1]: contlist[i1]}] for i1 in range(olenth)]
-        anastr = self.get_allkeyproperty(analist)
-        return anastr
-
-    def sentence2normal_bak(self, analist):
-        """text latex 句子间合并 按句意合并, 结果全部写入内存。"""
-        # 1. 展成 同级 list
-        # print("sentence2normal")
-        analist = list(itertools.chain(*analist))
-        # 2. 去掉空的
-        # analist = [{list(sentence.keys())[0]: latex2space(list(sentence.values())[0]).strip(",，。 \t")} for
-        analist = [{list(sentence.keys())[0]: list(sentence.values())[0].strip(",，。 \t")} for
-                   sentence in analist if list(sentence.values())[0].strip(",，。 \t") != ""]
-        # print(analist)
-        # 3. 合并 临近相同的
-        keylist = [list(sentence.keys())[0] for sentence in analist]
-        contlist = [list(sentence.values())[0].strip() for sentence in analist]
-        olenth = len(contlist)
-        if olenth < 2:
-            print("合并 临近相同的 olenth < 2")
-            analist = [[{keylist[i1]: contlist[i1]} for i1 in range(olenth)]]
-            anastr = self.get_allkeyproperty(analist)
-            return anastr
-        for i1 in range(olenth - 1, 0, -1):
-            if keylist[i1] == keylist[i1 - 1]:
-                analist[i1 - 1] = {keylist[i1 - 1]: contlist[i1 - 1] + " ; " + analist[i1][keylist[i1]]}
-                del analist[i1]
-        # 4. latex text 转化
-        field_name = "数学"
-        scene_name = "解题"
-        space_name = "basic"
-        basic_space_ins = self.gstack.readspace(space_name, scene_name, field_name)
-        sortkey = list(basic_space_ins._proper_keys) + [trio[0] for trio in basic_space_ins._relation_trip.values()] \
-                  + [trio[2] for trio in basic_space_ins._relation_trip.values()]
-        sortkey = set(sortkey)
-        sortkey = [[onk, len(onk)] for onk in sortkey]
-        sortkey = [onk[0] for onk in sorted(sortkey, key=lambda x: -x[1])]
-        # 前一个为 text, 已关键字结尾， 且后一个为latex, 以字母开始。则拆分合并。
-        ins_json = []
-        keylist = [list(sentence.keys())[0] for sentence in analist]
-        contlist = [sentence[list(sentence.keys())[0]].strip() for sentence in analist]
-        # print(keylist)
-        # print(contlist)
-        olenth = len(analist)
-        if olenth < 2:
-            print("latex text 转化 olenth < 2")
-            analist = [[{keylist[i1]: contlist[i1]} for i1 in range(olenth)]]
-            anastr = self.get_allkeyproperty(analist)
-            return anastr
-        for i1 in range(olenth - 1, 0, -1):
-            # 目前 仅支持两种模式  1. 如： 正方形 ABCD 2. 如：A B C D 在一条直线上
-            if keylist[i1] == "latex" and keylist[i1 - 1] == "text":
-                for jsonkey in sortkey:
-                    mt = re.sub(u"{}$".format(jsonkey), "", contlist[i1 - 1])
-                    if mt != contlist[i1 - 1]:
-                        # 前一个 以属性名结尾
-                        se = re.match(r"^(\w|\s)+", contlist[i1])
-                        if se is not None:
-                            # 后一个 以字母空格开头的 单元字符串 去空
-                            # 当前contlist 为一个集合
-                            tinlist = self.language.latex_extract_word(contlist[i1])
-                            tstrli = latex_fenci(tinlist[0])
-                            siglist = [len(i2) for i2 in tstrli]
-                            siglenth = len(siglist)
-                            posind = -1
-                            for i2 in range(siglenth):
-                                if siglist[i2] == 1:
-                                    posind = i2
-                                else:
-                                    break
-                            if posind == -1:
-                                raise Exception("对应实体描述不存在")
-                            else:
-                                tstrstr = [" ".join(i2) for i2 in tstrli]
-                                tconcept_list = []
-                                for i2 in range(posind, siglenth):
-                                    tnewstr = "{ 点@" + tstrstr[i2] + " }"
-                                    tnewstr = self.language.name_normal(tnewstr)
-                                    ins_json.append([tnewstr, "是", "点"])
-                                    tconcept_list.append(tnewstr)
-                                tnewstr = "{ " + jsonkey + "@" + " ".join(tstrstr[0:posind + 1]) + " }"
-                                tnewstr = self.language.name_normal(tnewstr)
-                                ins_json.append([tnewstr, "是", jsonkey])
-                                # 改写拼接
-                                length_tinlist = len(tinlist)
-                                bstr = ""
-                                if length_tinlist > 1:
-                                    bstr = " , ".join(tinlist[1:])
-                                if siglenth - 1 != posind:
-                                    # 是否删除latex部分
-                                    contlist[i1] = " , ".join(tstrstr[posind:]) + bstr
-                                else:
-                                    if bstr == "":
-                                        del keylist[i1]
-                                        del contlist[i1]
-                                    else:
-                                        contlist[i1] = bstr
-                            # 是否删除文本部分
-                            ttext = mt.strip(",，；;:：。 \t")
-                            if ttext != "":
-                                contlist[i1 - 1] = ttext
-                            else:
-                                del keylist[i1 - 1]
-                                del contlist[i1 - 1]
-                            break
-            if keylist[i1] == "text" and keylist[i1 - 1] == "latex":
-                ttypelist = ["在一条直线上", "是锐角", "是等腰三角形"]  # 目前仅支持一种模式: \\angle {xxx}
-                for jsonkey in ttypelist:
-                    mt = re.sub(u"^{}".format(jsonkey), "", contlist[i1])
-                    if mt != contlist[i1]:
-                        # 是否删除文本部分
-                        ttext = mt.strip(",，；;:：。 \t")
-                        if ttext != "":
-                            contlist[i1] = ttext
-                        else:
-                            del keylist[i1]
-                            del contlist[i1]
-                        # 前面的 为一个集合
-                        tinlist = self.language.latex_extract_word(contlist[i1 - 1])
-                        tstrli = [latex_fenci(i2) for i2 in tinlist]
-                        siglist = [len(i2) for i2 in tstrli]
-                        siglenth = len(siglist)
-                        if jsonkey == "在一条直线上":
-                            posind = -1
-                            for i2 in range(siglenth - 1, -1, -1):
-                                if siglist[i2] == 1:
-                                    posind = i2
-                                else:
-                                    break
-                        elif jsonkey == "是锐角":
-                            posind = 0 if siglist[0] > 0 else -1
-                        elif jsonkey == "是等腰三角形":
-                            posind = 0 if siglist[0] > 0 else -1
-                        if posind == -1:
-                            raise Exception("在一条直线上 或 是锐角 前面不应为空")
-                        else:
-                            tstrstr = [" ".join(i2) for i2 in tstrli]
-                            tconcept_list = []
-                            if jsonkey == "在一条直线上":
-                                for i2 in range(posind, siglenth):
-                                    tnewstr = "{ 点@" + tstrstr[i2] + " }"
-                                    tnewstr = self.language.name_normal(tnewstr)
-                                    ins_json.append([tnewstr, "是", "点"])
-                                    tconcept_list.append(tnewstr)
-                                ins_json.append([tconcept_list, "是", "直线"])
-                                if 0 != posind:
-                                    # 是否删除latex部分
-                                    contlist[i1 - 1] = " , ".join(tstrstr[0:posind])
-                                else:
-                                    del keylist[i1 - 1]
-                                    del contlist[i1 - 1]
-                            elif jsonkey == "是锐角":
-                                tstrli = [i2 for i2 in tstrli[-1] if i2 != "\\angle"]
-                                for i2 in tstrli:
-                                    if i2.startswith("{") and i2.endswith("}"):
-                                        tnewstr = "{ 角@" + i2.strip("{}") + " }"
-                                        tnewstr = self.language.name_normal(tnewstr)
-                                        ins_json.append([tnewstr, "是", "锐角"])
-                            elif jsonkey == "是等腰三角形":
-                                tstrli = [i2 for i2 in tstrli[-1] if i2 != "\\triangle"]
-                                for i2 in tstrli:
-                                    if i2.startswith("{") and i2.endswith("}"):
-                                        tnewstr = "{ 三角形@" + i2.strip("{}") + " }"
-                                        tnewstr = self.language.name_normal(tnewstr)
-                                        ins_json.append([tnewstr, "是", "等腰三角形"])
-                            else:
-                                print(jsonkey)
-                                raise Exception("在一条直线上")
-        # 5. 写入句间的实例
-        field_name = "数学"
-        scene_name = "解题"
-        space_name = "customer"
-        space_ins = self.gstack.readspace(space_name, scene_name, field_name)
-        ins_json = [{"因为": i1} for i1 in ins_json]
         self.language.json2space(ins_json, basic_space_ins, space_ins)
         # 6. 提取所有 抽象类。对应实例，改变字符。属性
         olenth = len(contlist)
@@ -2498,15 +2111,11 @@ class LogicalInference(object):
                 analist[i1 - 1] = {keylist[i1 - 1]: contlist[i1 - 1] + " ; " + analist[i1][keylist[i1]]}
                 del analist[i1]
         # 4. latex text 转化
+        # print("answer2normal........")
         field_name = "数学"
         scene_name = "解题"
         space_name = "basic"
         basic_space_ins = self.gstack.readspace(space_name, scene_name, field_name)
-        sortkey = list(basic_space_ins._proper_keys) + [trio[0] for trio in basic_space_ins._relation_trip.values()] \
-                  + [trio[2] for trio in basic_space_ins._relation_trip.values()]
-        sortkey = set(sortkey)
-        sortkey = [[onk, len(onk)] for onk in sortkey]
-        sortkey = [onk[0] for onk in sorted(sortkey, key=lambda x: -x[1])]
         # 前一个为 text, 已关键字结尾， 且后一个为latex, 以字母开始。则拆分合并。
         ins_json = []
         keylist = [list(sentence.keys())[0] for sentence in analist]
@@ -2521,7 +2130,12 @@ class LogicalInference(object):
             return anastr
         for i1 in range(olenth - 1, 0, -1):
             # 目前 仅支持两种模式  1. 如： 正方形 ABCD 2. 如：A B C D 在一条直线上
+            # print(i1)
+            # print(keylist[i1 - 1], contlist[i1 - 1])
+            # print(keylist[i1], contlist[i1])
             if keylist[i1] == "latex" and keylist[i1 - 1] == "text":
+                sortkey = ['等腰三角形', '等角三角形', '平行四边形', '全等三角形', '等边三角形', '正方形', '四边形', 'n边形',
+                           '三角形', '切线', '半径', '矩形', '圆心', '直径', '圆', '边', '3', '弦', '']
                 for jsonkey in sortkey:
                     mt = re.sub(u"{}$".format(jsonkey), "", contlist[i1 - 1])
                     if mt != contlist[i1 - 1]:
@@ -2548,13 +2162,15 @@ class LogicalInference(object):
                                 for i2 in range(posind, siglenth):
                                     tnewstr = "{ 点@" + tstrstr[i2] + " }"
                                     tnewstr = self.language.name_normal(tnewstr)
-                                    # ins_json.append([tnewstr, "是", "点"])
                                     ins_json.append({"因为": [tnewstr, "是", "点"]})
+                                    tins_json = [{"因为": [tnewstr, "是", "点"]}]
+                                    self.language2answer(basic_space_ins._setobj, addc=tins_json)
                                     tconcept_list.append(tnewstr)
                                 tnewstr = "{ " + jsonkey + "@" + " ".join(tstrstr[0:posind + 1]) + " }"
                                 tnewstr = self.language.name_normal(tnewstr)
                                 ins_json.append({"因为": [tnewstr, "是", jsonkey]})
-                                # ins_json.append([tnewstr, "是", jsonkey])
+                                tins_json = [{"因为": [tnewstr, "是", jsonkey]}]
+                                self.language2answer(basic_space_ins._setobj, addc=tins_json)
                                 # 改写拼接
                                 length_tinlist = len(tinlist)
                                 bstr = ""
@@ -2577,8 +2193,8 @@ class LogicalInference(object):
                                 del keylist[i1 - 1]
                                 del contlist[i1 - 1]
                             break
-            if keylist[i1] == "text" and keylist[i1 - 1] == "latex":
-                ttypelist = ["在一条直线上", "是锐角", "是等腰三角形"]  # 目前仅支持一种模式: \\angle {xxx}
+            elif keylist[i1] == "text" and keylist[i1 - 1] == "latex":
+                ttypelist = ["在一条直线上", "是锐角", "是等腰三角形", "是直角三角形"]  # 目前仅支持一种模式: \\angle {xxx}
                 for jsonkey in ttypelist:
                     mt = re.sub(u"^{}".format(jsonkey), "", contlist[i1])
                     if mt != contlist[i1]:
@@ -2601,9 +2217,7 @@ class LogicalInference(object):
                                     posind = i2
                                 else:
                                     break
-                        elif jsonkey == "是锐角":
-                            posind = 0 if siglist[0] > 0 else -1
-                        elif jsonkey == "是等腰三角形":
+                        elif jsonkey in ["是锐角", "是等腰三角形", "是直角三角形"]:
                             posind = 0 if siglist[0] > 0 else -1
                         if posind == -1:
                             raise Exception("在一条直线上 或 是锐角 前面不应为空")
@@ -2615,8 +2229,12 @@ class LogicalInference(object):
                                     tnewstr = "{ 点@" + tstrstr[i2] + " }"
                                     tnewstr = self.language.name_normal(tnewstr)
                                     ins_json.append({"因为": [tnewstr, "是", "点"]})
+                                    tins_json = [{"因为": [tnewstr, "是", "点"]}]
+                                    self.language2answer(basic_space_ins._setobj, addc=tins_json)
                                     tconcept_list.append(tnewstr)
                                 ins_json.append({"因为": [tconcept_list, "是", "直线"]})
+                                tins_json = [{"因为": [tconcept_list, "是", "直线"]}]
+                                self.language2answer(basic_space_ins._setobj, addc=tins_json)
                                 if 0 != posind:
                                     # 是否删除latex部分
                                     contlist[i1 - 1] = " , ".join(tstrstr[0:posind])
@@ -2632,8 +2250,10 @@ class LogicalInference(object):
                                     if i2.startswith("{") and i2.endswith("}"):
                                         tnewstr = "{ 角@" + i2.strip("{}") + " }"
                                         tnewstr = self.language.name_normal(tnewstr)
-                                        ins_json.append({typsig: [tnewstr, "是", "锐角"]})
-                            elif jsonkey == "是等腰三角形":
+                                        ins_json.append({typsig: [tnewstr, "是", jsonkey.lstrip("是")]})
+                                        tins_json = [{typsig: [tnewstr, "是", jsonkey.lstrip("是")]}]
+                                        self.language2answer(basic_space_ins._setobj, addc=tins_json)
+                            elif jsonkey in ["是等腰三角形", "是直角三角形"]:
                                 tstrli = [i2 for i2 in tstrli[-1] if i2 != "\\triangle"]
                                 typsig = "因为"
                                 for i2 in tstrli:
@@ -2643,19 +2263,33 @@ class LogicalInference(object):
                                         tnewstr = i2.strip("{}")
                                         tnewstr = self.language.name_cyc_one(tnewstr).replace(" ", "")
                                         tnewstr = "{三角形@" + tnewstr + "}"
-                                        ins_json.append({typsig: [tnewstr, "是", "等腰三角形"]})
+                                        ins_json.append({typsig: [tnewstr, "是", jsonkey.lstrip("是")]})
+                                        tins_json = [{typsig: [tnewstr, "是", jsonkey.lstrip("是")]}]
+                                        self.language2answer(basic_space_ins._setobj, addc=tins_json)
                             else:
                                 print(jsonkey)
                                 raise Exception("在一条直线上")
+            elif keylist[i1] == "text" and keylist[i1 - 1] == "text":
+                raise Exception("NO text text type now!")
+            elif keylist[i1] == "latex" and keylist[i1 - 1] == "latex":
+                raise Exception("NO latex latex type now!")
+            else:
+                raise Exception("没有考虑到的情况type now!")
+            analist = [[{keylist[i1]: contlist[i1]}]]
+            self.get_answerproperty(analist)
         # 5. 写入句间的实例
-        # ins_json = [{"因为": i1} for i1 in ins_json]
-        self.language2answer(basic_space_ins._setobj, addc=ins_json)
+        # self.language2answer(basic_space_ins._setobj, addc=ins_json)
         # 6. 提取所有 抽象类。对应实例，改变字符。属性
-        olenth = len(contlist)
-        analist = [[{keylist[i1]: contlist[i1]}] for i1 in range(olenth)]
-        # print(keylist)
-        # print(contlist)
+        analist = [[{keylist[0]: contlist[0]}]]
         anastr = self.get_answerproperty(analist)
+        self.answer_json.reverse()
+        # 去重
+        orlenth = len(self.answer_json)
+        for idm in range(orlenth - 1, 0, -1):
+            for idn in range(idm):
+                if operator.eq(self.answer_json[idm], self.answer_json[idn]):
+                    del self.answer_json[idn]
+                    break
         return anastr
 
     def language2answer(self, basic_set, addc=[]):
@@ -4708,10 +4342,8 @@ def answer_latex_prove(instr, inconditon, intree, checkpoints=[]):
     # 2. 分解答案
     li_ins = LogicalInference()
     li_ins.answer2normal(ans_inlist)
-    anastr = li_ins.analysis_tree(inconditon, intree, checkpoints=checkpoints)
-    outelem = "res"
-    outreport = "res"
-    return outelem, outreport
+    reportjson = li_ins.analysis_tree(inconditon, intree, checkpoints=checkpoints)
+    return reportjson
 
 
 if __name__ == '__main__':
@@ -4760,25 +4392,23 @@ if __name__ == '__main__':
     # 中等难度 多边形
     printstr3 = "已知：正方形 $ABCD, A、P、C $ 在一条直线上。$MN \\parallel BC, \\angle {BPQ} =90 ^{\\circ},A、M、B $ 在一条直线上，$M、P、N $ 在一条直线上，$\\angle {APM}$是锐角，$\\angle {NPQ} +\\angle {BPQ} +\\angle {BPM} =180^{\\circ }, \\angle {ACB}$是锐角。 $C、Q、 N、D $ 在一条直线上。求证 $PB = PQ$"
     # 1. 正确，不同路径的demo1. （考点为 等腰三角形 全等三角形 表达式传递）
-    handestr3 = "$ \\because \\angle {MAP} = \\angle {MPA}, \\therefore \\triangle {AMP} $是等腰三角形, $ \\therefore AM=PM, \\because AB=MN,\\therefore MB=PN,\\because \\angle {BPQ}=90 ^ {\\circ},\\therefore \\angle {BPM} + \\angle {NPQ} = 90 ^ {\\circ},\\because \\angle {NPQ} + \\angle {NQP} = 90 ^ {\\circ},\\therefore \\angle {MPB} = \\angle {NQP},\\because \\triangle {BPM}$ 是直角三角形。$\\because \\triangle {NPQ}$ 是直角三角形$ \\therefore \\triangle {BPM} \\cong \\triangle {NPQ},\\therefore PB = PQ $"
-    # # 2. 正确，不同路径的demo1. （考点为 等腰三角形 全等三角形 表达式传递）
-    # handestr3 = "$ \\because \\angle {NCP} = \\angle {NPC}, \\therefore \\triangle {NPC} $是等腰三角形, $ \\therefore CN=PN, \\because CN=MB,\\therefore MB=PN,\\because \\angle {BPQ}=90 ^ {\\circ},\\therefore \\angle {BPM} + \\angle {NPQ} = 90 ^ {\\circ},\\because \\angle {NPQ} + \\angle {NQP} = 90 ^ {\\circ},\\therefore \\angle {MPB} = \\angle {NQP},\\because \\triangle {BPM}$ 是直角三角形。$\\because \\triangle {NPQ}$ 是直角三角形$ \\therefore \\triangle {BPM} \\cong \\triangle {NPQ},\\therefore PB = PQ $"
-    # # 3. 考点描述不全, 证明有断层。（未描述等腰三角形）
-    # handestr3 = "$ \\therefore AM=PM, \\because AB=MN,\\therefore MB=PN,\\because \\angle {BPQ}=90 ^ {\\circ},\\therefore \\angle {BPM} + \\angle {NPQ} = 90 ^ {\\circ},\\because \\angle {MBP} + \\angle {BPM} = 90 ^ {\\circ},\\therefore \\angle {MBP} = \\angle {NPQ},\\because \\triangle {BPM}$ 是直角三角形。$\\because \\triangle {NPQ}$ 是直角三角形$ \\therefore \\triangle {BPM} \\cong \\triangle {NPQ},\\therefore PB = PQ $"
-    # # 4. 答题文字如3 但题目考点不考等腰三角形，证明成功。
-    # handestr3 = "$ \\therefore AM=PM, \\because AB=MN,\\therefore MB=PN,\\because \\angle {BPQ}=90 ^ {\\circ},\\therefore \\angle {BPM} + \\angle {NPQ} = 90 ^ {\\circ},\\because \\angle {MBP} + \\angle {BPM} = 90 ^ {\\circ},\\therefore \\angle {MBP} = \\angle {NPQ},\\because \\triangle {BPM}$ 是直角三角形。$\\because \\triangle {NPQ}$ 是直角三角形$ \\therefore \\triangle {BPM} \\cong \\triangle {NPQ},\\therefore PB = PQ $"
-    # # 5. 描述错误，但不影响答案。
-    # todo: 这个应该不通，但自引闭环，使之可以走通。1. 下行树 去掉闭环条件，2. 假图展示
-    # handestr3 = "$ \\because \\angle {MAF} = \\angle {MPA}, \\therefore \\triangle {AMP} $是等腰三角形, $ \\therefore AM=PM, \\because AB=MN,\\therefore MB=PN,\\because \\angle {BPQ}=90 ^ {\\circ},\\therefore \\angle {BPM} + \\angle {NPQ} = 90 ^ {\\circ},\\because \\angle {NPQ} + \\angle {NQP} = 90 ^ {\\circ},\\therefore \\angle {MPB} = \\angle {NQP},\\because \\triangle {BPM}$ 是直角三角形。$\\because \\triangle {NPQ}$ 是直角三角形$ \\therefore \\triangle {BPM} \\cong \\triangle {NPQ},\\therefore PB = PQ $"
+    handestr3 = "$ \\because \\angle {MAP} = \\angle {MPA}, \\therefore \\triangle {AMP} $是等腰三角形, $ \\therefore AM=PM, \\because AB=MN,\\therefore MB=PN,\\because \\angle {BPQ}=90 ^ {\\circ},\\therefore \\angle {BPM} + \\angle {NPQ} = 90 ^ {\\circ},\\because \\angle {NPQ} + \\angle {NQP} = 90 ^ {\\circ},\\therefore \\angle {MBP} = \\angle {NPQ},\\because \\triangle {BPM}$ 是直角三角形。$\\because \\triangle {NPQ}$ 是直角三角形$ \\therefore \\angle {BMP} = \\angle {PNQ}, \\therefore \\triangle {BPM} \\cong \\triangle {NPQ},\\therefore PB = PQ $"
+    # 2. 正确，不同路径的demo1. （考点为 等腰三角形 全等三角形 表达式传递）
+    handestr3 = "$ \\because \\angle {NCP} = \\angle {NPC}, \\therefore \\triangle {NPC} $是等腰三角形, $ \\therefore CN=PN, \\because CN=MB,\\therefore MB=PN,\\because \\angle {BPQ}=90 ^ {\\circ},\\therefore \\angle {BPM} + \\angle {NPQ} = 90 ^ {\\circ},\\because \\angle {NPQ} + \\angle {NQP} = 90 ^ {\\circ},\\therefore \\angle {MBP} = \\angle {NPQ},\\because \\triangle {BPM}$ 是直角三角形。$\\because \\triangle {NPQ}$ 是直角三角形$ \\therefore \\angle {BMP} = \\angle {PNQ}, \\therefore \\triangle {BPM} \\cong \\triangle {NPQ},\\therefore PB = PQ $"
+    # 3. 考点描述不全, 证明有断层。（未描述等腰三角形）
+    handestr3 = "$ \\because \\angle {MAP} = \\angle {MPA}, \\therefore AM=PM, \\because AB=MN,\\therefore MB=PN,\\because \\angle {BPQ}=90 ^ {\\circ},\\therefore \\angle {BPM} + \\angle {NPQ} = 90 ^ {\\circ},\\because \\angle {NPQ} + \\angle {NQP} = 90 ^ {\\circ},\\therefore \\angle {MBP} = \\angle {NPQ},\\because \\triangle {BPM}$ 是直角三角形。$\\because \\triangle {NPQ}$ 是直角三角形$ \\therefore \\angle {BMP} = \\angle {PNQ}, \\therefore \\triangle {BPM} \\cong \\triangle {NPQ},\\therefore PB = PQ $"
+    # 4. 答题文字如3 但题目考点不考等腰三角形，证明成功。
+    handestr3 = "$ \\because \\angle {MAP} = \\angle {MPA}, \\therefore AM=PM, \\because AB=MN,\\therefore MB=PN,\\because \\angle {BPQ}=90 ^ {\\circ},\\therefore \\angle {BPM} + \\angle {NPQ} = 90 ^ {\\circ},\\because \\angle {NPQ} + \\angle {NQP} = 90 ^ {\\circ},\\therefore \\angle {MBP} = \\angle {NPQ},\\because \\triangle {BPM}$ 是直角三角形。$\\because \\triangle {NPQ}$ 是直角三角形$ \\therefore \\angle {BMP} = \\angle {PNQ}, \\therefore \\triangle {BPM} \\cong \\triangle {NPQ},\\therefore PB = PQ $"
+    # 5. 描述错误，但不影响答案。
+    handestr3 = "$ \\because \\angle {MAF} = \\angle {MPA}, \\because \\angle {MAP} = \\angle {MPA}, \\therefore \\triangle {AMP} $是等腰三角形, $ \\therefore AM=PM, \\because AB=MN,\\therefore MB=PN,\\because \\angle {BPQ}=90 ^ {\\circ},\\therefore \\angle {BPM} + \\angle {NPQ} = 90 ^ {\\circ},\\because \\angle {NPQ} + \\angle {NQP} = 90 ^ {\\circ},\\therefore \\angle {MBP} = \\angle {NPQ},\\because \\triangle {BPM}$ 是直角三角形。$\\because \\triangle {NPQ}$ 是直角三角形$ \\therefore \\angle {BMP} = \\angle {PNQ}, \\therefore \\triangle {BPM} \\cong \\triangle {NPQ},\\therefore PB = PQ $"
     # outelem, outtree = title_latex_prove(printstr3)
     # raise 123
-    inconditon = "../nodejson.json"
-    intree = "../edgejson.json"
     # print("原答案")
     # print(handestr3)
     checkpoints = [
         # "@@求证",
         "@@表达式传递",
+        "@@全等三角形间传递",
         "@@全等三角形充分条件边角边", "@@全等三角形充分条件角边角", "@@全等三角形必要条件",
         # "@@等边三角形充分条件角", "@@等边三角形充分条件边",
         # "@@等腰三角形充分条件边",
@@ -4787,7 +4417,11 @@ if __name__ == '__main__':
         # "@@等腰三角形必要条件角",
     ]
     print(handestr3)
-    outelem, outreport = answer_latex_prove(handestr3, inconditon, intree, checkpoints=checkpoints)
+    inconditon = "../nodejson.json"
+    intree = "../edgejson.json"
+    nodejson = json.load(open(inconditon, "r"))
+    edgelist = json.load(open(intree, "r"))
+    outreport = answer_latex_prove(handestr3, nodejson, edgelist, checkpoints=checkpoints)
     print("end")
     exit()
 
