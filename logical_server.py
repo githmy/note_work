@@ -332,7 +332,7 @@ class Delphis(object):
                     result.addErrback(training_errback)
                     return report, error
             # 4. 返还信息
-            print("tree ok branch")
+            # print("tree ok branch")
             mapstr_sql = """SELECT processtr, `name` ,`ptype` FROM `processmap` where processtr is not null"""
             mapstr_content = self.mysql.exec_sql(mapstr_sql)
             mapname_content = {item["processtr"]: [item["name"], item["ptype"]] for item in mapstr_content}
@@ -340,8 +340,8 @@ class Delphis(object):
             for idn, onerep in enumerate(report):
                 if onerep["point"] in mapname_content:
                     report[idn]["point"], report[idn]["ptype"] = mapname_content[onerep["point"]]
-            print(report)
-            print(error)
+            # print(report)
+            # print(error)
             return report, error
         else:
             error = {"message": "图片没有对应的 题目id 或 解答id,待写入。"}
@@ -366,7 +366,7 @@ class Delphis(object):
             # print("response")
             dumped = yield json.dumps(response, ensure_ascii=False)
             # dumped = yield json.dumps(response, indent=4, ensure_ascii=False)
-        print("outing ", dumped)
+        # print("outing ", dumped)
         returnValue(dumped)
 
 
