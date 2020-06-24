@@ -863,11 +863,11 @@ class LogicalInference(object):
         usefulnode = mention_node + defaultnode
         print("答案可用节点", len(usefulnode), usefulnode)
         # 6. 遍历 原始edgelist，得到最近点的路径，删除每条路径上的默认点，剩余点取数量阈值作为连接的判断。
-        reportjson = self.find_answer_path(simple_nodejson, usefulnode, mention_node)
+        reportjson, suminfo = self.find_answer_path(simple_nodejson, usefulnode, mention_node)
         reportjson = reportjson1 + reportjson
         print("字面报告：", len(reportjson))
         pprint(reportjson)
-        return json.dumps(reportjson, ensure_ascii=False)
+        return json.dumps([reportjson, suminfo], ensure_ascii=False)
 
     def find_answer_path(self, nodejson, usefulnode, mention_node):
         " 只能从已知找，如果中断不连通 由于存在自引循环，无法从另一个联通区域继续往下推 "
@@ -917,8 +917,10 @@ class LogicalInference(object):
         nodename = "求证"
         if nodename not in nocon_node and nodename in G1.nodes:
             logger1.info("证明成功")
+            suminfo = "此题证明完全正确。"
         else:
             logger1.info("证明失败")
+            suminfo = "此题没有完成证明。"
             sstime = time.time()
             # G2 = self.gene_uptree_from(answer_nodejson, nodename)
             G2 = self.gene_uptree_from(nodejson, nodename)
@@ -941,7 +943,7 @@ class LogicalInference(object):
                     tpoint = nodejson[node]["points"]
                     tmjson = {"content": tstt, "point": ",".join(tpoint), "istrue": "可选未连通未描述知识点"}
                     reportjson.append(tmjson)
-        return reportjson
+        return reportjson, suminfo
         # # 2. 判断 对错
         # pos = nx.kamada_kawai_layout(G1)
         # plt.figure(figsize=(10, 6))
@@ -4316,13 +4318,15 @@ class LogicalInference(object):
                         #     print("eee_sig", eee_sig)
                         #     print(eee_list[idmain][-1], eee_list[idcli][-1])
                         if eee_sig[0] + eee_sig[1] + eee_sig[2] == 3 or eee_sig[0] + eee_sig[7] + eee_sig[8] == 3 or \
-                            eee_sig[3] + eee_sig[7] + eee_sig[6] == 3 or eee_sig[1] + eee_sig[5] + eee_sig[6] == 3 or \
-                            eee_sig[4] + eee_sig[5] + eee_sig[8] == 3 or eee_sig[2] + eee_sig[3] + eee_sig[4] == 3:
+                                                        eee_sig[3] + eee_sig[7] + eee_sig[6] == 3 or eee_sig[1] + \
+                                eee_sig[5] + eee_sig[6] == 3 or \
+                                                        eee_sig[4] + eee_sig[5] + eee_sig[8] == 3 or eee_sig[2] + \
+                                eee_sig[3] + eee_sig[4] == 3:
                             outjson.append([[eee_list[idmain][-1], eee_list[idcli][-1]], "是", "全等三角形"])
                             if self.treesig:
                                 keyelem = []
                                 teee_equal = []
-                                if eee_sig[0] + eee_sig[1] + eee_sig[2] == 3 :
+                                if eee_sig[0] + eee_sig[1] + eee_sig[2] == 3:
                                     t0list = list(set([eee_list[idmain][0], eee_list[idcli][0]]))
                                     t1list = list(set([eee_list[idmain][1], eee_list[idcli][1]]))
                                     t2list = list(set([eee_list[idmain][2], eee_list[idcli][2]]))
@@ -4352,7 +4356,7 @@ class LogicalInference(object):
                                     keyelem.append("".join(t0list))
                                     keyelem.append("".join(t1list))
                                     keyelem.append("".join(t2list))
-                                elif eee_sig[1] + eee_sig[5] + eee_sig[6] == 3 :
+                                elif eee_sig[1] + eee_sig[5] + eee_sig[6] == 3:
                                     t0list = list(set([eee_list[idmain][1], eee_list[idcli][1]]))
                                     t1list = list(set([eee_list[idmain][0], eee_list[idcli][2]]))
                                     t2list = list(set([eee_list[idmain][2], eee_list[idcli][0]]))
@@ -4362,7 +4366,7 @@ class LogicalInference(object):
                                     keyelem.append("".join(t0list))
                                     keyelem.append("".join(t1list))
                                     keyelem.append("".join(t2list))
-                                elif eee_sig[4] + eee_sig[5] + eee_sig[8] == 3 :
+                                elif eee_sig[4] + eee_sig[5] + eee_sig[8] == 3:
                                     t0list = list(set([eee_list[idmain][1], eee_list[idcli][0]]))
                                     t1list = list(set([eee_list[idmain][0], eee_list[idcli][2]]))
                                     t2list = list(set([eee_list[idmain][2], eee_list[idcli][1]]))
@@ -4372,7 +4376,7 @@ class LogicalInference(object):
                                     keyelem.append("".join(t0list))
                                     keyelem.append("".join(t1list))
                                     keyelem.append("".join(t2list))
-                                elif eee_sig[2] + eee_sig[3] + eee_sig[4] == 3 :
+                                elif eee_sig[2] + eee_sig[3] + eee_sig[4] == 3:
                                     t0list = list(set([eee_list[idmain][2], eee_list[idcli][2]]))
                                     t1list = list(set([eee_list[idmain][1], eee_list[idcli][0]]))
                                     t2list = list(set([eee_list[idmain][0], eee_list[idcli][1]]))
@@ -4459,8 +4463,8 @@ def answer_latex_prove(instr, inconditon, intree, checkpoints=[]):
     # 2. 分解答案
     li_ins = LogicalInference()
     li_ins.answer2normal(ans_inlist)
-    reportjson = li_ins.analysis_tree(inconditon, intree, checkpoints=checkpoints)
-    return reportjson
+    outjson = li_ins.analysis_tree(inconditon, intree, checkpoints=checkpoints)
+    return outjson
 
 
 if __name__ == '__main__':
@@ -4471,22 +4475,6 @@ if __name__ == '__main__':
       3. pi 取 3.1415 （常数需赋值）
       4. varlist 至简从单字符变量（a） 到多字符变量 （a_{2}, a_{2}b_{3}），不包含前后缀如 角度
     手写输入为: 印刷体的输出
-    [
-        { "题号":"3","类型":"公式","已知": ["\\sin { 4 5 ^ { \\circ } } * 2"],"varlist":["ab","ABCD"],"求解":[], "参考步骤":[{"表达式":"\\sqrt 2","分值":"0.5"}]},
-        { "题号":"4","类型":"方程","已知": ["a \\sin { 4 5 ^ { \\circ } } * 2 = 6"],"varlist":["ab","ABCD"],"求解":["a"], "参考步骤":[{},{}]},
-        { "题号":"5",
-          "类型":"证明",
-          "已知": [
-            {"type":"text","txt":"求证"},{"type":"latex","txt":"\\sin { 4 }"},
-          ],
-          "varlist":["ab","ABCD"],  (实体提取)
-          "求解":["ab"], 
-          "steps":[
-            {},
-            {"title":[{"ab":5.2,"cd":3},{"ab":-5.2,"cd":-3}]} (最后的步骤为答案, 多解存在用数组)
-          ]
-        },
-    ]
     """
     # ss = " 。asdfb.,".strip(",，。 ")
     # print(ss)
@@ -4525,8 +4513,9 @@ if __name__ == '__main__':
     checkpoints = [
         # "@@求证",
         "@@表达式传递",
-        "@@全等三角形间传递",
-        "@@全等三角形充分条件边角边", "@@全等三角形充分条件角边角", "@@全等三角形必要条件",
+        # "@@全等三角形间传递",
+        # "@@全等三角形充分条件边角边",
+        "@@全等三角形充分条件角边角", "@@全等三角形必要条件",
         # "@@等边三角形充分条件角", "@@等边三角形充分条件边",
         # "@@等腰三角形充分条件边",
         "@@等腰三角形充分条件角",
