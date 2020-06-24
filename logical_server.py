@@ -260,20 +260,18 @@ class Delphis(object):
         pic_sql = """SELECT * FROM `picmap` """
         pic_content = self.mysql.exec_sql(pic_sql)
         self.picmap = {pic["picid"]: [pic["titleid"], pic["ansid"]] for pic in pic_content}
-        # report = {"aa": 123}
         report = {}
-        error = {}
+        error = ""
         if picid not in self.picmap:
-            error["图片id"] = "没有对应 题目id 和 解答id"
+            error = "图片id: 没有对应 题目id 和 解答id"
             pic_sql = """INSERT INTO `picmap` (picid) values ("{}")""".format(picid)
             pic_content = self.mysql.exec_sql(pic_sql)
             pic_sql = """SELECT * FROM `picmap` """
             pic_content = self.mysql.exec_sql(pic_sql)
             self.picmap = {pic["picid"]: [pic["titleid"], pic["ansid"]] for pic in pic_content}
-            print("picture map:", self.picmap)
-            # error["图片映射部分问题"] = "没有pict mape"
-            # print(error)
-            return report, error
+            # print("picture map:", self.picmap)
+            desc = error
+            return report, desc, error
         # 3. 如果有title内容，没有思维树，生成思维树，写入
         titleid, ansid = self.picmap[picid]
         if titleid is not None and ansid is not None:
@@ -283,20 +281,17 @@ class Delphis(object):
             # print(titlein_sql)
             title_content = self.mysql.exec_sql(titlein_sql)
             if len(title_content) == 0:
-                print("没有思维树")
-                error["题目id"] = "没有该行对应的内容, 待写入树和节点"
-                return report, error
+                # print("没有思维树")
+                error = "题目id: 没有该行对应的内容, 待写入思维树和节点"
+                desc = error
+                return report, desc, error
             else:
-                # condition = title_content[0]["condition"].strip('"')
-                # trees = title_content[0]["trees"].strip('"')
                 condition = title_content[0]["condition"]
                 trees = title_content[0]["trees"]
                 checkpoi = title_content[0]["checkpoints"]
                 if condition is None or trees is None:
                     # 1. 解析题目，2. 序列化后写入数据库
-                    error["题目id"] = "titletab有对应内容, 但树节点为空, 生成中。。。"
-                    # paras0 = json.dumps(title_content[0]["content"], ensure_ascii=False)
-                    # paras1 = json.dumps(self.dbconfig, ensure_ascii=False)
+                    error = "题目id: titletab有对应内容, 但树节点为空, 生成中。。。"
                     paras0 = self.dbconfig
                     paras1 = title_content[0]["content"]
                     result = self.process_pool.submit(packanalyizefunc, paras0, paras1, titleid)
@@ -305,22 +300,28 @@ class Delphis(object):
                     result.addErrback(training_errback)
                     # packanalyizefunc(paras0, paras1, titleid)
                     # retsig = self.process_pool.apply_async(packanalyizefunc, args=(paras0, paras1, titleid,))
-                    return report, error
+                    desc = error
+                    return report, desc, error
+        else:
+            error = "题目id: 图片没有映射 题目id 和答案id "
+            desc = error
+            return report, desc, error
         # 4. 测试注销 end
         if condition is not None and trees is not None:
             ansin_sql = """SELECT anstrs, ansreports FROM `answertab` where ansid={}""".format(ansid)
             ansin_content = self.mysql.exec_sql(ansin_sql)
             if len(ansin_content) == 0:
-                error["解答id"] = "没有答案描述, 待写入"
-                return report, error
+                error = "解答id: 没有答案描述, 待写入"
+                desc = error
+                return report, desc, error
             else:
                 ansreports = ansin_content[0]["ansreports"]
+                checkpoi = json.loads(checkpoi, encoding="utf-8")
                 if ansreports is None:
                     # 1. 解析答案，2. 对比内容，3. 序列化后写入数据库
-                    error["解答id"] = "答案描述没有对应报告, 生成中，约30s后查看报告。"
+                    error = "解答id: 答案描述没有对应报告, 生成中，约30s后查看报告。"
                     condition = json.loads(condition, encoding="utf-8")
                     trees = json.loads(trees, encoding="utf-8")
-                    checkpoi = json.loads(checkpoi, encoding="utf-8")
                     anstrs = ansin_content[0]["anstrs"]
                     paras0 = self.dbconfig
                     paras1 = anstrs
@@ -330,23 +331,50 @@ class Delphis(object):
                     result = deferred_from_future(result)
                     result.addCallback(training_callback)
                     result.addErrback(training_errback)
-                    return report, error
-            # 4. 返还信息
+                    desc = error
+                    return report, desc, error
+            # 4. 返还信息重组
             # print("tree ok branch")
             mapstr_sql = """SELECT processtr, `name` ,`ptype` FROM `processmap` where processtr is not null"""
             mapstr_content = self.mysql.exec_sql(mapstr_sql)
             mapname_content = {item["processtr"]: [item["name"], item["ptype"]] for item in mapstr_content}
             report = json.loads(ansreports, encoding="utf-8")
-            for idn, onerep in enumerate(report):
+            sumalljson = {}
+            for point in checkpoi:
+                newpoint, newtype = mapname_content[point]
+                if newtype not in sumalljson:
+                    sumalljson[newtype] = set()
+                sumalljson[newtype].add(newpoint)
+            sumjson = {}
+            for idn, onerep in enumerate(report[0]):
                 if onerep["point"] in mapname_content:
-                    report[idn]["point"], report[idn]["ptype"] = mapname_content[onerep["point"]]
-            # print(report)
-            # print(error)
-            return report, error
+                    report[0][idn]["point"], report[0][idn]["ptype"] = mapname_content[onerep["point"]]
+                    if report[0][idn]["ptype"] not in sumjson:
+                        sumjson[report[0][idn]["ptype"]] = set()
+                    if report[0][idn]["istrue"] == "连通描述正确":
+                        sumjson[report[0][idn]["ptype"]].add(report[0][idn]["point"])
+                        try:
+                            sumalljson[report[0][idn]["ptype"]].remove(report[0][idn]["point"])
+                        except Exception as e:
+                            pass
+                else:
+                    report[0][idn]["ptype"] = ""
+            reportdic = {}
+            for key in sumalljson:
+                reportdic[key] = ""
+                if len(sumalljson[key]) > 0:
+                    reportdic[key] += "、".join(sumalljson[key]) + " 未掌握。"
+            for key in sumjson:
+                if len(sumjson[key]) > 0:
+                    reportdic[key] = "、".join(sumjson[key]) + " 已掌握。" + reportdic[key]
+            strrs = [key + ": " + vlu for key, vlu in reportdic.items()]
+            desc = report[1] + "。".join(strrs)
+            return report[0], desc, error
         else:
-            error = {"message": "图片没有对应的 题目id 或 解答id,待写入。"}
+            error = "图片没有对应的 题目id 或 解答id,待写入。"
             # print("tree waiting branch")
-            return report, error
+            desc = error
+            return report, desc, error
 
     @app.route("/recommand", methods=['POST', 'OPTIONS'])
     @check_cors
@@ -355,17 +383,15 @@ class Delphis(object):
     def recommand_back(self, request):
         bstr = request.content.read()
         request_params = simplejson.loads(bstr.decode('utf-8', 'strict'))
-        # print(request_params)
         piccontent = request_params["content"]
-        response, error = self.get_report(piccontent)
-        if not (error is None or error == {}):
-            # print("error")
-            dumped = yield json.dumps(error, ensure_ascii=False)
-            # dumped = yield json.dumps(error, indent=4, ensure_ascii=False)
+        response, desc, error = self.get_report(piccontent)
+        outjson = {"data": response, "desc": desc, "message": error}
+        if not (error is None or error == ""):
+            outjson["success"] = False
         else:
-            # print("response")
-            dumped = yield json.dumps(response, ensure_ascii=False)
-            # dumped = yield json.dumps(response, indent=4, ensure_ascii=False)
+            outjson["success"] = True
+        dumped = yield json.dumps(outjson, ensure_ascii=False)
+        # dumped = yield json.dumps(outjson, indent=4, ensure_ascii=False)
         # print("outing ", dumped)
         returnValue(dumped)
 
