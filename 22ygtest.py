@@ -177,19 +177,18 @@ def str_num2datestr(datestr, num):
 
 
 class FutureShow(object):
-    # todo: 星级拆分
     def __init__(self):
         """已知:可查询数据如下"""
         self.datajson = {
-            "月嫂日增期望值": 10,  # todo: 统计 星级 地域 当前工资 报名加入日期(含培训期) 当天工资分享数量（可得2周内）
-            "月嫂日增标准差": 20,  # todo: 统计 星级 地域 当前工资 报名加入日期(含培训期) 当天工资分享数量（可得2周内）
+            "月嫂日增期望值": 10,
+            "月嫂日增标准差": 20,
             "月嫂浮动数": 8000,
             "月嫂专职数": 2000,
             "月嫂精英数": 20,
             "大客户订单百分数": 0.2,
             "月嫂预留百分数": 0.2,  # 未排班的订单为基数
-            "订单销售速度期望值": 10000,  # todo: 统计 订单详情(星级 地域 服务等待期 当天订单价格 预售期日期 等待期日期) 订单销售速度 销售排行状态
-            "订单销售速度标准差": 0,  # todo: 统计 订单详情(星级 地域 服务等待期 当天订单价格 预售期日期 等待期日期) 订单销售速度 销售排行状态
+            "订单销售速度期望值": 10000,
+            "订单销售速度标准差": 0,
             "原价订单": 10000,
             "订单折扣": 0.7,
             # "订单折扣": 1,
@@ -221,7 +220,7 @@ class FutureShow(object):
             "日期偏移大客户标准差": 16,
             "日期偏移大客户期望值": -1,
             "活期利率": 0.02,
-            "服务取消费率": 0,  # todo: 给客户0倍的活期利率
+            "服务取消费率": 0,
             "禁止变更提前期": 7,  # 小于7天不允许
             "变更服务费率": [
                 [[-30, -4], 0.2],
@@ -294,14 +293,12 @@ class FutureShow(object):
 
     def get_employ_std(self, ordertype):
         """统计 星级 地域 当前工资 报名加入日期(含培训期) 当天工资分享数量（可得2周内）"""
-        # todo: 函数参数待统计
         employ_expect = self.datajson["月嫂日增期望值"]
         employ_std = self.datajson["月嫂日增标准差"]
         return employ_expect, employ_std
 
     def get_sale_std(self, ordertype):
         """统计 订单详情(星级 地域 服务等待期 当天订单价格 预售期日期 等待期日期) 订单销售速度 销售排行状态"""
-        # todo: 函数参数待统计
         sale_expect = self.datajson["订单销售速度期望值"]
         sale_std = self.datajson["订单销售速度标准差"]
         return sale_expect, sale_std
@@ -862,7 +859,6 @@ class FutureShow(object):
             print("    {}".format(self.y_creater[-1]))
 
     def capital2orders(self, capital_num):
-        # todo: 流程更改
         # 1. 根据资金，查找实现组合
         # 2. 每种组合 在预期条件下的实现概率
         # 3. 选择合理的订单

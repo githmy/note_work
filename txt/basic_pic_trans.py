@@ -55,6 +55,19 @@ def JPG_PNG(JngPath):
     except Exception as e:
         print("JPG转换PNG 错误", e)
 
+def rgb_cmyk(JngPath):
+    # C = 255 - R
+    # M = 255 - G
+    # Y = 255 - B
+    # K = 0
+    infile = JngPath
+    outfile = os.path.splitext(infile)[0] + ".png"
+    img = Image.open(infile)
+    if len(img.split()) == 3:
+        # prevent IOError: cannot write mode RGBA as BMP
+        img = img.convert('CMYK')
+        print(img.mode)
+        img.getpixel((0, 0))
 
 if __name__ == '__main__':
     # JPG_PNG(r"E:\project\mark_tool\dataformular\1800.png")
