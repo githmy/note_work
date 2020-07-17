@@ -5324,18 +5324,18 @@ if __name__ == '__main__':
     # 三、难度未知 弦切角
     printstr3 = "已知：$\\bigodot {OABCD}, A、D、F、E $ 在一条直线上，$AOB $ 是直径，$B、C、E$ 在一条直线上。$CF \\perp AE， CF \\perp OC， \\angle {DCF} $ 是 $\\overset{\\frown} {ODC}$的弦切角。求证 $\\triangle {ABE} $ 是等腰三角形。"
     # 1. 正确，不同路径的demo1. （考点为 等腰三角形 全等三角形 表达式传递）
-    handestr3 = "$\\because \\bigodot {OABCD} $。$\\therefore \\angle {BCD}, \\angle {BAD} $是补角。 $\\therefore \\angle {CDE}, \\angle {ABC} $是补角。 $ \\therefore \\angle {ABC} = \\angle {CDE}, \\triangle {BAD} = \\triangle {DCE}, \\because \\angle {ACE} $ 是直角。$ \\therefore \\angle {ECF} = \\angle {CAE}, \\therefore \\angle {DCF} $ 是 $ \\overset{\\frown} {DC}$的弦切角。 $\\therefore \\angle {CAE} = \\angle {DCF}, \\therefore \\angle {AEB} = \\angle {ABE}, \\therefore \\triangle {DEC}$ 是等腰三角形。"
+    handestr3 = "$\\because \\bigodot {OABCD} $。$\\therefore \\angle {BCD}, \\angle {BAD} $是补角。 $\\therefore \\angle {ADC}, \\angle {ABC} $是补角。 $ \\therefore \\angle {ABC} = \\angle {CDE}, \\angle {BAD} = \\angle {DCE}, \\because \\angle {ACE} $ 是直角。$ \\therefore \\angle {ECF} = \\angle {CAE}, \\therefore \\angle {DCF} $ 是 $ \\overset{\\frown} {DC}$的弦切角。 $\\therefore \\angle {CAE} = \\angle {DCF}, \\therefore \\triangle {DEC}$ 是等腰三角形。$ \\therefore \\angle {AEB} = \\angle {ABE}, \\therefore \\triangle {ABE}$ 是等腰三角形。"
     checkpoints = [
         # # "@@表达式传递",
-        # "@@圆内接四边形的性质",
+        "@@圆内接四边形的性质",
         "@@弦切角性质",
         # "@@相似三角形必要条件", "@@相似三角形充分条件",
-        # # # "@@圆等弧对等角",
-        # # # "@@圆周角求和关系",
-        # # # "@@圆心角求和关系",
-        # # # "@@圆弧关系",
+        # # "@@圆等弧对等角",
+        # # "@@圆周角求和关系",
+        # # "@@圆心角求和关系",
+        # # "@@圆弧关系",
         # "@@等腰三角形充分条件边",
-        # "@@等腰三角形必要条件角",
+        "@@等腰三角形必要条件角",
         "@@等腰三角形充分条件角",
         # # "@@等腰三角形必要条件边",
     ]

@@ -1,11 +1,13 @@
+" 硬编码分割表格 "
 import os
-
 import cv2
 import numpy as np
 import pytesseract
 from PIL import Image
 import csv
 import re
+import time
+import math
 import json
 
 
@@ -105,6 +107,7 @@ def parse_pic_to_excel_data(src):
         i = i + 1
     # cv2.waitKey(0)
     return data
+
 
 def parse_pic_to_excel_data_bak(src):
     raw = cv2.imread(src, 1)
@@ -209,13 +212,133 @@ def write_csv(path, data):
             writer.writerows([[item[0], item[1], item[2], item[3], item[4], item[5]]])
 
 
-if __name__ == '__main__':
-    # file = "classTable.png"
-    file = os.path.join("C:\\Users\Smile\Desktop", "tmp", "demo1.png")
-    # 解析数据
-    data = parse_pic_to_excel_data(file)
-    # 写入excel
-    write_csv(file.replace(".png", ".csv"), data)
-    import time
+def getjson(jsonfile):
+    cordjson = json.load(open(jsonfile, "r"))
+    outjson = {}
+    for key in cordjson["_via_img_metadata"]:
+        outjson[cordjson["_via_img_metadata"][key]["filename"]] = cordjson["_via_img_metadata"][key]["regions"]
+    return outjson
 
-    time.sleep(50)
+
+def onecell(raw, polygon):
+    # 1. 截取
+    angle, cx, cy, xmin, ymin, xmax, ymax = get_angle(polygon)
+    mask = np.zeros(raw.shape, np.uint8)
+    # pts = np.array([[x1, y1], [x2, y2], [x3, y3], [x4, y4]], np.int32)  # 顶点集
+    pts = polygon.reshape((-1, 1, 2))
+    # print(pts)
+    mask = cv2.polylines(mask, [pts], True, (255, 255, 255))
+    mask2 = cv2.fillPoly(mask, [pts], (255, 255, 255))
+    ROI = cv2.bitwise_and(mask2, raw)
+    # 2. 旋转
+    # 原图的高、宽 以及通道数
+    # 参数：旋转中心 旋转度数(非弧度) scale
+    M = cv2.getRotationMatrix2D((cx, cy), angle, 1)
+    # M = cv2.getRotationMatrix2D((cx, cy), 0, 1)
+    # 参数：原始图像 旋转参数 元素图像宽高
+    # rotated = cv2.warpAffine(ROI, M, (xl, yl))
+    rotated = cv2.warpAffine(ROI, M, np.shape(ROI)[:2])
+    # rotated = rotated[ymin:ymax, xmin:xmax]
+    # cv2.imshow('rotated', rotated)
+    # cv2.waitKey(0)
+    rotated = rotated[ymin:ymax, xmin:xmax]
+    # cv2.imshow('rotated', rotated)
+    # cv2.waitKey(0)
+    return rotated
+
+
+def get_angle(polygon):
+    # 1. 切为四块
+    cx = (np.min(polygon[:, 0]) + np.max(polygon[:, 0])) / 2
+    cy = (np.min(polygon[:, 1]) + np.max(polygon[:, 1])) / 2
+    polygon = [[point[0] - cx, point[1] - cy] for point in polygon]
+    tr = [point for point in polygon if point[0] > 0 and point[1] > 0]
+    tl = [point for point in polygon if point[0] <= 0 and point[1] > 0]
+    br = [point for point in polygon if point[0] > 0 and point[1] <= 0]
+    bl = [point for point in polygon if point[0] <= 0 and point[1] <= 0]
+    trp = []
+    trd = -1
+    for tp in tr:
+        tvv = math.sqrt(tp[0] ** 2 + tp[1] ** 2)
+        if tvv > trd:
+            trd = tvv
+            trp = tp
+    tlp = []
+    tld = -1
+    for tp in tl:
+        tvv = math.sqrt(tp[0] ** 2 + tp[1] ** 2)
+        if tvv > tld:
+            tld = tvv
+            tlp = tp
+    brp = []
+    brd = -1
+    for tp in br:
+        tvv = math.sqrt(tp[0] ** 2 + tp[1] ** 2)
+        if tvv > brd:
+            brd = tvv
+            brp = tp
+    blp = []
+    bld = -1
+    for tp in bl:
+        tvv = math.sqrt(tp[0] ** 2 + tp[1] ** 2)
+        if tvv > bld:
+            bld = tvv
+            blp = tp
+    # 2. 最低的2点为基线 y 向下 所以要取反
+    if trp == []:
+        trp = [brp[0], tlp[1]]
+    if tlp == []:
+        tlp = [blp[0], trp[1]]
+    katan = math.atan2(trp[1] - tlp[1], trp[0] - tlp[0])
+    angle = katan * math.pi
+    # 3. 旋转后变换
+    cosvlue = math.cos(katan)
+    newpolygon = []
+    for point in polygon:
+        newpolygon.append([int(point[0] / cosvlue + cx), int(point[1] * cosvlue + cy)])
+    newpolygon = np.array(newpolygon)
+    xmin, ymin = np.min(newpolygon[:, 0]), np.min(newpolygon[:, 1])
+    xmax, ymax = np.max(newpolygon[:, 0]), np.max(newpolygon[:, 1])
+    return angle, cx, cy, xmin, ymin, xmax, ymax
+
+
+def pic2frame(picobj, jsonobj):
+    # 1. 获取文件原始信息
+    outjson = {}
+    for oneobj in jsonobj:
+        polygon = np.array(
+            list(zip(oneobj["shape_attributes"]["all_points_x"], oneobj["shape_attributes"]["all_points_y"])))
+        outjson[oneobj["region_attributes"]["markr"]] = onecell(picobj, polygon)
+    return outjson
+
+
+def frame2table(picobj, jsonobj):
+    # 1. 获取文件原始信息
+    pass
+    return None
+
+
+def table2type(picobj, jsonobj):
+    # 1. 获取文件原始信息
+    pass
+    return None
+
+
+if __name__ == '__main__':
+    # 1. 读取图片目录
+    dirin = os.path.join("C:\\project\data\maskpaper\\train")
+    dirout = os.path.join("C:\\project\data\maskpaper\cut")
+    # 2. 读取json
+    jsonfile = os.path.join("C:\\project\data\maskpaper", "train.json")
+    jsonobj = getjson(jsonfile)
+    # 3. 单例图片
+    picname = "image00001.jpg"
+    picfile = os.path.join(dirin, picname)
+    picobj = cv2.imread(picfile, 1)
+    # 4. 单例函数
+    outjson = pic2frame(picobj, jsonobj[picname])
+    outname = os.path.join(dirout, picname)
+    cv2.imwrite(outname, list(outjson.values())[0])
+    frame2table(picobj, jsonobj[picname])
+    table2type(picobj, jsonobj[picname])
+    # 5. 图片保存

@@ -1,3 +1,4 @@
+" 检测公式重复 程度，筛出少的作为训练集 "
 import os
 import itertools
 import cv2
