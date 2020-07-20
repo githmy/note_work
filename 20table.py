@@ -222,25 +222,53 @@ def getjson(jsonfile):
 
 def onecell(raw, polygon):
     # 1. 截取
-    angle, cx, cy, xmin, ymin, xmax, ymax = get_angle(polygon)
+    angle, katan = get_angle(polygon)
     mask = np.zeros(raw.shape, np.uint8)
-    # pts = np.array([[x1, y1], [x2, y2], [x3, y3], [x4, y4]], np.int32)  # 顶点集
     pts = polygon.reshape((-1, 1, 2))
-    # print(pts)
     mask = cv2.polylines(mask, [pts], True, (255, 255, 255))
     mask2 = cv2.fillPoly(mask, [pts], (255, 255, 255))
     ROI = cv2.bitwise_and(mask2, raw)
     # 2. 旋转
     # 原图的高、宽 以及通道数
     # 参数：旋转中心 旋转度数(非弧度) scale
-    M = cv2.getRotationMatrix2D((cx, cy), angle, 1)
-    # M = cv2.getRotationMatrix2D((cx, cy), 0, 1)
+    cy, cx = raw.shape[:2]
+    # radis = 180 / math.pi
+    heightNew = int(cx * abs(math.sin(katan)) + cy * abs(math.cos(katan)))
+    widthNew = int(cy * abs(math.sin(katan)) + cx * abs(math.cos(katan)))
+    # print(cx, cy)
+    M = cv2.getRotationMatrix2D((cx//2, cy//2), angle, 1)
+    M[0, 2] += (widthNew - cx) / 2
+    M[1, 2] += (heightNew - cy) / 2
+    # print(M)
     # 参数：原始图像 旋转参数 元素图像宽高
-    # rotated = cv2.warpAffine(ROI, M, (xl, yl))
-    rotated = cv2.warpAffine(ROI, M, np.shape(ROI)[:2])
-    # rotated = rotated[ymin:ymax, xmin:xmax]
+    rotated = cv2.warpAffine(ROI, M, (widthNew, heightNew))
+    # rotated = cv2.warpAffine(ROI, M, np.shape(ROI)[:2])
+    # print(rotated.shape)
+    # print(cx, cy)
+    xs, ys = np.shape(rotated)[:2]
+    ymin = 0
+    ymax = ys
+    xmin = 0
+    xmax = xs
+    for idy in range(ys):
+        if np.max(rotated[:, idy, :]) > 0:
+            xmin = idy
+            break
+    for idx in range(xs):
+        if np.max(rotated[idx, :, :]) > 0:
+            ymin = idx
+            break
+    for idy in range(ys - 1, -1, -1):
+        if np.max(rotated[:, idy, :]) > 0:
+            xmax = idy
+            break
+    for idx in range(xs - 1, -1, -1):
+        if np.max(rotated[idx, :, :]) > 0:
+            ymax = idx
+            break
     # cv2.imshow('rotated', rotated)
     # cv2.waitKey(0)
+    # print(np.shape(rotated))
     rotated = rotated[ymin:ymax, xmin:xmax]
     # cv2.imshow('rotated', rotated)
     # cv2.waitKey(0)
@@ -249,8 +277,12 @@ def onecell(raw, polygon):
 
 def get_angle(polygon):
     # 1. 切为四块
-    cx = (np.min(polygon[:, 0]) + np.max(polygon[:, 0])) / 2
-    cy = (np.min(polygon[:, 1]) + np.max(polygon[:, 1])) / 2
+    oxmin = np.min(polygon[:, 0])
+    oxmax = np.max(polygon[:, 0])
+    oymin = np.min(polygon[:, 1])
+    oymax = np.max(polygon[:, 1])
+    cx = (oxmin + oxmax) / 2
+    cy = (oymin + oymax) / 2
     polygon = [[point[0] - cx, point[1] - cy] for point in polygon]
     tr = [point for point in polygon if point[0] > 0 and point[1] > 0]
     tl = [point for point in polygon if point[0] <= 0 and point[1] > 0]
@@ -290,16 +322,8 @@ def get_angle(polygon):
     if tlp == []:
         tlp = [blp[0], trp[1]]
     katan = math.atan2(trp[1] - tlp[1], trp[0] - tlp[0])
-    angle = katan * math.pi
-    # 3. 旋转后变换
-    cosvlue = math.cos(katan)
-    newpolygon = []
-    for point in polygon:
-        newpolygon.append([int(point[0] / cosvlue + cx), int(point[1] * cosvlue + cy)])
-    newpolygon = np.array(newpolygon)
-    xmin, ymin = np.min(newpolygon[:, 0]), np.min(newpolygon[:, 1])
-    xmax, ymax = np.max(newpolygon[:, 0]), np.max(newpolygon[:, 1])
-    return angle, cx, cy, xmin, ymin, xmax, ymax
+    angle = katan * 180 / math.pi
+    return angle, katan
 
 
 def pic2frame(picobj, jsonobj):
@@ -308,37 +332,28 @@ def pic2frame(picobj, jsonobj):
     for oneobj in jsonobj:
         polygon = np.array(
             list(zip(oneobj["shape_attributes"]["all_points_x"], oneobj["shape_attributes"]["all_points_y"])))
-        outjson[oneobj["region_attributes"]["markr"]] = onecell(picobj, polygon)
+        outjson[oneobj["region_attributes"]["markf"]] = onecell(picobj, polygon)
     return outjson
-
-
-def frame2table(picobj, jsonobj):
-    # 1. 获取文件原始信息
-    pass
-    return None
-
-
-def table2type(picobj, jsonobj):
-    # 1. 获取文件原始信息
-    pass
-    return None
 
 
 if __name__ == '__main__':
     # 1. 读取图片目录
-    dirin = os.path.join("C:\\project\data\maskpaper\\train")
-    dirout = os.path.join("C:\\project\data\maskpaper\cut")
+    dirin = os.path.join("C:\project\data\\frame\oriimage")
+    dirout = os.path.join("C:\\project\data\\frame\cut")
     # 2. 读取json
-    jsonfile = os.path.join("C:\\project\data\maskpaper", "train.json")
+    jsonfile = os.path.join("C:\\project\data\\frame", "cut.json")
     jsonobj = getjson(jsonfile)
-    # 3. 单例图片
-    picname = "image00001.jpg"
-    picfile = os.path.join(dirin, picname)
-    picobj = cv2.imread(picfile, 1)
-    # 4. 单例函数
-    outjson = pic2frame(picobj, jsonobj[picname])
-    outname = os.path.join(dirout, picname)
-    cv2.imwrite(outname, list(outjson.values())[0])
-    frame2table(picobj, jsonobj[picname])
-    table2type(picobj, jsonobj[picname])
-    # 5. 图片保存
+    for picname in os.listdir(dirin):
+        # 3. 单例图片
+        # picname = "image008.jpg"
+        picfile = os.path.join(dirin, picname)
+        print(picfile)
+        picobj = cv2.imread(picfile, cv2.IMREAD_COLOR)
+        # print(picobj)
+        # 4. 单例函数
+        outjson = pic2frame(picobj, jsonobj[picname])
+        outname = os.path.join(dirout, picname)
+        cv2.imwrite(outname, list(outjson.values())[0])
+        # frame2table(picobj, jsonobj[picname])
+        # table2type(picobj, jsonobj[picname])
+        # 5. 图片保存
