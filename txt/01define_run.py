@@ -27,8 +27,8 @@ def cmdline():
             trainingArgs += " --" + keyArg + " " + value
 
         # Launch the program
-        os.system("python main.py" + trainingArgs)
-        # os.run("main.py" + trainingArgs)
+        os.system("python mainx.py" + trainingArgs)
+        # os.run("mainx.py" + trainingArgs)
 
 
 import argparse  # Command line parsing

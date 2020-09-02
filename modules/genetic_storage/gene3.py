@@ -22,7 +22,6 @@ def ZDT1(Chrom, LegV):
     return [np.array([ObjV1, ObjV2]).T, LegV]
 
 
-"""main.py"""
 import numpy as np
 import geatpy as ga  # 导入geatpy库
 

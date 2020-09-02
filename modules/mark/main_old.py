@@ -1,3 +1,4 @@
+"最早的简单模型，可以跳过"
 from modules.stocks.finance_frame import navigation
 from modules.stocks.stock_network import deep_network
 from modules.stocks.stock_data import TSstockScrap, LocalStockdata

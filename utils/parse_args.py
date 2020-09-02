@@ -11,7 +11,7 @@ def parseArgs(args):
     parser = argparse.ArgumentParser()
     # Global options
     globalArgs = parser.add_argument_group('Global options')
-    globalArgs.add_argument('filename', default='main.py')
+    globalArgs.add_argument('filename', default='mainx.py')
     globalArgs.add_argument('--batchSize', type=int, action='store', default=10, help='batchSize')
     globalArgs.add_argument('--learningRate', type=float, action='store', default=0.001, help='learningRate')
     globalArgs.add_argument('--func', choices=["test", "train", "predict", "dataclean"],
