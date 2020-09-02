@@ -1,4 +1,4 @@
-" 硬编码分割表格 "
+" 硬编码 旋转分割 表格 "
 import os
 import cv2
 import numpy as np
@@ -338,21 +338,21 @@ def pic2frame(picobj, jsonobj):
 
 if __name__ == '__main__':
     # 1. 读取图片目录
-    dirin = os.path.join("C:\project\data\\frame\oriimage")
-    dirout = os.path.join("C:\\project\data\\frame\cut")
+    dirin = os.path.join("C:\project\data\\frame\\images")
+    dirout = os.path.join("C:\\project\data\\table\\images")
     # 2. 读取json
-    jsonfile = os.path.join("C:\\project\data\\frame", "cut.json")
+    jsonfile = os.path.join("C:\\project\data\\frame", "frame.json")
     jsonobj = getjson(jsonfile)
     for picname in os.listdir(dirin):
         # 3. 单例图片
         # picname = "image008.jpg"
         picfile = os.path.join(dirin, picname)
-        print(picfile)
         picobj = cv2.imread(picfile, cv2.IMREAD_COLOR)
         # print(picobj)
         # 4. 单例函数
         outjson = pic2frame(picobj, jsonobj[picname])
         outname = os.path.join(dirout, picname)
+        print(picfile, outname)
         cv2.imwrite(outname, list(outjson.values())[0])
         # frame2table(picobj, jsonobj[picname])
         # table2type(picobj, jsonobj[picname])

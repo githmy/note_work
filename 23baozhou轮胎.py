@@ -240,16 +240,6 @@ def main():
         plot_markcurve(newx, ys, titles, lines, points, text)
     exit()
     print("use time is {}s".format(time.time() - stime))
-    # 4. 绘图
-    # titles = ["月嫂总量", "服务中月嫂数", "月嫂缺额数", "未利用月嫂数",
-    #           "资金池累计", "双头补金额累积", "工资累积", "创始人收益累积",
-    #           "订单总容量", "待服务订单数", "服务中订单数", "延迟订单数", "未开发订单数"]
-    # ys = [np.array(fs_ins.y_sao_total) / max(fs_ins.y_sao_total),
-    #       np.array(fs_ins.y_order_delay) / max(fs_ins.y_order_delay),
-    #       np.array(fs_ins.y_order_free) / max(fs_ins.y_order_free),
-    #       ]
-    # plot_curve(fs_ins.x_label, ys, titles)
-    # bar3dplot([fs_ins.x_label, titles, list(itertools.chain(*ys))])
 
 
 if __name__ == '__main__':

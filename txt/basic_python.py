@@ -591,7 +591,8 @@ def nlp资料():
     # 157. CoupletAI - 基于CNN+Bi-LSTM+Attention 的自动对对联系统 https://github.com/WiseDoge/CoupletAI
     # 158. 抽象知识图谱，目前规模50万，支持名词性实体、状态性描述、事件性动作进行抽象 https://github.com/liuhuanyong/AbstractKnowledgeGraph
     # 159. MiningZhiDaoQACorpus - 580万百度知道问答数据挖掘项目 github
-
+    # 160. 语义蒸馏 https://github.com/irfanICMLL/structure_knowledge_distillation.git
+    # 161. 对象图片生成 https://github.com/irfanICMLL/CoupleGenerator.git
 
 def demo():
     """
