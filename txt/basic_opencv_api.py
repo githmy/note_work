@@ -3,12 +3,60 @@ import os
 import numpy as np
 import matplotlib.pyplot as plt
 
+
 def cv2色差():
     tmpfile = os.path.join("..", "data", "maskpaper", "val", "image00291.jpg")
     image = cv2.imread(tmpfile)
     # 色差变换
     plt.imshow(image[:, :, [2, 1, 0]], interpolation='nearest')
     plt.show()
+
+
+def get_min_rect(img, mask):
+    " 获得最小的外接矩形，返回截取部分 "
+    # imagepath = 'F://CHN_Char/char_after_bin.png'
+    # imagepath = os.path.join("..", "data", "frame", "test", "image019.jpg")
+    # img = cv2.imread(imagepath, -1)
+    mask = np.squeeze(mask)
+    mask = mask.astype(np.uint8)
+    # print(mask, mask.shape)
+    # mask = mask * 255
+    # print(mask, mask.shape)
+    contours, hierarchy = cv2.findContours(mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+    # contours, hierarchy = cv2.findContours(mask, mode=cv2.RETR_EXTERNAL, method=cv2.CHAIN_APPROX_NONE)
+    # contours, hierarchy = cv2.findContours(binary, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
+    for cnt in contours:
+        # 最小外界矩形的宽度和高度
+        width, height = cv2.minAreaRect(cnt)[1]
+
+        if width * height > 100:
+            # 最小的外接矩形
+            rect = cv2.minAreaRect(cnt)
+            box = cv2.boxPoints(rect)  # 获取最小外接矩形的4个顶点
+            box = np.int0(box)
+
+            if 0 not in box.ravel():
+                '''绘制最小外界矩形
+                for i in range(4):
+                    cv2.line(image, tuple(box[i]), tuple(box[(i+1)%4]), 0)  # 5
+                '''
+                # 旋转角度
+                theta = cv2.minAreaRect(cnt)[2]
+                if abs(theta) <= 45:
+                    print('图片的旋转角度为%s.' % theta)
+                    angle = theta
+
+    # 仿射变换,对图片旋转angle角度
+    h, w, _ = img.shape
+    center = (w // 2, h // 2)
+    M = cv2.getRotationMatrix2D(center, angle, 1.0)
+    rotated = cv2.warpAffine(img, M, (w, h), flags=cv2.INTER_CUBIC, borderMode=cv2.BORDER_REPLICATE)
+    # rotated = cv2.warpAffine(img, M, (w, h), flags=cv2.INTER_CUBIC, borderMode=cv2.BORDER_REPLICATE)
+
+    # 保存旋转后的图片
+    cv2.imwrite('../after_rotated.png', rotated)
+    raise 555
+    return img
 
 
 def dim2_code():
@@ -113,7 +161,14 @@ def opencv_basic():
     # cv2.CHAIN_APPROX_NONE存储所有的轮廓点，相邻的两个点的像素位置差不超过1，即max（abs（x1 - x2），abs（y2 - y1）） == 1
     # cv2.CHAIN_APPROX_SIMPLE压缩水平方向，垂直方向，对角线方向的元素，只保留该方向的终点坐标，例如一个矩形轮廓只需4个点来保存轮廓信息
     # cv2.CHAIN_APPROX_TC89_L1，CV_CHAIN_APPROX_TC89_KCOS使用teh - Chinl chain 近似算法
+    # imagepath = os.path.join("..", "data", "frame", "test", "image019.jpg")
+    # img = cv2.imread(imagepath, -1)
+    # gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
+    # ret, img2 = cv2.threshold(gray, 50, 255, cv2.THRESH_BINARY)
+    # mask = np.squeeze(mask)
+    # mask = mask.astype(np.uint8)
     contours, hierarchy = cv2.findContours(image, mode=cv2.RETR_EXTERNAL, method=cv2.CHAIN_APPROX_NONE)
+    # contours, hierarchy = cv2.findContours(binary, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
     # 一个是轮廓本身，还有一个是每条轮廓对应的属性。hierarchy[i][0] ~hierarchy[i][3]，分别表示后一个轮廓、前一个轮廓、父轮廓、内嵌轮廓的索引编号，如果没有对应项，则该值为负数。
     # 5. 二值化 方式1 固定阈值二值化 thresh： 阈值 maxval： 当像素值超过了阈值（或者小于阈值，根据type来决定），所赋予的值
     ret, img_thresh1 = cv2.threshold(img, 127, 255, cv2.THRESH_BINARY)

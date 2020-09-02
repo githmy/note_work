@@ -109,7 +109,7 @@ def get_hw():
 
 
 def denseold():
-    splittype = "frame"
+    splittype = "table"
     baspth = os.path.join("c:\\", "project", "data", splittype)
     train_json = json.load(open(os.path.join(baspth, splittype + ".json"), encoding="utf8"))
     insertfile = os.path.join(baspth, "train.json")

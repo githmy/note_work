@@ -1,3 +1,4 @@
+# coding:utf-8
 '''
 RANSAC算法
 一、RANSAC算法
@@ -26,21 +27,44 @@ https://blog.csdn.net/zhuquan945/article/details/79946868
 https://blog.csdn.net/lhanchao/article/details/52849446
 '''
 
+import os
+# % matplotlib inline
+import numpy as np
+import cv2
+from matplotlib import pyplot as plt
+from PIL import Image
+
+
+def demo():
+    # 创建ORB特征检测器和描述符
+    orb = cv2.ORB_create()
+    # 对两幅图像检测特征和描述符
+    keypoint1, descriptor1 = orb.detectAndCompute(img1, None)
+    keypoint2, descriptor2 = orb.detectAndCompute(img2, None)
+    # 获得一个暴力匹配器的对象
+    bf = cv2.BFMatcher(cv2.NORM_HAMMING, crossCheck=True)
+    # 利用匹配器 匹配两个描述符的相近成都
+    maches = bf.match(descriptor1, descriptor2)
+    # 按照相近程度 进行排序
+    maches = sorted(maches, key=lambda x: x.distance)
+    # 画出匹配项
+    img3 = cv2.drawMatches(img1, keypoint1, img2, keypoint2, maches[: 30], img2, flags=2)
+
+
 def code1():
     '''代码1
     先使用SIFT算法提取特征，完成图像的匹配
     '''
-    # % matplotlib inline
-    import numpy as np
-    import cv2
-    from matplotlib import pyplot as plt
-    from PIL import Image
 
     # 导入两张图片
-    imgname_01 = './05.jpg'
-    imgname_02 = './06.jpg'
+    bpath = os.path.join("c:\\", "project", "data", "frame")
+    imgname_01 = os.path.join(bpath, "basic.jpg")
+    imgname_02 = os.path.join(bpath, "train", "image008.jpg")
+    # pip install opencv_python==3.4.2.16
+    # pip install opencv-contrib-python==3.4.2.16
     # 利用现有的cv2模块方法，创建一个SIFT的对象
-    sift = cv2.xfeatures2d.SIFT_create()
+    # sift = cv2.xfeatures2d.SIFT_create()
+    sift = cv2.xfeatures2d.SURF_create()
 
     # BFmatcher（Brute-Force Matching）暴力匹配   暴力方法找到点集1中每个descriptor在点集2中距离最近的descriptor；找寻到的距离最小就认为匹配
 
@@ -51,12 +75,19 @@ def code1():
     img_02 = cv2.imread(imgname_02)
     keypoint_01, descriptor_01 = sift.detectAndCompute(img_01, None)
     keypoint_02, descriptor_02 = sift.detectAndCompute(img_02, None)
+    # kp是一个关键点列表
+    # des是一个numpy数组，其大小是关键点数目乘以128
+    print(keypoint_01, descriptor_01)
+    print(keypoint_02, descriptor_02)
+    print(descriptor_02.shape)
 
     bf = cv2.BFMatcher()  # 默认是欧氏距离 cv2.NORM_L2
     # k = 2 返回点集1中每个描述点在点集2中 距离最近的2个匹配点
     matches = bf.knnMatch(descriptor_01, descriptor_02, k=2)
 
-    print(matches[0][0])
+    print(len(matches))
+    print(len(matches[0]))
+    print(matches[0][0], matches[0][1])
     # 调整ratio
     ratio = 0.8
     good = []
@@ -72,23 +103,20 @@ def code1():
 
     plt.rcParams['figure.figsize'] = (20.0, 20.0)
     plt.imshow(img_sift)
-    plt.savefig('img_SIFT_02.png')
+    plt.savefig('../img_SIFT.png')
+    plt.show()
+    # cv2.destroyAllWindows()
 
-    cv2.destroyAllWindows()
 
 def code2():
     '''代码2
     使用RANSAC算法对SIFT特征进行改进
     '''
-    # % matplotlib inline
-    import numpy as np
-    import cv2
-    from matplotlib import pyplot as plt
-    from PIL import Image
 
     # 导入两张图片
-    imgname_01 = './05.jpg'
-    imgname_02 = './06.jpg'
+    bpath = os.path.join("c:\\", "project", "data", "frame")
+    imgname_01 = os.path.join(bpath, "basic.jpg")
+    imgname_02 = os.path.join(bpath, "train", "image008.jpg")
     # 利用现有的cv2模块方法，创建一个SIFT的对象
     sift = cv2.xfeatures2d.SIFT_create()
 
@@ -125,6 +153,7 @@ def code2():
 
             # 如果找到了足够的匹配，就提取两幅图像中匹配点的坐标，把它们传入到函数中做变换
     print(type(good))
+    # print(len(good))
 
     min_match_count = 10
     if len(good) > 10:
@@ -182,7 +211,7 @@ def code2():
 
     plt.rcParams['figure.figsize'] = (20.0, 20.0)
     plt.imshow(img_ransac)
-    plt.savefig('img_SIFT_by_RANASC_02.png')
+    plt.savefig('../img_SIFT.png')
 
     cv2.destroyAllWindows()
 
@@ -209,6 +238,7 @@ def code_缩放():
     # cv2.waitKey(0)
     print("img_Resize OK!")
 
+
 if __name__ == '__main__':
-    code1()
+    # code1()
     code2()

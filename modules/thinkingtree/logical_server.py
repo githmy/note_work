@@ -2,32 +2,27 @@ from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
 from __future__ import unicode_literals
-import datetime
-from io import BytesIO
-import os
+
 import json
-import six
-from functools import wraps
-import glob
-from builtins import str
-from twisted.internet import reactor, threads
-from twisted.internet.defer import inlineCallbacks, returnValue
-from twisted.internet.defer import Deferred
-from utils.path_tool import makesurepath
-from utils.timet import timeit
-import simplejson
-from logical_solver import LogicalInference
-from logical_solver import title_latex_prove, answer_latex_prove
-import pymysql
-import threading
-import uuid
-import logging
-from klein import Klein
-import copy
-from multiprocessing import Process
 # from multiprocessing import Pool
 import multiprocessing
+import os
+import threading
+import uuid
+from builtins import str
 from concurrent.futures import ProcessPoolExecutor as ProcessPool
+from functools import wraps
+
+import pymysql
+import simplejson
+import six
+from klein import Klein
+from twisted.internet import reactor
+from twisted.internet.defer import Deferred
+from twisted.internet.defer import inlineCallbacks, returnValue
+
+from modules.thinkingtree.logical_solver import LogicalInference
+from modules.thinkingtree.logical_solver import title_latex_prove, answer_latex_prove
 
 DEFERRED_RUN_IN_REACTOR_THREAD = True
 

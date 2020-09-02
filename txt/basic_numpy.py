@@ -78,6 +78,8 @@ a.max()
 a.min()
 a.sum()
 a.sum(axis=0)  # 计算每一列（二维数组中类似于矩阵的列）的和
+# 逆序
+a[::-1]
 
 # 差值
 np.ptp(grade)

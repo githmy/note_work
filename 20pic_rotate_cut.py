@@ -338,8 +338,8 @@ def pic2frame(picobj, jsonobj):
 
 if __name__ == '__main__':
     # 1. 读取图片目录
-    dirin = os.path.join("C:\project\data\\frame\\train")
-    dirout = os.path.join("C:\\project\data\\table\\train")
+    dirin = os.path.join("C:\project\data\\frame\\images")
+    dirout = os.path.join("C:\\project\data\\table\\images")
     # 2. 读取json
     jsonfile = os.path.join("C:\\project\data\\frame", "frame.json")
     jsonobj = getjson(jsonfile)
