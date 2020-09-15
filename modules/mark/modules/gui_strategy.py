@@ -2,6 +2,12 @@
 # cd vnpy && python setup.py build && bash install.sh
 # pip install vnpy
 # pip install pyqt5
+# https://www.lfd.uci.edu/~gohlke/pythonlibs/
+# ta-lib
+# wget https://download.lfd.uci.edu/pythonlibs/w3jqiv8s/TA_Lib-0.4.18-cp37-cp37m-win_amd64.whl
+# pip install TA_Lib-0.4.18-cp37-cp37m-win_amd64.whl
+
+# encoding: UTF-8
 from vnpy.event import EventEngine
 from vnpy.trader.engine import MainEngine
 from vnpy.trader.ui import MainWindow, create_qapp
