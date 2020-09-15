@@ -58,6 +58,9 @@ np.set_printoptions(suppress=True)  # 不用科学计数法
 # # 插入数据
 # tmp_np = np.insert(np.diff(data_list[i2][i2], n=1), 0, values=[np.nan], axis=0)
 
+# np.c_[]和np.r_[]分别添加行和列
+np.c_[a,b]
+
 # # 做差值
 # y = np.diff(x, n=1)
 

@@ -31,6 +31,11 @@ if __name__ == "__main__":
     m = np.array(((1, 1), (1, 3)))
     data_r = data.dot(m)
     y_r_hat = cls.fit_predict(data_r)
+    # 查看标签
+    print(y_r_hat)
+    print(cls.labels_)
+    # 查看类中心
+    print(cls.cluster_centers_)
 
     matplotlib.rcParams['font.sans-serif'] = [u'SimHei']
     matplotlib.rcParams['axes.unicode_minus'] = False
