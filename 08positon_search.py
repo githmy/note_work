@@ -10,14 +10,15 @@ import numpy as np
 import scipy.special as sc_special
 from mpl_toolkits.mplot3d import Axes3D
 from pprint import pprint
+from collections import OrderedDict
 from sklearn.manifold import TSNE
 import math
-
-bathpath = None
+import shutil
+import re
 
 
 class ParaSearch(object):
-    def __init__(self, fit_func, parajson):
+    def __init__(self, fit_func, parajson, rootpath, fullpath, run_file_list, parakeys):
         """
         生成位置，迭代疏远非常近的。
         ---------------------------------------------------
@@ -26,14 +27,20 @@ class ParaSearch(object):
             lower_boundary: Lower bounary (example: lower_boundary = (-2, -2, -2))
             upper_boundary: Upper boundary (example: upper_boundary = (2, 2, 2))
             dim_sensitive: 维度的敏感性,越大切分的越细 -- 某维度切分=(upper_boundary-lower_boundary)/dim_sensitive
+            rootpath: 磁盘根目录
+            fullpath: 磁盘全路径
+            run_file_list: 运行文件顺序 
+            parakeys: 参数顺序
         Output:
             generated nests' locations
         """
         self.fit_func = fit_func
         self.parajson = parajson
+        self.rootpath = rootpath
+        self.fullpath = fullpath
+        self.run_file_list = run_file_list
+        self.parakeys = parakeys
 
-        # 项目名
-        self.project_name = self.parajson["project"]
         # 解聚类个数
         self.cluster_num = self.parajson["cluster_num"]
         # 参数下边界
@@ -50,16 +57,20 @@ class ParaSearch(object):
         # 迭代标准化起始步长
         self.init_step = self.parajson["init_step"]
         # theta是参数，梯度下降通过不断更新theta的值使损失函数达到最小值
-        self.theta = np.zeros((self.cluster_num, self.m))
+        self.now_theta = np.zeros((self.cluster_num, self.m))
         self.new_theta = np.zeros((self.cluster_num, self.m))
+        self.old_dx = np.zeros((self.cluster_num, self.m))
+        self.now_dx = np.zeros((self.cluster_num, self.m))
+        self.grade = np.zeros((self.cluster_num))
+        self.new_grade = np.zeros((self.cluster_num))
         # 聚类id合并百分比阈值
         self.merge_percent = self.parajson["merge_percent"]
         # 标准初始位置
         self.init_normal_positions = None
-        # new_normal_posi
-        self.new_normal_positions = None
-        # normal_posi
+        # now_normal_posi
         self.now_normal_positions = None
+        # normal_posi
+        self.old_normal_positions = None
         # 聚类id
         self.cluster_id = None
         # 原始聚类id距离矩阵
@@ -67,47 +78,38 @@ class ParaSearch(object):
         self.distance_near = np.zeros((self.cluster_num))
         # oldstepdis
         self.old_step_dist = np.zeros((self.cluster_num))
-        self.new_step_dist = np.zeros((self.cluster_num))
+        self.now_step_dist = np.zeros((self.cluster_num))
         # 初始参数
         self.generate_positions()
         # 加载历史记录
         self.load_history()
 
-        # self.theta = np.zeros(self.m)  # 参数
-        self.alpha = 0.01 * np.ones(self.cluster_num)  # 学习率
-        self.momentum = 0.1 * np.ones(self.cluster_num)  # 冲量
-        self.threshold = 0.0001  # 停止迭代的错误阈值
-        self.error = 0  # 初始错误为0
-
-        # self.b1 = 0.9  # 算法作者建议的默认值
-        # self.b2 = 0.999  # 算法作者建议的默认值
-        self.b1 = 0.9  # 算法作者建议的默认值
-        self.b2 = 0.999  # 算法作者建议的默认值
-        self.e = 0.00000001  # 算法作者建议的默认值
-        self.mt = np.zeros((self.cluster_num, self.m))
-        self.vt = np.zeros((self.cluster_num, self.m))
-
     def load_history(self):
-        loadfile = os.path.join(bathpath, self.project_name + '.csv')
+        loadfile = os.path.join(self.fullpath, 'template.csv')
         # 聚类id 当前得分
-        self.target_Y = np.zeros((self.cluster_num))
-        self.ori_target_Y = np.zeros((self.cluster_num))
+        self.now_target_Y = np.zeros((self.cluster_num))
+        self.old_target_Y = np.zeros((self.cluster_num))
         # 聚类id状态：正常 合并 结束
         self.status_sig = ["正常"] * self.cluster_num
         # accur_posi
         self.target_X = np.zeros((self.cluster_num, self.m))
         self.next_cluster_id = 0
-        if not os.path.isfile(loadfile):
+        if os.path.isfile(loadfile):
+            # if 0:
             print("loadlog: {}".format(loadfile))
             # 1. 数据加载
             pdobj = pd.read_csv(loadfile, header=0, encoding="gbk")
             self.result_json = json.loads(pdobj.to_json(orient='records', force_ascii=False), encoding="utf-8")
             for item in self.result_json:
-                item["normal_posi"] = json.loads(item["normal_posi"])
-                item["accur_posi"] = json.loads(item["accur_posi"])
-                item["new_normal_posi"] = json.loads(item["new_normal_posi"])
+                item["old_normal_posi"] = json.loads(item["old_normal_posi"])
+                item["now_normal_posi"] = json.loads(item["now_normal_posi"])
                 item["now_theta"] = json.loads(item["now_theta"])
                 item["new_theta"] = json.loads(item["new_theta"])
+                item["accur_posi"] = json.loads(item["accur_posi"])
+                # 新加
+                item["old_dx"] = json.loads(item["old_dx"])
+                item["now_dx"] = json.loads(item["now_dx"])
+
             # 2. 变量初始化
             iterset = set()
             for idn in range(self.cluster_num):
@@ -115,13 +117,21 @@ class ParaSearch(object):
                 tmpjson = tmpjson[-1:]
                 # new马上会被copy到now
                 if len(tmpjson) > 0:
-                    self.new_normal_positions[idn] = tmpjson[-1]["new_normal_posi"]
-                    self.theta[idn] = tmpjson[-1]["now_theta"]
+                    self.old_normal_positions[idn] = tmpjson[-1]["old_normal_posi"]
+                    self.now_normal_positions[idn] = tmpjson[-1]["now_normal_posi"]
+                    self.now_theta[idn] = tmpjson[-1]["now_theta"]
                     self.new_theta[idn] = tmpjson[-1]["new_theta"]
+                    self.old_target_Y[idn] = tmpjson[-1]["old_score"]
+                    self.now_target_Y[idn] = tmpjson[-1]["now_score"]
+                    self.old_dx[idn] = tmpjson[-1]["old_dx"]
+                    self.now_dx[idn] = tmpjson[-1]["now_dx"]
                     self.status_sig[idn] = tmpjson[-1]["status"]
-                    self.ori_target_Y[idn] = tmpjson[-1]["old_score"]
-                    self.target_Y[idn] = tmpjson[-1]["now_score"]
-                    # if tmpjson[-1]["status"] == "正常":
+                    self.grade[idn] = tmpjson[-1]["grade"]
+                    self.new_grade[idn] = tmpjson[-1]["new_grade"]
+                    self.old_step_dist[idn] = tmpjson[-1]["old_step_dist"]
+                    self.now_step_dist[idn] = tmpjson[-1]["now_step_dist"]
+                    # self.theta_dis[idn] = tmpjson[-1]["theta_dis"]
+                    # self.dy[idn] = tmpjson[-1]["dy"]
                     iterset.add(tmpjson[-1]["iter_id"])
                 else:
                     self.iter_id = 0
@@ -147,28 +157,31 @@ class ParaSearch(object):
         cls = KMeans(n_clusters=self.cluster_num, init='k-means++')
         cls.fit_predict(samples)
         self.init_normal_positions = cls.cluster_centers_
-        self.new_normal_positions = cls.cluster_centers_
+        self.now_normal_positions = cls.cluster_centers_
         self.cluster_id = cls.predict(cls.cluster_centers_)
         for i1 in range(self.cluster_num):
             for i2 in range(self.cluster_num):
                 if i1 == i2:
                     self.ori_distance_matric[i1, i2] = np.float(9999)
                     continue
-                tmpv = self.new_normal_positions[i1] - self.new_normal_positions[i2]
+                tmpv = self.now_normal_positions[i1] - self.now_normal_positions[i2]
                 self.ori_distance_matric[i1, i2] = np.sqrt(np.sum(tmpv * tmpv))
         self.distance_near = np.min(self.ori_distance_matric, 1)
-        self.new_step_dist = np.sqrt(np.sum(np.square(self.new_normal_positions), 1))
+        self.now_step_dist = np.sqrt(np.sum(np.square(self.now_normal_positions), 1))
+        self.now_dx = self.now_normal_positions - 0
 
-    def one_iter_waite(self):
+    def one_iter_adam(self):
         # 一次迭代, 尺度含义还原成实际尺寸
         # 步长自适应
         min_sensi = np.min(self.dim_sensitive)
         min_dist = np.min(self.distance_near)
         dim_scalar = min_sensi * min_dist
-        self.now_normal_positions = copy.deepcopy(self.new_normal_positions)
-        self.theta = copy.deepcopy(self.new_theta)
-        self.old_step_dist = copy.deepcopy(self.new_step_dist)
-        self.target_X = self.lower_boundary + self.now_normal_positions / self.dim_sensitive * self.dim_scalar
+        self.old_normal_positions = copy.deepcopy(self.now_normal_positions)
+        self.now_theta = copy.deepcopy(self.new_theta)
+        self.old_step_dist = copy.deepcopy(self.now_step_dist)
+        self.old_dx = copy.deepcopy(self.now_dx)
+        self.grade = copy.deepcopy(self.new_grade)
+        self.target_X = self.lower_boundary + self.old_normal_positions / self.dim_sensitive * self.dim_scalar
         for idn in range(self.cluster_num):
             if idn != self.next_cluster_id:
                 continue
@@ -178,102 +191,127 @@ class ParaSearch(object):
             # 1. 遍历每一个类, 生成对应的结果
             sstart = time.time()
             print("class:", idn)
-            self.ori_target_Y[idn] = self.target_Y[idn]
-            self.target_Y[idn] = self.fit_func(self.target_X[idn])
+            self.old_target_Y[idn] = self.now_target_Y[idn]
+            self.now_target_Y[idn] = self.fit_func(self.target_X[idn], self.rootpath, self.fullpath, self.run_file_list,
+                                                   self.parakeys)
             # 时间以分钟为单位
             usetime = (time.time() - sstart) / 60
             print("usetime: {}mins".format(usetime))
             # 2. 生成新位置 梯度下降过程 用当下theta，保存下一步theta, 可以直接调用
-            dy = self.target_Y[idn] - self.ori_target_Y[idn]
-
-            posilist = jsonpath.jsonpath(self.result_json, "$.[?(@.ori_cluster_id=={}).normal_posi]".format(idn))
-            if posilist:
-                dx = self.now_normal_positions[idn] - posilist[-1]
+            dy = self.now_target_Y[idn] - self.old_target_Y[idn]
+            dx_list = jsonpath.jsonpath(self.result_json, "$.[?(@.ori_cluster_id=={}).old_dx]".format(idn))
+            theta_list = jsonpath.jsonpath(self.result_json, "$.[?(@.ori_cluster_id=={}).now_theta]".format(idn))
+            dis_list = jsonpath.jsonpath(self.result_json, "$.[?(@.ori_cluster_id=={}).old_step_dist]".format(idn))
+            # sig_list = jsonpath.jsonpath(self.result_json, "$.[?(@.ori_cluster_id=={}).status]".format(idn))
+            if dx_list:
+                old_dx = dx_list[-1]
+                old_theta = theta_list[-1]
+                old_dis = dis_list[-1]
             else:
-                dx = self.now_normal_positions[idn] - np.zeros((self.m))
-            gradient = self.now_normal_positions[idn] * (np.dot(self.now_normal_positions[idn], self.theta[idn]) - self.target_Y[idn])
-            print(gradient)
-            self.mt[idn] = self.b1 * self.mt[idn] + (1 - self.b1) * gradient
-            self.vt[idn] = self.b2 * self.vt[idn] + (1 - self.b2) * (gradient ** 2)
-            mtt = self.mt[idn] / (1 - (self.b1 ** (self.result_id + 1)))
-            vtt = self.vt[idn] / (1 - (self.b2 ** (self.result_id + 1)))
-            vtt_sqrt = np.array([math.sqrt(vtt[0]), math.sqrt(vtt[1])])  # 因为只能对标量进行开方
-            self.new_theta[idn] = self.theta[idn] - self.alpha[idn] * mtt / (vtt_sqrt + self.e)
-
-            new_theta = self.new_theta[idn]
+                old_dx = np.zeros((self.m))
+                old_theta = np.zeros((self.m))
+                old_dis = np.sqrt(np.sum(np.square(self.init_normal_positions[idn])))
+            # 2.1 曲面导数变化经验化
+            add_dx_scalar = np.sqrt(np.sum(np.square(old_dx + self.old_dx[idn])))
+            self.new_grade[idn] = dy / self.old_step_dist[idn]
+            self.new_theta[idn] = self.new_grade[idn] * self.old_dx[idn]
+            max_theta_dis = np.sqrt(np.sum(np.square(self.new_theta[idn])))
+            self.new_theta[idn] = self.new_theta[idn] / max_theta_dis if max_theta_dis > 1 else self.new_theta[idn]
+            # 综合 最近两次的 theta
+            max_theta = (self.new_theta[idn] / self.old_step_dist[idn] + old_theta / old_dis) * add_dx_scalar
+            max_theta_dis = np.sqrt(np.sum(np.square(max_theta)))
+            # 随机改变方向和步长, 20%
+            rdxy = np.random.rand(self.m)
+            # 指方向占90%， 10%近似垂直方向随机，均值后只占50%权重
+            new_theta1 = max_theta * rdxy
+            new_theta2 = np.sign(max_theta) * (max_theta_dis - np.abs(max_theta)) * rdxy
+            # 随机防止永远下一步在直线上
+            # max_theta = 1.8 * new_theta1 + 0.2 * new_theta2
+            # max_theta = 1.6 * new_theta1 + 0.4 * new_theta2
+            max_theta = 1.2 * new_theta1 + 0.8 * new_theta2
+            # max_theta_dis = np.sqrt(np.sum(np.square(max_theta)))
             # 1. 限制导数
-            uniform_dis = np.sqrt(np.sum(np.square(new_theta)))
-            max_theta = 2
-            thread_tmp = max_theta / uniform_dis
-            new_theta = new_theta * thread_tmp if uniform_dis > max_theta else new_theta
-            thetadis = np.sqrt(np.sum(np.square(new_theta)))
+            # max_theta = max_theta / max_theta_dis if max_theta_dis > 1 else max_theta
+            real_thetadis = np.sqrt(np.sum(np.square(max_theta)))
             # 2. 最大步长
-            max_step = 1
-            step_scalar = max_step / uniform_dis
-            # 3. 限制step_scalar*realdis 的最小值
+            max_step = 1.0
+            # real_thetadis = real_thetadis / abs(real_thetadis) * ((abs(real_thetadis) - max_step) / 10 + max_step)
+            step_scalar = max_step / real_thetadis
+            # 3. 限制 step_scalar * real_thetadis 的最小值
             min_step = 0.1
-            step_scalar = min_step / uniform_dis if step_scalar * uniform_dis < min_step else step_scalar
-            if step_scalar * uniform_dis < min_step:
-                step_scalar = (step_scalar - min_step / uniform_dis) * 10 + min_step / uniform_dis
+            print(step_scalar, real_thetadis, step_scalar * real_thetadis)
+            step_scalar = min_step / real_thetadis if step_scalar * real_thetadis < min_step else step_scalar
+            if step_scalar * real_thetadis < min_step:
+                step_scalar = (step_scalar - min_step / real_thetadis) * 10 + min_step / real_thetadis
             # 4. 新位置
-            self.new_normal_positions[idn] = self.now_normal_positions[
-                                                 idn] - self.init_step * dim_scalar * step_scalar * new_theta
+            self.now_normal_positions[idn] = self.old_normal_positions[
+                                                 idn] - self.init_step * dim_scalar * step_scalar * max_theta
             # 触壁操作
             outbandscalar = []
-            direction_posit = self.new_normal_positions[idn] - self.now_normal_positions[idn]
+            direction_posit = self.now_normal_positions[idn] - self.old_normal_positions[idn]
             for idt in range(self.m):
-                if self.new_normal_positions[idn][idt] < 0:
-                    outbandscalar.append(-0.5 * self.now_normal_positions[idn][idt] / direction_posit[idt])
-                elif self.new_normal_positions[idn][idt] > self.dim_sensitive[idt]:
+                if self.now_normal_positions[idn][idt] < 0:
+                    outbandscalar.append(-0.5 * self.old_normal_positions[idn][idt] / direction_posit[idt])
+                elif self.now_normal_positions[idn][idt] > self.dim_sensitive[idt]:
                     outbandscalar.append(
-                        0.5 * (self.dim_sensitive[idt] - self.now_normal_positions[idn][idt]) / direction_posit[idt])
+                        0.5 * (self.dim_sensitive[idt] - self.old_normal_positions[idn][idt]) / direction_posit[idt])
                 else:
                     outbandscalar.append(1)
             outbandscalar = min(outbandscalar)
-            self.new_normal_positions[idn] = self.now_normal_positions[idn] + direction_posit * outbandscalar
+            self.now_normal_positions[idn] = self.old_normal_positions[idn] + direction_posit * outbandscalar
             # 5. 位置差重赋值
-            direction_posit = self.new_normal_positions[idn] - self.now_normal_positions[idn]
-            self.new_step_dist[idn] = np.sqrt(np.sum(np.square(direction_posit)))
-            print("step_dis: {}, theta_dis: {}, dy: {}, new_theta: {}".format(self.new_step_dist[idn], thetadis, dy,
-                                                                              self.new_theta[idn]))
+            self.now_dx[idn] = self.now_normal_positions[idn] - self.old_normal_positions[idn]
+            self.now_step_dist[idn] = np.sqrt(np.sum(np.square(self.now_dx[idn])))
+            print("new_step_dist: {}, theta_dis: {}, step_scalar:{}, max_theta: {}, new_theta: {}".format(
+                self.now_step_dist[idn], max_theta_dis, step_scalar, max_theta, self.new_theta[idn]))
             # 2.1 判断优秀结束 dy相对y 在 敏感尺寸的1/100 变化很小
             # target_Y 默认传入是100+
-            print("new_step_dist: {}, dim_scalar: {}, y: {}".format(self.new_step_dist[idn], dim_scalar,
-                                                                    self.target_Y[idn]))
+            print("dim_scalar: {}, dy: {}, dx_dis: {}, y: {}".format(dim_scalar, dy, self.old_step_dist[idn],
+                                                                     self.now_target_Y[idn]))
             siglist = jsonpath.jsonpath(self.result_json, "$.[?(@.ori_cluster_id=={}).dy]".format(idn))
             # 如果list 采样数据至少四个，有负值，他们之间相差不大，说明到底部了。
-            if self.new_step_dist[idn] < 0.0001 * min_sensi:
+            status_sig = None
+            if self.now_step_dist[idn] < 0.0001 * min_sensi:
                 self.status_sig[idn] = "步长结束"
+                status_sig = "步长结束"
+                print("类{}步长结束".format(idn))
             # elif siglist and len(siglist) > 3:
             #     if min(siglist[-4:]) < 0 and sum(siglist[-4:]) / 4 < siglist[-1] * 0.1:
             #         self.status_sig[idn] = "误差结束"
             # 2.2 合并判断
             for i2 in range(self.cluster_num):
-                if idn == i2:
+                if idn == i2 or self.status_sig[i2] != "正常":
                     continue
                 # 2.2.1 新点 与活动点 最近距离  判断 2/10 合并。
-                everposi = jsonpath.jsonpath(self.result_json, "$.[?(@.ori_cluster_id=={}).new_normal_posi]".format(i2))
+                everposi = jsonpath.jsonpath(self.result_json, "$.[?(@.ori_cluster_id=={}).now_normal_posi]".format(i2))
                 if everposi:
                     mindis = []
                     for oneposi in everposi:
-                        new_dis = self.new_normal_positions[idn] - oneposi
+                        new_dis = self.now_normal_positions[idn] - oneposi
                         mindis.append(np.sqrt(np.sum(new_dis * new_dis)))
                     mindis = min(mindis)
                     if mindis / self.distance_near[idn] < self.merge_percent:
                         # 比较不同的值合并较低分值的
-                        if self.target_Y[idn] <= self.target_Y[i2] and not self.status_sig[idn].startswith("合并"):
+                        if self.now_target_Y[idn] <= self.now_target_Y[i2] and not self.status_sig[idn].startswith(
+                                "合并"):
                             self.status_sig[i2] = "合并{}到{}".format(i2, idn)
+                            status_sig = "合并{}到{}".format(i2, idn)
+                            print(self.status_sig[i2])
                             break
-                        elif self.target_Y[idn] > self.target_Y[i2] and not self.status_sig[i2].startswith("合并"):
+                        elif self.now_target_Y[idn] > self.now_target_Y[i2] and not self.status_sig[i2].startswith(
+                                "合并"):
                             self.status_sig[idn] = "合并{}到{}".format(idn, i2)
+                            status_sig = "合并{}到{}".format(idn, i2)
+                            print(self.status_sig[i2])
                             break
                         else:
                             pass
-            self.save_result(idn, usetime, thetadis, dy)
+            # 6. 重新赋值
+            self.save_result(idn, usetime, status_sig, max_theta_dis, dy)
             self.result_id += 1
         self.iter_id += 1
 
-    def one_iter(self):
+    def one_iter_random(self):
         # 一次迭代, 尺度含义还原成实际尺寸
 
         def learn_rate(t):
@@ -283,10 +321,10 @@ class ParaSearch(object):
         min_sensi = np.min(self.dim_sensitive)
         min_dist = np.min(self.distance_near)
         dim_scalar = min_sensi * min_dist
-        self.now_normal_positions = copy.deepcopy(self.new_normal_positions)
-        self.theta = copy.deepcopy(self.new_theta)
-        self.old_step_dist = copy.deepcopy(self.new_step_dist)
-        self.target_X = self.lower_boundary + self.now_normal_positions / self.dim_sensitive * self.dim_scalar
+        self.old_normal_positions = copy.deepcopy(self.now_normal_positions)
+        self.now_theta = copy.deepcopy(self.new_theta)
+        self.old_step_dist = copy.deepcopy(self.now_step_dist)
+        self.target_X = self.lower_boundary + self.old_normal_positions / self.dim_sensitive * self.dim_scalar
         for idn in range(self.cluster_num):
             if idn != self.next_cluster_id:
                 continue
@@ -296,21 +334,21 @@ class ParaSearch(object):
             # 1. 遍历每一个类, 生成对应的结果
             sstart = time.time()
             print("class:", idn)
-            self.ori_target_Y[idn] = self.target_Y[idn]
-            self.target_Y[idn] = self.fit_func(self.target_X[idn])
+            self.old_target_Y[idn] = self.now_target_Y[idn]
+            self.now_target_Y[idn] = self.fit_func(self.target_X[idn])
             # 时间以分钟为单位
             usetime = (time.time() - sstart) / 60
             print("usetime: {}mins".format(usetime))
             # 2. 生成新位置 梯度下降过程 用当下theta，保存下一步theta, 可以直接调用
-            dy = self.target_Y[idn] - self.ori_target_Y[idn]
+            dy = self.now_target_Y[idn] - self.old_target_Y[idn]
             posilist = jsonpath.jsonpath(self.result_json, "$.[?(@.ori_cluster_id=={}).normal_posi]".format(idn))
             if posilist:
-                dx = self.now_normal_positions[idn] - posilist[-1]
+                dx = self.old_normal_positions[idn] - posilist[-1]
             else:
-                dx = self.now_normal_positions[idn] - np.zeros((self.m))
+                dx = self.old_normal_positions[idn] - np.zeros((self.m))
             # 2.1 曲面导数变化经验化
             self.new_theta[idn] = learn_rate(1) * dy / np.sqrt(np.sum(np.square(dx))) * dx \
-                                  + (1 - learn_rate(1)) * self.theta[idn]
+                                  + (1 - learn_rate(1)) * self.now_theta[idn]
             uniform_dis = np.sqrt(np.sum(np.square(self.new_theta[idn])))
             max_theta = 2
             thread_tmp = max_theta / uniform_dis
@@ -335,33 +373,33 @@ class ParaSearch(object):
             if step_scalar * realdis < min_step:
                 step_scalar = (step_scalar - min_step / realdis) * 10 + min_step / realdis
             # 4. 新位置
-            self.new_normal_positions[idn] = self.now_normal_positions[
+            self.now_normal_positions[idn] = self.old_normal_positions[
                                                  idn] - self.init_step * dim_scalar * step_scalar * new_theta
             # 触壁操作
             outbandscalar = []
-            direction_posit = self.new_normal_positions[idn] - self.now_normal_positions[idn]
+            direction_posit = self.now_normal_positions[idn] - self.old_normal_positions[idn]
             for idt in range(self.m):
-                if self.new_normal_positions[idn][idt] < 0:
-                    outbandscalar.append(-0.5 * self.now_normal_positions[idn][idt] / direction_posit[idt])
-                elif self.new_normal_positions[idn][idt] > self.dim_sensitive[idt]:
+                if self.now_normal_positions[idn][idt] < 0:
+                    outbandscalar.append(-0.5 * self.old_normal_positions[idn][idt] / direction_posit[idt])
+                elif self.now_normal_positions[idn][idt] > self.dim_sensitive[idt]:
                     outbandscalar.append(
-                        0.5 * (self.dim_sensitive[idt] - self.now_normal_positions[idn][idt]) / direction_posit[idt])
+                        0.5 * (self.dim_sensitive[idt] - self.old_normal_positions[idn][idt]) / direction_posit[idt])
                 else:
                     outbandscalar.append(1)
             outbandscalar = min(outbandscalar)
-            self.new_normal_positions[idn] = self.now_normal_positions[idn] + direction_posit * outbandscalar
+            self.now_normal_positions[idn] = self.old_normal_positions[idn] + direction_posit * outbandscalar
             # 5. 位置差重赋值
-            direction_posit = self.new_normal_positions[idn] - self.now_normal_positions[idn]
-            self.new_step_dist[idn] = np.sqrt(np.sum(np.square(direction_posit)))
-            print("step_dis: {}, theta_dis: {}, dy: {}, new_theta: {}".format(self.new_step_dist[idn], thetadis, dy,
+            direction_posit = self.now_normal_positions[idn] - self.old_normal_positions[idn]
+            self.now_step_dist[idn] = np.sqrt(np.sum(np.square(direction_posit)))
+            print("step_dis: {}, theta_dis: {}, dy: {}, new_theta: {}".format(self.now_step_dist[idn], thetadis, dy,
                                                                               self.new_theta[idn]))
             # 2.1 判断优秀结束 dy相对y 在 敏感尺寸的1/100 变化很小
             # target_Y 默认传入是100+
-            print("new_step_dist: {}, dim_scalar: {}, y: {}".format(self.new_step_dist[idn], dim_scalar,
-                                                                    self.target_Y[idn]))
+            print("new_step_dist: {}, dim_scalar: {}, y: {}".format(self.now_step_dist[idn], dim_scalar,
+                                                                    self.now_target_Y[idn]))
             siglist = jsonpath.jsonpath(self.result_json, "$.[?(@.ori_cluster_id=={}).dy]".format(idn))
             # 如果list 采样数据至少四个，有负值，他们之间相差不大，说明到底部了。
-            if self.new_step_dist[idn] < 0.0001 * min_sensi:
+            if self.now_step_dist[idn] < 0.0001 * min_sensi:
                 self.status_sig[idn] = "步长结束"
             # elif siglist and len(siglist) > 3:
             #     if min(siglist[-4:]) < 0 and sum(siglist[-4:]) / 4 < siglist[-1] * 0.1:
@@ -371,19 +409,21 @@ class ParaSearch(object):
                 if idn == i2:
                     continue
                 # 2.2.1 新点 与活动点 最近距离  判断 2/10 合并。
-                everposi = jsonpath.jsonpath(self.result_json, "$.[?(@.ori_cluster_id=={}).new_normal_posi]".format(i2))
+                everposi = jsonpath.jsonpath(self.result_json, "$.[?(@.ori_cluster_id=={}).now_normal_posi]".format(i2))
                 if everposi:
                     mindis = []
                     for oneposi in everposi:
-                        new_dis = self.new_normal_positions[idn] - oneposi
+                        new_dis = self.now_normal_positions[idn] - oneposi
                         mindis.append(np.sqrt(np.sum(new_dis * new_dis)))
                     mindis = min(mindis)
                     if mindis / self.distance_near[idn] < self.merge_percent:
                         # 比较不同的值合并较低分值的
-                        if self.target_Y[idn] <= self.target_Y[i2] and not self.status_sig[idn].startswith("合并"):
+                        if self.now_target_Y[idn] <= self.now_target_Y[i2] and not self.status_sig[idn].startswith(
+                                "合并"):
                             self.status_sig[i2] = "合并{}到{}".format(i2, idn)
                             break
-                        elif self.target_Y[idn] > self.target_Y[i2] and not self.status_sig[i2].startswith("合并"):
+                        elif self.now_target_Y[idn] > self.now_target_Y[i2] and not self.status_sig[i2].startswith(
+                                "合并"):
                             self.status_sig[idn] = "合并{}到{}".format(idn, i2)
                             break
                         else:
@@ -401,26 +441,31 @@ class ParaSearch(object):
                 print("任务完成！")
                 return None
             print("iter:", iter)
-            self.one_iter()
+            # self.one_iter_random()
+            self.one_iter_adam()
 
-    def save_result(self, idn, usetime, theta_dis, dy):
+    def save_result(self, idn, usetime, status_sig, theta_dis, dy):
         # 3. 保存结果 json：ori_cluster_id, 新位置序号, 旧位置, 旧分值, theta, 新位置, 新分值, accur_posi, status
-        loadfile = os.path.join(bathpath, self.project_name + '.csv')
+        loadfile = os.path.join(self.fullpath, 'template.csv')
         tmpjson = {
             "id": self.result_id,
             "ori_cluster_id": self.cluster_id[idn],
             "iter_id": self.iter_id,
-            "normal_posi": list(self.now_normal_positions[idn]),
-            "new_normal_posi": list(self.new_normal_positions[idn]),
-            "now_score": self.target_Y[idn],
-            "old_score": self.ori_target_Y[idn],
-            "now_theta": list(self.theta[idn]),
+            "old_normal_posi": list(self.old_normal_positions[idn]),
+            "now_normal_posi": list(self.now_normal_positions[idn]),
+            "now_score": self.now_target_Y[idn],
+            "old_score": self.old_target_Y[idn],
+            "now_theta": list(self.now_theta[idn]),
             "new_theta": list(self.new_theta[idn]),
+            "old_dx": list(self.old_dx[idn]),
+            "now_dx": list(self.now_dx[idn]),
+            "grade": self.grade[idn],
+            "new_grade": self.new_grade[idn],
             "accur_posi": list(self.target_X[idn]),
-            "status": self.status_sig[idn],
+            "status": status_sig if status_sig else self.status_sig[idn],
             "usetime": usetime,
-            "old_step_dis": self.old_step_dist[idn],
-            "now_step_dis": self.new_step_dist[idn],
+            "old_step_dist": self.old_step_dist[idn],
+            "now_step_dist": self.now_step_dist[idn],
             "theta_dis": theta_dis,
             "dy": dy,
         }
@@ -435,7 +480,8 @@ class ParaSearch(object):
         # 红绿蓝
         colors = ["#ff0000", "#00ff00", "#0000ff", "#ffff00", "#ff00ff", "#00ffff", "#000000"] * (
             self.cluster_num // 7 + 1)
-        xy = jsonpath.jsonpath(self.result_json, "$.['normal_posi']")
+        # xy = jsonpath.jsonpath(self.result_json, "$.['now_normal_posi']")
+        xy = jsonpath.jsonpath(self.result_json, "$.['old_normal_posi']")
         xy = list(zip(*xy))
         zs = jsonpath.jsonpath(self.result_json, "$.['now_score']")
         clss = jsonpath.jsonpath(self.result_json, "$.['ori_cluster_id']")
@@ -462,34 +508,100 @@ class ParaSearch(object):
         plt.show()
 
 
-def fit_func_demo(nest):
-    """
-    1. 各维坐标，代入函数。
-    2. 输出多指标，需要一个综合的公式，分值越高越好。
-    """
-    x1, x2 = nest
-    return 3 * (1 - x1) ** 2 * np.e ** (-x1 ** 2 - (x2 + 1) ** 2) - 10 * (x1 / 5 - x1 ** 3 - x2 ** 5) * np.e ** (
-        -x1 ** 2 - x2 ** 2) - (np.e ** (-(x1 + 1) ** 2 - x2 ** 2)) / 3
-
-
-def fit_func(nest):
+def fit_func_bak(nest):
     """
     1. 各维坐标，代入函数。
     2. 输出多指标，需要一个综合的公式，分值越高越好, 要求非负，默认1e2+ 一般不会碰到这么大的数值。
     """
     x1, x2 = nest
     # time.sleep(0.2)
-    return -10000 * np.cos(x1) * np.cos(x2) + 1e2
+    return -1 * np.cos(x1) * np.cos(x2) + 1e1
     return 3 * (1 - x1) ** 2 * np.e ** (-x1 ** 2 - (x2 + 1) ** 2) - 10 * (x1 / 5 - x1 ** 3 - x2 ** 5) * np.e ** (
         -x1 ** 2 - x2 ** 2) - (np.e ** (-(x1 + 1) ** 2 - x2 ** 2)) / 3
 
 
+def fit_func(target_X, rootpath, fullpath, run_file_list, parakeys):
+    """
+    1. 执行根目录
+    2. 执行全路径
+    3. 参数键值对
+    4. 各维坐标，代入函数。
+    5. 输出多指标，需要一个综合的公式，分值越高越好, 要求非负，默认1e2+ 一般不会碰到这么大的数值。
+    """
+    jsonkvs = {k: str(v) for k, v in zip(parakeys, target_X)}
+    try:
+        # 1. 生成文件目录
+        print("copy", fullpath, jsonkvs)
+        # template_copy(fullpath, jsonkvs)
+        # 2. 程序调用生成 结果文件
+        for onfile in run_file_list:
+            if onfile.endswith(".in"):
+                print(f"runing {onfile}...")
+                # todo: 修改命令行 去掉continue
+                continue
+                os.system(f'{rootpath} && {fullpath} && python v_print.py')
+            elif onfile.endswith(".sol"):
+                print(f"runing {onfile}...")
+                continue
+                os.system(f'{rootpath} && {fullpath} && python nt.py')
+        # 3. 提取结果文件相关信息，生成targetY
+        result = extract_result(fullpath, run_file_list, jsonkvs)
+    except Exception as e:
+        print(e)
+        result = None
+    return result
+
+
+def extract_result(fullpath, run_file_list, jsonkvs=None):
+    """
+    :param fullpath: 根据目录名从文件提取结果数据 
+    :param jsonkvs: 这项可能用不到
+    :return: 
+    """
+    # 1. 读取文件
+    dirname = "_".join([k + "-" + v for k, v in jsonkvs.items()])
+    dirname = dirname.replace("@", "")
+    # # todo: 添加文件处理
+    # ana_file_list = [".".join(file.split(".")[:-1]) + ".log" for file in run_file_list if file.endswith(".sol")]
+    # with open(os.path.join(fullpath, ana_file_list[0]), 'rt', encoding='utf-8') as f:
+    #     rstrs = f.read()
+    #     print()
+    # 2. 返回运算后的数据
+    x1, x2 = jsonkvs.values()
+    x1, x2 = np.float(x1), np.float(x2)
+    print(x1, x2)
+    return -1 * np.cos(x1) * np.cos(x2) + 1e1
+
+
+def template_copy(path, jsonkvs):
+    """
+    文件夹路径 
+    单组变量替换。
+    """
+    if not os.path.isdir(path):
+        raise Exception("需要的文件夹不存在")
+    patht = os.path.join(path, "template")
+    files = os.listdir(patht)
+    files = [file for file in files if file.endswith(".in") or file.endswith(".sol")]
+    dirname = "-".join([k + "_" + v for k, v in jsonkvs.items()])
+    dirname = dirname.replace("@", "")
+    newdir = os.path.join(path, dirname)
+    shutil.copytree(patht, newdir)
+    for onefile in files:
+        tfile = os.path.join(newdir, onefile)
+        with open(tfile, 'rt', encoding='utf-8') as f:
+            # rstrs = f.readlines()
+            rstrs = f.read()
+            for k, v in jsonkvs.items():
+                rstrs = rstrs.replace(k, v)
+        with open(tfile, 'wt', encoding='utf-8') as f:
+            f.write(rstrs)
+
+
 def main():
     # 必须有种子值，便于中断后根据记录文件重新加载没运行的。
-    np.random.seed(546)
+    np.random.seed(546998)
     parajson = {
-        "project": "测试",
-        "bathpath": "..",
         "cluster_num": 3,
         "lower_boundary": [-1, -1],
         "upper_boundary": [1, 1],
@@ -497,9 +609,11 @@ def main():
         "init_step": 0.2,
         "merge_percent": 0.2,
     }
-    global bathpath
-    bathpath = parajson["bathpath"]
-    psins = ParaSearch(fit_func, parajson)
+    rootpath = "E:\\"
+    fullpath = os.path.join("E:\\", "project", "data", "testproject")
+    run_file_list = ["tt.in", "tt.sol"]
+    parakeys = ["@fa", "@fb"]
+    psins = ParaSearch(fit_func, parajson, rootpath, fullpath, run_file_list, parakeys)
     n = 20
     psins.call(n)
     psins.show_result()

@@ -28,6 +28,7 @@ def cmdline():
 
         # Launch the program
         os.system("python mainx.py" + trainingArgs)
+        os.system('cd /usr/local && mkdir aaa.txt')
         # os.run("mainx.py" + trainingArgs)
 
 
