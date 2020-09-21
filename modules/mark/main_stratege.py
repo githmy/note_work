@@ -4,6 +4,20 @@ https://github.com/msincenselee
 git clone git://github.com/msincenselee/vnpy.git
 git clone https://gitee.com/vnpy2/vnpy.git
 vn.trader/NoUIMain.py
+启动程序
+  图形模式
+  脚本模式
+  python example\trader\run.py
+连接接口
+  SimNow仿真
+  系统->连接CTP
+订阅行情
+  帮助->查询合约
+委托交易
+数据监控
+行情组件
+活动组件
+成交组件 
  
 第三方平台 程序化实盘：
   本地：
@@ -81,6 +95,11 @@ smart beta 6因子: 市场，规模，价值，动量，质量，波动。
 y(12x-4)<4x-1; x,y[0,1]
 1/4<y<3/8
 
+正期望值系统
+  仓位*盈利概率*盈利点数-仓位*亏损概率*亏损点数-交易手续费
+  高频交易：仓位低，盈利概率高，盈利点数低，高交易手续费
+  CTA交易：动态仓位，盈利概率低，盈利点数高，亏损概率高，止损点数低。
+  套利交易：动态仓位，盈利概率高，盈利点数低，亏损概率低，止损点数低。
 大小周期
 Aα: 指标排序，选股超额收益，组合做空股指，定期调仓。满仓，股指对冲。
   股票多头 sharp>1, 最好>1.5
