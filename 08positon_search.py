@@ -106,7 +106,6 @@ class ParaSearch(object):
                 item["now_theta"] = json.loads(item["now_theta"])
                 item["new_theta"] = json.loads(item["new_theta"])
                 item["accur_posi"] = json.loads(item["accur_posi"])
-                # 新加
                 item["old_dx"] = json.loads(item["old_dx"])
                 item["now_dx"] = json.loads(item["now_dx"])
 
@@ -119,8 +118,8 @@ class ParaSearch(object):
                 if len(tmpjson) > 0:
                     self.old_normal_positions[idn] = tmpjson[-1]["old_normal_posi"]
                     self.now_normal_positions[idn] = tmpjson[-1]["now_normal_posi"]
-                    self.now_theta[idn] = tmpjson[-1]["now_theta"]
-                    self.new_theta[idn] = tmpjson[-1]["new_theta"]
+                    self.now_theta[idn] = np.array(tmpjson[-1]["now_theta"])
+                    self.new_theta[idn] = np.array(tmpjson[-1]["new_theta"])
                     self.old_target_Y[idn] = tmpjson[-1]["old_score"]
                     self.now_target_Y[idn] = tmpjson[-1]["now_score"]
                     self.old_dx[idn] = tmpjson[-1]["old_dx"]
@@ -158,6 +157,7 @@ class ParaSearch(object):
         cls.fit_predict(samples)
         self.init_normal_positions = cls.cluster_centers_
         self.now_normal_positions = cls.cluster_centers_
+        self.old_normal_positions = cls.cluster_centers_
         self.cluster_id = cls.predict(cls.cluster_centers_)
         for i1 in range(self.cluster_num):
             for i2 in range(self.cluster_num):
@@ -191,9 +191,12 @@ class ParaSearch(object):
             # 1. 遍历每一个类, 生成对应的结果
             sstart = time.time()
             print("class:", idn)
+            # print("456")
+            # print(self.now_target_Y[idn])
             self.old_target_Y[idn] = self.now_target_Y[idn]
             self.now_target_Y[idn] = self.fit_func(self.target_X[idn], self.rootpath, self.fullpath, self.run_file_list,
                                                    self.parakeys)
+            print(self.now_target_Y[idn])
             # 时间以分钟为单位
             usetime = (time.time() - sstart) / 60
             print("usetime: {}mins".format(usetime))
@@ -204,8 +207,8 @@ class ParaSearch(object):
             dis_list = jsonpath.jsonpath(self.result_json, "$.[?(@.ori_cluster_id=={}).old_step_dist]".format(idn))
             # sig_list = jsonpath.jsonpath(self.result_json, "$.[?(@.ori_cluster_id=={}).status]".format(idn))
             if dx_list:
-                old_dx = dx_list[-1]
-                old_theta = theta_list[-1]
+                old_dx = np.array(dx_list[-1])
+                old_theta = np.array(theta_list[-1])
                 old_dis = dis_list[-1]
             else:
                 old_dx = np.zeros((self.m))
@@ -239,7 +242,7 @@ class ParaSearch(object):
             step_scalar = max_step / real_thetadis
             # 3. 限制 step_scalar * real_thetadis 的最小值
             min_step = 0.1
-            print(step_scalar, real_thetadis, step_scalar * real_thetadis)
+            # print(step_scalar, real_thetadis, step_scalar * real_thetadis)
             step_scalar = min_step / real_thetadis if step_scalar * real_thetadis < min_step else step_scalar
             if step_scalar * real_thetadis < min_step:
                 step_scalar = (step_scalar - min_step / real_thetadis) * 10 + min_step / real_thetadis
@@ -282,7 +285,7 @@ class ParaSearch(object):
             for i2 in range(self.cluster_num):
                 if idn == i2 or self.status_sig[i2] != "正常":
                     continue
-                # 2.2.1 新点 与活动点 最近距离  判断 2/10 合并。
+                # 2.2.1 新点 与活动点 最近距离  判断 merge_percent 2/10 合并。
                 everposi = jsonpath.jsonpath(self.result_json, "$.[?(@.ori_cluster_id=={}).now_normal_posi]".format(i2))
                 if everposi:
                     mindis = []
@@ -291,21 +294,28 @@ class ParaSearch(object):
                         mindis.append(np.sqrt(np.sum(new_dis * new_dis)))
                     mindis = min(mindis)
                     if mindis / self.distance_near[idn] < self.merge_percent:
-                        # 比较不同的值合并较低分值的
+                        # 比较不同的值合并较低分值的。 正常 或 步长过小才能 合并。
                         if self.now_target_Y[idn] <= self.now_target_Y[i2] and not self.status_sig[idn].startswith(
                                 "合并"):
                             self.status_sig[i2] = "合并{}到{}".format(i2, idn)
-                            status_sig = "合并{}到{}".format(i2, idn)
+                            # status_sig = "合并{}到{}".format(i2, idn)
+                            idreplace = jsonpath.jsonpath(self.result_json, "$.[?(@.ori_cluster_id=={}).id]".format(i2))
+                            idreplace = idreplace[-1]
+                            for id3, i3 in enumerate(self.result_json):
+                                if i3["id"] == idreplace:
+                                    self.result_json[id3]["status"] = self.status_sig[i2]
                             print(self.status_sig[i2])
                             break
                         elif self.now_target_Y[idn] > self.now_target_Y[i2] and not self.status_sig[i2].startswith(
                                 "合并"):
                             self.status_sig[idn] = "合并{}到{}".format(idn, i2)
                             status_sig = "合并{}到{}".format(idn, i2)
-                            print(self.status_sig[i2])
+                            print(self.status_sig[idn])
                             break
                         else:
                             pass
+            # if idn == 1 and self.iter_id == 4:
+            #     exit()
             # 6. 重新赋值
             self.save_result(idn, usetime, status_sig, max_theta_dis, dy)
             self.result_id += 1
@@ -469,6 +479,7 @@ class ParaSearch(object):
             "theta_dis": theta_dis,
             "dy": dy,
         }
+        print(status_sig, self.status_sig[idn])
         self.result_json.append(tmpjson)
         pdobj = pd.DataFrame(self.result_json)
         pdobj.to_csv(loadfile, index=False, header=True, encoding='gbk')
@@ -552,27 +563,6 @@ def fit_func(target_X, rootpath, fullpath, run_file_list, parakeys):
     return result
 
 
-def extract_result(fullpath, run_file_list, jsonkvs=None):
-    """
-    :param fullpath: 根据目录名从文件提取结果数据 
-    :param jsonkvs: 这项可能用不到
-    :return: 
-    """
-    # 1. 读取文件
-    dirname = "_".join([k + "-" + v for k, v in jsonkvs.items()])
-    dirname = dirname.replace("@", "")
-    # # todo: 添加文件处理
-    # ana_file_list = [".".join(file.split(".")[:-1]) + ".log" for file in run_file_list if file.endswith(".sol")]
-    # with open(os.path.join(fullpath, ana_file_list[0]), 'rt', encoding='utf-8') as f:
-    #     rstrs = f.read()
-    #     print()
-    # 2. 返回运算后的数据
-    x1, x2 = jsonkvs.values()
-    x1, x2 = np.float(x1), np.float(x2)
-    print(x1, x2)
-    return -1 * np.cos(x1) * np.cos(x2) + 1e1
-
-
 def template_copy(path, jsonkvs):
     """
     文件夹路径 
@@ -598,6 +588,30 @@ def template_copy(path, jsonkvs):
             f.write(rstrs)
 
 
+def extract_result(fullpath, run_file_list, jsonkvs=None):
+    """
+    :param fullpath: 根据目录名从文件提取结果数据 
+    :param jsonkvs: 这项可能用不到
+    :return: 
+    """
+    # # 1. 读取文件
+    # # todo: 添加文件处理
+    # ana_file_list = [".".join(file.split(".")[:-1]) + ".log" for file in run_file_list if file.endswith(".sol")]
+    # varlist = []
+    # # 每个文件不同的处理
+    # with open(os.path.join(fullpath, ana_file_list[0]), 'rt', encoding='utf-8') as f:
+    #     fstrs = f.read()
+    #     ustr = fstrs + ""
+    #     varlist.append(float(ustr))
+    #     print()
+    # # 2. 返回运算后的数据
+    # result = varlist[0] + varlist[1]
+    x1, x2 = jsonkvs.values()
+    x1, x2 = np.float(x1), np.float(x2)
+    print(x1, x2)
+    return -1 * np.cos(x1) * np.cos(x2) - 1e2
+
+
 def main():
     # 必须有种子值，便于中断后根据记录文件重新加载没运行的。
     np.random.seed(546998)
@@ -606,7 +620,7 @@ def main():
         "lower_boundary": [-1, -1],
         "upper_boundary": [1, 1],
         "dim_sensitive": [1, 1],
-        "init_step": 0.2,
+        "init_step": 0.1,
         "merge_percent": 0.2,
     }
     rootpath = "E:\\"
