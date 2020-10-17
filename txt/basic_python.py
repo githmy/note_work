@@ -594,6 +594,10 @@ def nlp资料():
     # 160. 语义蒸馏 https://github.com/irfanICMLL/structure_knowledge_distillation.git
     # 161. 对象图片生成 https://github.com/irfanICMLL/CoupleGenerator.git
     # 162. 情绪数据 https://github.com/NUSTM/ECPE/tree/master/data_combine
+    # 163. 工业检测 https://github.com/PaddlePaddle/Paddle.git
+    # 163. 工业检测 https://github.com/PaddlePaddle/PaddleClas.git
+    # 164. 实体识别 https://github.com/yumath/bertNER
+    # 164. 实体识别 https://github.com/wavewangyue/ner.git
 
 def demo():
     """
