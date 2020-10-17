@@ -10,8 +10,8 @@ import matplotlib.pyplot as plt
 from utils.request_t import ShishuoApi
 import sys
 
-reload(sys)
-sys.setdefaultencoding('utf8')
+# reload(sys)
+# sys.setdefaultencoding('utf8')
 
 import matplotlib.pyplot as plt
 import seaborn as sns
@@ -23,29 +23,31 @@ import numpy as np
 import pandas as pd
 import logging
 import os
+import codecs
 
-TXTPATH = "./txt"
-reslogfile = os.path.join(TXTPATH, 'result_no_other.log')
-if os._exists(reslogfile):
-    os.remove(reslogfile)
-# 创建一个logger
-logger1 = logging.getLogger('logger out')
-logger1.setLevel(logging.DEBUG)
+
+# TXTPATH = "./txt"
+# reslogfile = os.path.join(TXTPATH, 'result_no_other.log')
+# if os._exists(reslogfile):
+#     os.remove(reslogfile)
+# # 创建一个logger
+# logger1 = logging.getLogger('logger out')
+# logger1.setLevel(logging.DEBUG)
 
 # 创建一个handler，用于写入日志文件
-fh = logging.FileHandler(reslogfile)
-# 再创建一个handler，用于输出到控制台
-ch = logging.StreamHandler()
-
-# 定义handler的输出格式formatter
-# formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
-formatter = logging.Formatter('%(message)s')
-fh.setFormatter(formatter)
-ch.setFormatter(formatter)
-
-# logger1.addFilter(filter)
-logger1.addHandler(fh)
-logger1.addHandler(ch)
+# fh = logging.FileHandler(reslogfile)
+# # 再创建一个handler，用于输出到控制台
+# ch = logging.StreamHandler()
+#
+# # 定义handler的输出格式formatter
+# # formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+# formatter = logging.Formatter('%(message)s')
+# fh.setFormatter(formatter)
+# ch.setFormatter(formatter)
+#
+# # logger1.addFilter(filter)
+# logger1.addHandler(fh)
+# logger1.addHandler(ch)
 
 
 def txt2json(txtfin, jsonfout):
@@ -595,7 +597,37 @@ def wrong_result(inputname, outname):
                 writer.writerows([[stri[0], stri[1], stri[2], stri[3]]])
 
 
+def look4keys(res):
+    # with codecs.open(filename, 'r', encoding="UTF-8") as f:
+    #     res = json.load(f)
+    #     res = res['rasa_nlu_data']['common_examples']
+    intentset = set()
+    entityset = set()
+    for item in res:
+        if item['intent'] not in intentset:
+            intentset.add(item['intent'])
+        for entity in item['entities']:
+            if entity['entity'] not in entityset:
+                entityset.add(entity['entity'])
+    print('intent:', intentset)
+    print('entity:', entityset)
+
+
 if __name__ == '__main__':
+    bpath = os.path.join("g:\\", "project", "Rasa_NLU_Chi", "data", "sz_base")
+    files = os.listdir(bpath)
+    aljson = []
+    for file1 in files:
+        with codecs.open(os.path.join(bpath, file1), 'r', encoding="UTF-8") as f:
+            res = json.load(f)
+            res = res['rasa_nlu_data']['common_examples']
+            # if 'rasa_nlu_data' not in aljson:
+            #     aljson['rasa_nlu_data'] = {}
+            # if 'common_examples' not in aljson['rasa_nlu_data']:
+            #     aljson['rasa_nlu_data']['common_examples'] = []
+            aljson += res
+    look4keys(aljson)
+    exit()
     rootjson = os.path.join(TXTPATH, "rasa_zh_cookbook.json")
     logjson = os.path.join(TXTPATH, "rasa_zh_root22.json")
     csvin = os.path.join(TXTPATH, "logout_tmp.csv")

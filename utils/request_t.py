@@ -54,5 +54,5 @@ class ShishuoApi:
 if __name__ == '__main__':
     sh_api = ShishuoApi()
     a = sh_api.get_rasa_intents('今天熊市还是牛市', "shishuo", "model_root")
-    print a
-    print len(a)
+    print(a)
+    print(len(a))

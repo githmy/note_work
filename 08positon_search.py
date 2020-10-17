@@ -1,3 +1,4 @@
+# coding:utf-8
 import os
 import pandas as pd
 from sklearn.cluster import KMeans
@@ -29,7 +30,7 @@ class ParaSearch(object):
             dim_sensitive: 维度的敏感性,越大切分的越细 -- 某维度切分=(upper_boundary-lower_boundary)/dim_sensitive
             rootpath: 磁盘根目录
             fullpath: 磁盘全路径
-            run_file_list: 运行文件顺序 
+            run_file_list: 运行文件顺序
             parakeys: 参数顺序
         Output:
             generated nests' locations

@@ -1,6 +1,7 @@
 # coding=utf-8
 import sys
 import os
+import codecs
 
 
 #  本地读写
@@ -10,6 +11,23 @@ def local_read():
         # content = f.read()
         content = f.readline()
 
+    # 从文件读取数据
+    # 'r'：只读（缺省。如果文件不存在，则抛出错误）
+    # 'w'：只写（如果文件不存在，则自动创建文件）
+    # 'a'：附加到文件末尾
+    # 'r+'：读写
+    data = codecs.open("2.txt", encoding="UTF-8")
+    # 一行一行读取数据
+    data1 = data.readline()
+    print(data1)
+    # 度去完数据要把数据对象进行关闭，从内存里面释放出来
+    data.close()
+
+    f = codecs.open('c:/intimate.txt','a','utf-8')
+    f.write(u'中文')
+    s = '中文'
+    f.write(s.decode('gbk'))
+    f.close()
 
 # 远程读写
 def remote_read():
