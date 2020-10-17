@@ -2,6 +2,9 @@
 import os
 import sys
 
+# home当前用户 目录
+print(os.path.expanduser("~"))
+
 print('\nPython 路径为：', sys.path)
 
 print("os.getcwd()=%s" % os.getcwd())
@@ -112,5 +115,20 @@ def getSize(fileobject):
 file = open('myfile.bin', 'rb')
 print(getSize(file))
 
+
 path = '/aaa/bbb.ccc'
 sz = os.stat(path).st_size
+
+
+import codecs
+
+for line in codecs.open(path, 'r', 'utf8'):
+    line = zero_digits(line.rstrip()) if zeros else line.rstrip()
+    # print(list(line))
+
+with codecs.open(save_path, "r", encoding="utf8") as f:
+    pickle.load(save_path, f)
+
+with codecs.open(save_path, "w", encoding="utf8") as f:
+    pickle.dump(params, f)
+
