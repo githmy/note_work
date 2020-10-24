@@ -172,6 +172,20 @@ class ParaSearch(object):
         self.now_dx = self.now_normal_positions - 0
 
     def one_iter_adam(self):
+        """
+        F(X) = F(X0) + F'(X0) * (X - X0) = 0
+        J(X0) * H = B
+        J(X0) == F'(X0) 雅克比矩阵
+        (X - X0) == H  残余量
+        B == -F(X0) 方程残余量
+        
+        X0 -> J, B 
+        J * H = B -> H  
+        X = H + X0
+        X= H + X0 改
+        X= damping_step * H + X0
+        :return: 
+        """
         # 一次迭代, 尺度含义还原成实际尺寸
         # 步长自适应
         min_sensi = np.min(self.dim_sensitive)

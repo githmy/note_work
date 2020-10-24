@@ -7,6 +7,7 @@ from __future__ import absolute_import
 import pandas as pd
 from pandas import Series, DataFrame
 import matplotlib.pyplot as plt
+import urllib.request as librequest
 from utils.request_t import ShishuoApi
 import sys
 
@@ -613,7 +614,33 @@ def look4keys(res):
     print('entity:', entityset)
 
 
+def train_request():
+    bpath = os.path.join("g:\\", "project", "Rasa_NLU_Chi", "data", "sz_base")
+    files = os.listdir(bpath)
+    files = [file for file in files if file not in ["sz_app.json", "sz_bak.json"]]
+    print(files)
+    files = ["sz_root.json"]
+    # files = ["sz_weather.json"]
+    request_headers = {"content-type": "application/json"}
+    for file in files:
+        print("*********modelfile********:", file)
+        tmodel = file.replace(".json", "")
+        turl = f"http://106.14.18.85:5000/train?project={tmodel}"
+        with codecs.open(os.path.join(bpath, file), "r", "utf8") as ttf:
+            # tdata = json.load(ttf)
+            tdata = "".join(ttf.readlines()).encode("utf8")
+        req = librequest.Request(url=turl, data=tdata, method='POST', headers=request_headers)
+        with librequest.urlopen(req) as response:
+            ori_page = response.read().decode('utf-8')
+            the_page0 = json.loads(ori_page)
+            print(the_page0)
+
+
 if __name__ == '__main__':
+    # 1. 训练请求
+    train_request()
+    exit()
+    # 2. 文件 属性值 查看
     bpath = os.path.join("g:\\", "project", "Rasa_NLU_Chi", "data", "sz_base")
     files = os.listdir(bpath)
     aljson = []
