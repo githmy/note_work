@@ -22,14 +22,33 @@ def judge_in(infile):
     inhand = codecs.open(infile, "r", "utf8")
     incont = inhand.readlines()
     stdcounter = 0
+    for id1, line in enumerate(incont):
+        line = line.strip()
+        incont[id1] = line.split("$")[0]
+    for id1 in range(len(incont) - 2, -1, -1):
+        incont[id1] = incont[id1].strip()
+        if re.search(r"&&$", incont[id1]):
+            incont[id1] = incont[id1].replace("&&", incont[id1 + 1])
+            incont[id1 + 1] = ""
+    newincont = []
+    for line in incont:
+        if line != "":
+            newincont.append(line)
+    incont = newincont
     for line in incont:
         line = line.strip()
         if stdcounter > 0 and re.search(r"^scan ", line):
-            stdcounter += 1
+            if "print_step" in line:
+                line = ' '.join(line.split())
+                line = line.replace("= ", "=")
+                line = line.replace(" =", "=")
+                line = [sp.replace("print_step=", "") for sp in line.split() if re.search("print_step", sp)][0]
+                stdcounter += int(line)
+            else:
+                stdcounter += 1
         if re.search(r"^equilibrium", line):
             stdcounter += 1
-    print(incont)
-    print(stdcounter)
+    # print(stdcounter)
     outhand = codecs.open(infile + ".log", "r", "utf8")
     outcont = outhand.readlines()
     print(outcont)
@@ -136,9 +155,9 @@ def test_batch(csuprem_path, apsys_path, example_path):
 
 
 if __name__ == '__main__':
-    # infile = "C:\project\EAM\CQW_modulator\ingaalas.sol"
-    # judge_in(infile)
-    # raise 666
+    infile = "C:\project\EAM\CQW_modulator\ingaalas.sol"
+    judge_in(infile)
+    raise 666
     csuprem_path = os.path.join("C:\\", "project", "Csuprem", "Bin")
     apsys_path = os.path.join("C:\\", "project", "crosslig_apsys", "apsys")
     # example_path = os.path.join("c:\\", "project", "linux_core", "apsys_examples")
