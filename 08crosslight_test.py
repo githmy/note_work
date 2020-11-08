@@ -16,9 +16,31 @@ import math
 import shutil
 import re
 import codecs
+import math
+import platform
+import datetime
 
 
 def judge_in(infile):
+    inhand = codecs.open(infile, "r", "utf8")
+    incont = inhand.readlines()
+    finalstr = ""
+    for id1, line in enumerate(incont):
+        line = line.strip()
+        incont[id1] = line.split("#")[0].strip()
+        if re.search("^export ", incont[id1]):
+            finalstr = incont[id1]
+    finalstr = ' '.join(finalstr.split())
+    finalstr = finalstr.replace("= ", "=")
+    finalstr = finalstr.replace(" =", "=")
+    finalstr = [sp.replace("outf=", "") for sp in finalstr.split() if re.search("outf=", sp)][0]
+    if finalstr in os.listdir("."):
+        return f"keytest ok {finalstr} exist"
+    else:
+        return f"keytest warning {finalstr} not exist"
+
+
+def judge_sol(infile):
     inhand = codecs.open(infile, "r", "utf8")
     incont = inhand.readlines()
     stdcounter = 0
@@ -42,8 +64,15 @@ def judge_in(infile):
                 line = ' '.join(line.split())
                 line = line.replace("= ", "=")
                 line = line.replace(" =", "=")
-                line = [sp.replace("print_step=", "") for sp in line.split() if re.search("print_step", sp)][0]
-                stdcounter += int(line)
+                tstep = \
+                    [sp.replace("print_step=", "").replace("D", "e") for sp in line.split() if
+                     re.search("print_step", sp)][
+                        0]
+                tvalu = \
+                    [sp.replace("value_to=", "").replace("D", "e") for sp in line.split() if re.search("value_to", sp)][
+                        0]
+                stdcounter += abs(math.ceil(float(tvalu) / float(tstep)))
+                # print(tvalu, tstep, float(tvalu), float(tstep), abs(math.ceil(float(tvalu) / float(tstep))))
             else:
                 stdcounter += 1
         if re.search(r"^equilibrium", line):
@@ -51,19 +80,17 @@ def judge_in(infile):
     # print(stdcounter)
     outhand = codecs.open(infile + ".log", "r", "utf8")
     outcont = outhand.readlines()
-    print(outcont)
     finalstr = ""
     for line in outcont:
-        line = line.strip()
         if re.search(r"\.out_", line):
             finalstr = line
-    print(finalstr)
     finalstr = finalstr.split("out_")[-1]
     finalstr = finalstr.lstrip("0")
-    if int(finalstr) >= stdcounter:
-        return f"keytest ok {finalstr}>={stdcounter}"
+    finalstr = int(finalstr)
+    if finalstr == stdcounter:
+        return f"keytest ok purpose {stdcounter} real {finalstr}"
     else:
-        return f"keytest warning {finalstr}<{stdcounter}"
+        return f"keytest warning purpose {stdcounter} real {finalstr}"
 
 
 def deal_file(csuprem_path, apsys_path, projectpath, filename):
@@ -78,7 +105,10 @@ def deal_file(csuprem_path, apsys_path, projectpath, filename):
         commandstr = f'"{tmpexe}" {filename} > {filename}.log'
         print(commandstr)
         os.system(commandstr)
-        print(f"usetime csuprem: {(time.time()-starttime)/60}min")
+        print(f"usetime apsys: {(time.time()-starttime)/60}min")
+        keyoutstr = judge_in(filename)
+        print(keyoutstr)
+        return keyoutstr
     elif filesuffix == "layer":
         tmpexe = os.path.join(apsys_path, 'layer')
         commandstr = f'"{tmpexe}" {filename} > {filename}.log'
@@ -105,7 +135,8 @@ def deal_file(csuprem_path, apsys_path, projectpath, filename):
         print(commandstr)
         os.system(commandstr)
         print(f"usetime apsys: {(time.time()-starttime)/60}min")
-        keyoutstr = judge_in(filename)
+        keyoutstr = judge_sol(filename)
+        print(keyoutstr)
         return keyoutstr
         # 2. 判断
     elif filesuffix == "plt":
@@ -120,6 +151,8 @@ def test_batch(csuprem_path, apsys_path, example_path):
     noiterdir = []
     testlist = []
     key_suffix = ["\.layer$", "\.gain$", "\.geo$", "\.mplt$", "\.in$", "\.sol$", "\.plt$"]
+    rmlist = ["\.info$", "\.ac$", "\.tmp$", "\.ps$", "\.out", "\.std", "\.str$", "\.zp", "\.ar", "\.msg$", "\.log$",
+              "\.mon", "^fort\.", "\.qws$", "\.rta", "\.rti$", "\.rtm", "\.rto", "\.sho$", "\.sho"]
     for root, dirs, files in os.walk(example_path):
         # 1.1 跳过自动生成目录
         passig = 0
@@ -131,8 +164,11 @@ def test_batch(csuprem_path, apsys_path, example_path):
             continue
         # 1.2 预清除输出文件
         os.chdir(root)
-        commandstr = f'del *.info && del *.ac && del *.tmp && del *.ps && del *.out* && del *.std* && del *.zp* && del *.ar* && del *.msg && del *.log && del *.mon* && del fort.* && del *.qws && del *.rta* && del *.rti && del *.rtm* && del *.rto* && del *.sho && del *.sho*'
-        os.system(commandstr)
+        delfiles = []
+        for key in rmlist:
+            delfiles += [dfile for dfile in files if re.search(key, dfile)]
+        for file in delfiles:
+            os.remove(os.path.join(root, file))
         print(f"path {root}")
         # 1.3 查找关键文件
         for key in key_suffix:
@@ -144,22 +180,38 @@ def test_batch(csuprem_path, apsys_path, example_path):
                 fils = [fil for fil in fils if not re.search("^geo", fil)]
             if key == "\.sol$":
                 fils = [fil for fil in fils if not re.search("^material_[2..3]d", fil)]
+                fils = [fil for fil in fils if not re.search("^main_[2..3]d", fil)]
             if key == "\.plt$":
                 pass
             if len(fils) > 0:
                 noiterdir += [os.path.join(root, dir) for dir in dirs]
                 print(fils)
                 for fil in fils:
-                    keyoutstr = deal_file(csuprem_path, apsys_path, root, fil)
-                    testlist.append(keyoutstr)
+                    try:
+                        keyoutstr = deal_file(csuprem_path, apsys_path, root, fil)
+                        testlist.append(keyoutstr)
+                    except Exception as e:
+                        print(e)
+
+
+def main():
+    if (platform.system() == 'Windows'):
+        print('Windows系统')
+        rootpath = "C:\\"
+    elif (platform.system() == 'Linux'):
+        print('Linux系统')
+        rootpath = os.path.join("/home", "abc")
+    else:
+        print('其他')
+        rootpath = "C:\\"
+    csuprem_path = os.path.join(rootpath, "project", "Csuprem", "Bin")
+    apsys_path = os.path.join(rootpath, "project", "crosslig_apsys", "apsys")
+    example_path = os.path.join(rootpath, "project", "test_all")
+    print(datetime.datetime.now())
+    test_batch(csuprem_path, apsys_path, example_path)
 
 
 if __name__ == '__main__':
-    infile = "C:\project\EAM\CQW_modulator\ingaalas.sol"
-    judge_in(infile)
-    raise 666
-    csuprem_path = os.path.join("C:\\", "project", "Csuprem", "Bin")
-    apsys_path = os.path.join("C:\\", "project", "crosslig_apsys", "apsys")
-    # example_path = os.path.join("c:\\", "project", "linux_core", "apsys_examples")
-    example_path = os.path.join("c:\\", "project", "EAM")
-    test_batch(csuprem_path, apsys_path, example_path)
+    'cat this_log | grep "^keytest warning"'
+    main()
+    exit()
