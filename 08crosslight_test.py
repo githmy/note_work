@@ -95,17 +95,16 @@ def judge_sol(infile):
 
 def deal_file(csuprem_path, apsys_path, projectpath, filename):
     # 1. 执行文件
-    filesuffix = filename.split(".")[-1]
+    splitlist = filename.split(".")
+    filesuffix = splitlist[-1]
     starttime = time.time()
     os.chdir(projectpath)
     if filesuffix == "in":
-        commandstr = f'del *.log && del *.str'
-        os.system(commandstr)
         tmpexe = os.path.join(csuprem_path, 'csuprem')
         commandstr = f'"{tmpexe}" {filename} > {filename}.log'
         print(commandstr)
         os.system(commandstr)
-        print(f"usetime apsys: {(time.time()-starttime)/60}min")
+        print(f"usetime csuprem: {(time.time()-starttime)/60}min")
         keyoutstr = judge_in(filename)
         print(keyoutstr)
         return keyoutstr
@@ -120,7 +119,7 @@ def deal_file(csuprem_path, apsys_path, projectpath, filename):
         print(commandstr)
         os.system(commandstr)
     elif filesuffix == "geo":
-        tmpexe = os.path.join(apsys_path, 'apsys')
+        tmpexe = os.path.join(apsys_path, 'geometry')
         commandstr = f'"{tmpexe}" {filename} > {filename}.log'
         print(commandstr)
         os.system(commandstr)
@@ -144,6 +143,21 @@ def deal_file(csuprem_path, apsys_path, projectpath, filename):
         commandstr = f'"{tmpexe}" {filename} > {filename}.log'
         print(commandstr)
         os.system(commandstr)
+        # 判断gnuplot
+        if (platform.system() == 'Windows'):
+            tmpexe = os.path.join(apsys_path, 'gnuplot')
+            commandstr = f'"{tmpexe}" junkg.tmp'
+        elif (platform.system() == 'Linux'):
+            tmpexe = 'gnuplot'
+            commandstr = f'"{tmpexe}" junkg.tmp'
+        else:
+            print('其他系统')
+        print(commandstr)
+        os.system(commandstr)
+        time.sleep(2)
+        filhead = ".".join(splitlist[:-1])
+        os.rename("output.ps", f"{filhead}.ps")
+        time.sleep(2)
 
 
 def test_batch(csuprem_path, apsys_path, example_path):
@@ -173,11 +187,18 @@ def test_batch(csuprem_path, apsys_path, example_path):
         # 1.3 查找关键文件
         for key in key_suffix:
             # 1.4 按 顺序一次处理 相同类型的文件
+            files = os.listdir(root)
             fils = [file for file in files if re.search(key, file)]
             if key == "\.layer$":
                 pass
             if key == "\.in$":
                 fils = [fil for fil in fils if not re.search("^geo", fil)]
+                fils = [fil for fil in fils if "csuprem_template.in" != fil]
+                dffils = [fil for fil in fils if not re.search("\.aps$", fil)]
+                dffils += [fil for fil in fils if re.search("\.log$", fil)]
+                dffils += [fil for fil in fils if re.search("\.str$", fil)]
+                for fil in dffils:
+                    os.remove(os.path.join(root, fil))
             if key == "\.sol$":
                 fils = [fil for fil in fils if not re.search("^material_[2..3]d", fil)]
                 fils = [fil for fil in fils if not re.search("^main_[2..3]d", fil)]
@@ -192,23 +213,33 @@ def test_batch(csuprem_path, apsys_path, example_path):
                         testlist.append(keyoutstr)
                     except Exception as e:
                         print(e)
+                    time.sleep(2)
 
 
 def main():
     if (platform.system() == 'Windows'):
         print('Windows系统')
         rootpath = "C:\\"
+        csuprem_path = os.path.join(rootpath, "project", "Csuprem", "Bin")
+        apsys_path = os.path.join(rootpath, "project", "crosslig_apsys", "apsys")
     elif (platform.system() == 'Linux'):
         print('Linux系统')
-        rootpath = os.path.join("/home", "abc")
+        rootpath = os.path.join("/", "home", "abc")
+        csuprem_path = os.path.join("/", "opt", "crosslight", "csuprem-2020", "bin")
+        # apsys_path = os.path.join("/", "opt", "crosslight", "apsys-2020", "bin")
+        apsys_path = os.path.join("/", "opt", "crosslight", "apsys-2021", "bin")
+        # csuprem_path = os.path.join("/", "opt", "empyrean", "aresps-2020", "bin")
+        # apsys_path = os.path.join("/", "opt", "empyrean", "aresds-2020", "bin")
     else:
         print('其他')
         rootpath = "C:\\"
-    csuprem_path = os.path.join(rootpath, "project", "Csuprem", "Bin")
-    apsys_path = os.path.join(rootpath, "project", "crosslig_apsys", "apsys")
+    print(csuprem_path)
+    print(apsys_path)
     example_path = os.path.join(rootpath, "project", "test_all")
+    print(example_path)
     print(datetime.datetime.now())
     test_batch(csuprem_path, apsys_path, example_path)
+    print("all finished!")
 
 
 if __name__ == '__main__':
