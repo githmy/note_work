@@ -86,3 +86,12 @@ def date2str(obj):
         return obj.strftime("%Y-%m-%d")
     else:
         return obj
+
+
+def str2date(obj):
+    import datetime
+    # dtstr = '20140214213212001890'
+    # bb = datetime.datetime.strptime(dtstr, "%Y%m%d%H%M%S%f")
+    # print(bb,type(bb))
+    dtstr = '2014-02-14 21:32:12 001890'
+    return datetime.datetime.strptime(dtstr, "%Y-%m-%d %H:%M:%S %f")
