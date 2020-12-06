@@ -157,11 +157,15 @@ symbol_ori_data[s].reindex(index=comb_index, method='pad')
 # 不同的索引介绍  ix 弃用。 有i按索引的位置来，没i按索引的值来 # at 只能一个值
 
 # # 遍历每一行
-# for indexs in data.iterrows():
-#     row[0], row[1]
+# for id1, values in t_pandas.iterrows():
+#     print(id1)
+#     print(values[cols[0]])
+#     print(values[cols[1]])
+#     print(values[cols[2]])
 # for indexs in data.index:
 #     data.loc[indexs].values[0:-1]
-# for indexs in data.rows:
+# # 遍历每一列
+# for row in data.iteritems():
 #     row['c1'], row['c2']
 # for row in df.itertuples(index=True, name='Pandas'):
 #     print getattr(row, "c1"), getattr(row, "c2")
