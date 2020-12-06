@@ -3,6 +3,7 @@ import pandas as pd
 import jsonpatch
 # 警告过滤
 import warnings
+import itertools
 
 warnings.simplefilter(action='ignore', category=FutureWarning)
 warnings.filterwarnings(action='ignore', category=FutureWarning)
