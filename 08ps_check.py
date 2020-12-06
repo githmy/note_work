@@ -74,20 +74,23 @@ def main(processname):
     savefile = os.path.join("..", "process_monitor_" + p.name() + '_' + str(pid) + ".csv")
     with open(savefile, "a+") as f:
         f.write("time,cpu%,mem%\n")  # titles
-        while True:
-            current_time = time.strftime('%Y%m%d-%H%M%S', time.localtime(time.time()))
-            cpu_percent = p.cpu_percent()
-            mem_percent = p.memory_percent()
-            # print(cpu_percent ,mem_percent)
-            x.append(current_time)
-            ys[0].append(float(cpu_percent))
-            ys[1].append(float(mem_percent))
-            line = current_time + ',' + str(cpu_percent) + ',' + str(mem_percent)
-            f.write(line + "\n")
-            f.flush()
-            time.sleep(interval)
-            # 3. 绘图
-            # plot_curve(x, ys, titles)
+        try:
+            while True:
+                current_time = time.strftime('%Y%m%d-%H%M%S', time.localtime(time.time()))
+                cpu_percent = p.cpu_percent()
+                mem_percent = p.memory_percent()
+                # print(cpu_percent ,mem_percent)
+                x.append(current_time)
+                ys[0].append(float(cpu_percent))
+                ys[1].append(float(mem_percent))
+                line = current_time + ',' + str(cpu_percent) + ',' + str(mem_percent)
+                f.write(line + "\n")
+                f.flush()
+                time.sleep(interval)
+                # 3. 绘图
+                # plot_curve(x, ys, titles)
+        except Exception as e:
+            pass
     titles = ["mem"]
     plot_curve(x, [ys[1]], titles)
     df = pd.read_csv(savefile)
@@ -97,13 +100,13 @@ def main(processname):
 
 
 if __name__ == '__main__':
-    savefile = os.path.join("..", "process_monitor_apsys.exe_69004.csv")
-    df = pd.read_csv(savefile)
-    print(df)
-    df.set_index("time", drop=True, inplace=True)
-    df["mem%"].plot()
-    plt.show()
-    exit()
+    # savefile = os.path.join("..", "process_monitor_apsys.exe_69004.csv")
+    # df = pd.read_csv(savefile)
+    # print(df)
+    # df.set_index("time", drop=True, inplace=True)
+    # df["mem%"].plot()
+    # plt.show()
+    # exit()
     # processname = "SimuApsys"
     processname = "apsys"
     main(processname)
