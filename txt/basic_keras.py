@@ -188,7 +188,7 @@ df_denormalize = get_stock_data(stock_name, inicio='2013', final='2016', normali
 X_train, y_train, X_test, y_test = load_data(df, seq_len, train_split=0.9)
 model3 = build_model2(shape, neurons, d)
 model3.fit(X_train, y_train, batch_size=512, epochs=epochs, validation_split=0.1, verbose=1)
-
+model3.save('my_model.h5')
 
 # Making predictions with new data not used in the model
 def datos_predecir(file='../input/EURUSD/EURUSD_2017.csv', normalise=True):
