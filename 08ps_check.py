@@ -68,7 +68,7 @@ def main(processname):
     pid = pidlist[0]
     p = psutil.Process(pid)
     # monitor process and write data to file
-    interval = 3  # polling seconds
+    interval = 1  # polling seconds
     titles = ["cpu", "mem"]
     x, ys = [], [[], []]
     savefile = os.path.join("..", "process_monitor_" + p.name() + '_' + str(pid) + ".csv")
@@ -108,5 +108,6 @@ if __name__ == '__main__':
     # plt.show()
     # exit()
     # processname = "SimuApsys"
-    processname = "apsys"
+    # processname = "apsys"
+    processname = "pics3d"
     main(processname)

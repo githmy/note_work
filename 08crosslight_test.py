@@ -164,7 +164,7 @@ def test_batch(csuprem_path, apsys_path, example_path):
     # 1. 便利目录，找到 in layer sol 文件
     noiterdir = []
     testlist = []
-    key_suffix = ["\.layer$", "\.gain$", "\.geo$", "\.mplt$", "\.in$", "\.sol$", "\.plt$"]
+    key_suffix = ["\.in$", "\.layer$", "\.gain$", "\.geo$", "\.mplt$", "\.sol$", "\.plt$"]
     rmlist = ["\.info$", "\.ac$", "\.tmp$", "\.ps$", "\.out", "\.std", "\.str$", "\.zp", "\.ar", "\.msg$", "\.log$",
               "\.mon", "^fort\.", "\.qws$", "\.rta", "\.rti$", "\.rtm", "\.rto", "\.sho$", "\.sho"]
     for root, dirs, files in os.walk(example_path):
@@ -189,19 +189,28 @@ def test_batch(csuprem_path, apsys_path, example_path):
             # 1.4 按 顺序一次处理 相同类型的文件
             files = os.listdir(root)
             fils = [file for file in files if re.search(key, file)]
-            if key == "\.layer$":
-                pass
+            # print("fils", fils)
             if key == "\.in$":
                 fils = [fil for fil in fils if not re.search("^geo", fil)]
-                fils = [fil for fil in fils if "csuprem_template.in" != fil]
-                dffils = [fil for fil in fils if not re.search("\.aps$", fil)]
+                fils = [fil for fil in fils if fil not in ["csuprem_template.in", "temp.in"]]
+                dffils = [fil for fil in fils if re.search("\.aps$", fil)]
+                # print("del aps", dffils)
                 dffils += [fil for fil in fils if re.search("\.log$", fil)]
+                # print("del log", dffils)
                 dffils += [fil for fil in fils if re.search("\.str$", fil)]
+                # print("del str", dffils)
                 for fil in dffils:
                     os.remove(os.path.join(root, fil))
+            if key == "\.layer$":
+                pass
             if key == "\.sol$":
                 fils = [fil for fil in fils if not re.search("^material_[2..3]d", fil)]
+                fils = [fil for fil in fils if not re.search("^contact_[2..3]d", fil)]
                 fils = [fil for fil in fils if not re.search("^main_[2..3]d", fil)]
+                dffils = [fil for fil in fils if re.search("\.std_", fil)]
+                # print("del str", dffils)
+                for fil in dffils:
+                    os.remove(os.path.join(root, fil))
             if key == "\.plt$":
                 pass
             if len(fils) > 0:
@@ -220,8 +229,8 @@ def main():
     if (platform.system() == 'Windows'):
         print('Windows系统')
         rootpath = "C:\\"
-        csuprem_path = os.path.join(rootpath, "project", "Csuprem", "Bin")
-        apsys_path = os.path.join(rootpath, "project", "crosslig_apsys", "apsys")
+        csuprem_path = os.path.join(rootpath, "project", "crosslig_csuprem_ForLan_2020-12-07", "Bin")
+        apsys_path = os.path.join(rootpath, "project", "crosslig_apsys_tmp", "apsys")
     elif (platform.system() == 'Linux'):
         print('Linux系统')
         rootpath = os.path.join("/", "home", "abc")
@@ -235,7 +244,8 @@ def main():
         rootpath = "C:\\"
     print(csuprem_path)
     print(apsys_path)
-    example_path = os.path.join(rootpath, "project", "test_all")
+    # example_path = os.path.join(rootpath, "project", "test_all")
+    example_path = os.path.join(rootpath, "project", "simuproject", "gs", "All_Examples_2020.11.27", "csuprem_examples")
     print(example_path)
     print(datetime.datetime.now())
     test_batch(csuprem_path, apsys_path, example_path)
