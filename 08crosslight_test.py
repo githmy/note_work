@@ -229,7 +229,8 @@ def main():
     if (platform.system() == 'Windows'):
         print('Windows系统')
         rootpath = "C:\\"
-        csuprem_path = os.path.join(rootpath, "project", "crosslig_csuprem_ForLan_2020-12-07", "Bin")
+        # csuprem_path = os.path.join(rootpath, "project", "crosslig_csuprem_ForLan_2020-12-07", "Bin")
+        csuprem_path = os.path.join(rootpath, "project", "bin_20201211", "exe64")
         apsys_path = os.path.join(rootpath, "project", "crosslig_apsys_tmp", "apsys")
     elif (platform.system() == 'Linux'):
         print('Linux系统')
@@ -245,7 +246,7 @@ def main():
     print(csuprem_path)
     print(apsys_path)
     # example_path = os.path.join(rootpath, "project", "test_all")
-    example_path = os.path.join(rootpath, "project", "simuproject", "gs", "All_Examples_2020.11.27", "csuprem_examples")
+    example_path = os.path.join(rootpath, "project", "simuproject", "gs", "diffuse_default")
     print(example_path)
     print(datetime.datetime.now())
     test_batch(csuprem_path, apsys_path, example_path)
