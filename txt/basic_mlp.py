@@ -21,6 +21,7 @@ import statsmodels as stats
 
 mpl.rcParams[u'font.sans-serif'] = u'SimHei'
 mpl.rcParams[u'axes.unicode_minus'] = False
+sns.set_style("darkgrid",{"font.sans-serif":['simhei','Droid Sans Fallback']})
 
 cmd_path = os.getcwd()
 data_pa = os.path.join(cmd_path, "data")
