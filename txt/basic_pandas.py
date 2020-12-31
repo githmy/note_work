@@ -355,7 +355,11 @@ df_ac = pd.concat(chunks, ignore_index=True)
 # 改内容
 # train.loc[i1, "comment_text"]=" ".join(jieba.cut(train.loc[i1, "comment_text"]))
 
-# 筛选过滤
+# # 筛选过滤
+# df = pd.read_csv('../input/jane-street-market-prediction/train.csv')
+# df = df.query('date > 85').reset_index(drop = True)
+# #limit memory use
+# df = df.astype({c: np.float32 for c in df.select_dtypes(include='float64').columns})
 # single_pd.ix[daays-1:, :]
 # df = pd.DataFrame({'BoolCol': [1, 2, 3, 3, 4], 'attr': [22, 33, 22, 44, 66]},
 #                   index=[10, 20, 30, 40, 50])

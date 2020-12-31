@@ -12,6 +12,11 @@ warnings.filterwarnings(action='ignore', category=FutureWarning)
 from goto import with_goto
 
 
+def set_all_seeds(seed):
+    np.random.seed(seed)
+    random.seed(seed)
+    tf.random.set_seed(seed)
+
 def 内存查看():
     import sys
     print(sys.getsizeof(space_ins._setobj))

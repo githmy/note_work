@@ -1,4 +1,8 @@
 # -*- coding: utf-8 -*-
+"""
+Float64 64 bits (8 bytes) to store a single value and range between -1.79e+308 and 1.74e+308
+float16 16 bits (2 bytes) of memory and range between -32768 and 32767.
+"""
 from __future__ import unicode_literals
 from __future__ import print_function
 from __future__ import division
