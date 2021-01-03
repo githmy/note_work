@@ -70,6 +70,7 @@ from sklearn.linear_model import LogisticRegression
 from sklearn.tree import DecisionTreeClassifier
 from sklearn.metrics import roc_auc_score
 import joblib
+import datatable as dt
 import janestreet
 
 import warnings
@@ -915,8 +916,7 @@ class PurgedGroupTimeSeriesSplitStacking(_BaseKFold):
         if n_folds > n_groups:
             raise ValueError(
                 ("Cannot have number of folds={0} greater than"
-                 " the number of groups={1}").format(n_folds,
-                                                     n_groups))
+                 " the number of groups={1}").format(n_folds, n_groups))
 
         group_val_size = min(n_groups // n_folds, max_val_group_size)
         group_test_size = min(n_groups // n_folds, max_test_group_size)
@@ -940,28 +940,19 @@ class PurgedGroupTimeSeriesSplitStacking(_BaseKFold):
             for train_group_idx in unique_groups[train_group_st:(val_group_st - val_group_gap)]:
                 train_array_tmp = group_dict[train_group_idx]
 
-                train_array = np.sort(np.unique(
-                    np.concatenate((train_array,
-                                    train_array_tmp)),
-                    axis=None), axis=None)
+                train_array = np.sort(np.unique(np.concatenate((train_array, train_array_tmp)), axis=None), axis=None)
 
             train_end = train_array.size
 
             for val_group_idx in unique_groups[val_group_st:(group_test_start - test_group_gap)]:
                 val_array_tmp = group_dict[val_group_idx]
-                val_array = np.sort(np.unique(
-                    np.concatenate((val_array,
-                                    val_array_tmp)),
-                    axis=None), axis=None)
+                val_array = np.sort(np.unique(np.concatenate((val_array, val_array_tmp)), axis=None), axis=None)
 
             val_array = val_array[val_group_gap:]
 
             for test_group_idx in unique_groups[group_test_start:(group_test_start + group_test_size)]:
                 test_array_tmp = group_dict[test_group_idx]
-                test_array = np.sort(np.unique(
-                    np.concatenate((test_array,
-                                    test_array_tmp)),
-                    axis=None), axis=None)
+                test_array = np.sort(np.unique(np.concatenate((test_array, test_array_tmp)), axis=None), axis=None)
 
             test_array = test_array[test_group_gap:]
 
@@ -1298,12 +1289,10 @@ plot_cv_indices(cv, X_train, y_train, groups, ax, 5, lw=20)
 
 
 def reduce_mem_usage(df):
-    """ iterate through all the columns of a dataframe and modify the data type
-        to reduce memory usage.
+    """ 根据数据的范围，修改数据类型
     """
     start_mem = df.memory_usage().sum() / 1024 ** 2
     print('Memory usage of dataframe is {:.2f} MB'.format(start_mem))
-
     for col in df.columns:
         col_type = df[col].dtype.name
 
@@ -1326,7 +1315,6 @@ def reduce_mem_usage(df):
                     df[col] = df[col].astype(np.float32)
                 else:
                     df[col] = df[col].astype(np.float64)
-
     end_mem = df.memory_usage().sum() / 1024 ** 2
     print('Memory usage after optimization is: {:.2f} MB'.format(end_mem))
     print('Decreased by {:.1f}%'.format(100 * (start_mem - end_mem) / start_mem))
