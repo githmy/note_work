@@ -108,6 +108,6 @@ if __name__ == '__main__':
     # plt.show()
     # exit()
     # processname = "SimuApsys"
-    # processname = "apsys"
-    processname = "pics3d"
+    processname = "apsys"
+    # processname = "pics3d"
     main(processname)

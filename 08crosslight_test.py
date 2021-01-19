@@ -1,17 +1,8 @@
 # coding:utf-8
 import os
-import pandas as pd
-from sklearn.cluster import KMeans
 import time
 import copy
 import json
-import matplotlib.pyplot as plt
-import numpy as np
-import scipy.special as sc_special
-from mpl_toolkits.mplot3d import Axes3D
-from pprint import pprint
-from collections import OrderedDict
-from sklearn.manifold import TSNE
 import math
 import shutil
 import re
@@ -19,6 +10,16 @@ import codecs
 import math
 import platform
 import datetime
+import logging
+import logging.handlers
+
+datalogfile = 'crosslight_test.log'
+logger = logging.getLogger('logger_out')
+logger.setLevel(logging.DEBUG)
+fh = logging.FileHandler(datalogfile)
+formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+fh.setFormatter(formatter)
+logger.addHandler(fh)
 
 
 def judge_in(infile):
@@ -93,7 +94,7 @@ def judge_sol(infile):
         return f"keytest warning purpose {stdcounter} real {finalstr}"
 
 
-def deal_file(csuprem_path, apsys_path, projectpath, filename):
+def deal_file(csuprem_path, apsys_path, projectpath, filename, purpose):
     # 1. 执行文件
     splitlist = filename.split(".")
     filesuffix = splitlist[-1]
@@ -102,46 +103,51 @@ def deal_file(csuprem_path, apsys_path, projectpath, filename):
     if filesuffix == "in":
         tmpexe = os.path.join(csuprem_path, 'csuprem')
         commandstr = f'"{tmpexe}" {filename} > {filename}.log'
-        print(commandstr)
+        logger.info(commandstr)
         os.system(commandstr)
-        print(f"usetime csuprem: {(time.time()-starttime)/60}min")
+        logger.info(f"usetime csuprem: {(time.time()-starttime)/60}min")
         keyoutstr = judge_in(filename)
-        print(keyoutstr)
+        logger.info(keyoutstr)
         return keyoutstr
+    elif filesuffix == "cut":
+        tmpexe = os.path.join(csuprem_path, 'MaskEditor', 'generate_mask_nognuplot')
+        commandstr = f'"{tmpexe}" {filename} < input.txt > {filename}.log'
+        logger.info(commandstr)
+        os.system(commandstr)
     elif filesuffix == "layer":
         tmpexe = os.path.join(apsys_path, 'layer')
         commandstr = f'"{tmpexe}" {filename} > {filename}.log'
-        print(commandstr)
+        logger.info(commandstr)
         os.system(commandstr)
     elif filesuffix == "gain":
-        tmpexe = os.path.join(apsys_path, 'apsys')
+        tmpexe = os.path.join(apsys_path, purpose)
         commandstr = f'"{tmpexe}" {filename} > {filename}.log'
-        print(commandstr)
+        logger.info(commandstr)
         os.system(commandstr)
     elif filesuffix == "geo":
         tmpexe = os.path.join(apsys_path, 'geometry')
         commandstr = f'"{tmpexe}" {filename} > {filename}.log'
-        print(commandstr)
+        logger.info(commandstr)
         os.system(commandstr)
     elif filesuffix == "mplt":
-        tmpexe = os.path.join(apsys_path, 'apsys')
+        tmpexe = os.path.join(apsys_path, purpose)
         commandstr = f'"{tmpexe}" {filename} > {filename}.log'
-        print(commandstr)
+        logger.info(commandstr)
         os.system(commandstr)
     elif filesuffix == "sol":
-        tmpexe = os.path.join(apsys_path, 'apsys')
+        tmpexe = os.path.join(apsys_path, purpose)
         commandstr = f'"{tmpexe}" {filename} > {filename}.log'
-        print(commandstr)
+        logger.info(commandstr)
         os.system(commandstr)
-        print(f"usetime apsys: {(time.time()-starttime)/60}min")
+        logger.info(f"usetime {purpose}: {(time.time()-starttime)/60}min")
         keyoutstr = judge_sol(filename)
-        print(keyoutstr)
+        logger.info(keyoutstr)
         return keyoutstr
         # 2. 判断
     elif filesuffix == "plt":
-        tmpexe = os.path.join(apsys_path, 'apsys')
+        tmpexe = os.path.join(apsys_path, purpose)
         commandstr = f'"{tmpexe}" {filename} > {filename}.log'
-        print(commandstr)
+        logger.info(commandstr)
         os.system(commandstr)
         # 判断gnuplot
         if (platform.system() == 'Windows'):
@@ -151,8 +157,8 @@ def deal_file(csuprem_path, apsys_path, projectpath, filename):
             tmpexe = 'gnuplot'
             commandstr = f'"{tmpexe}" junkg.tmp'
         else:
-            print('其他系统')
-        print(commandstr)
+            logger.info('其他系统')
+        logger.info(commandstr)
         os.system(commandstr)
         time.sleep(2)
         filhead = ".".join(splitlist[:-1])
@@ -160,11 +166,12 @@ def deal_file(csuprem_path, apsys_path, projectpath, filename):
         time.sleep(2)
 
 
-def test_batch(csuprem_path, apsys_path, example_path):
+def test_batch(csuprem_path, apsys_path, example_path, purpose):
     # 1. 便利目录，找到 in layer sol 文件
     noiterdir = []
     testlist = []
-    key_suffix = ["\.in$", "\.layer$", "\.gain$", "\.geo$", "\.mplt$", "\.sol$", "\.plt$"]
+    # key_suffix = ["\.in$", "\.layer$", "\.gain$", "\.geo$", "\.mplt$", "\.sol$", "\.plt$"]
+    key_suffix = ["\.layer$", "\.cut$", "\.in$", "\.geo$", "\.sol$", "\.plt$"]
     rmlist = ["\.info$", "\.ac$", "\.tmp$", "\.ps$", "\.out", "\.std", "\.str$", "\.zp", "\.ar", "\.msg$", "\.log$",
               "\.mon", "^fort\.", "\.qws$", "\.rta", "\.rti$", "\.rtm", "\.rto", "\.sho$", "\.sho"]
     for root, dirs, files in os.walk(example_path):
@@ -183,13 +190,17 @@ def test_batch(csuprem_path, apsys_path, example_path):
             delfiles += [dfile for dfile in files if re.search(key, dfile)]
         for file in delfiles:
             os.remove(os.path.join(root, file))
-        print(f"path {root}")
+        logger.info(f"path {root}")
         # 1.3 查找关键文件
         for key in key_suffix:
             # 1.4 按 顺序一次处理 相同类型的文件
             files = os.listdir(root)
             fils = [file for file in files if re.search(key, file)]
             # print("fils", fils)
+            if key == "\.layer$":
+                pass
+            if key == "\.cut$":
+                pass
             if key == "\.in$":
                 fils = [fil for fil in fils if not re.search("^geo", fil)]
                 fils = [fil for fil in fils if fil not in ["csuprem_template.in", "temp.in"]]
@@ -201,8 +212,6 @@ def test_batch(csuprem_path, apsys_path, example_path):
                 # print("del str", dffils)
                 for fil in dffils:
                     os.remove(os.path.join(root, fil))
-            if key == "\.layer$":
-                pass
             if key == "\.sol$":
                 fils = [fil for fil in fils if not re.search("^material_[2..3]d", fil)]
                 fils = [fil for fil in fils if not re.search("^contact_[2..3]d", fil)]
@@ -215,42 +224,46 @@ def test_batch(csuprem_path, apsys_path, example_path):
                 pass
             if len(fils) > 0:
                 noiterdir += [os.path.join(root, dir) for dir in dirs]
-                print(fils)
+                logger.info(fils)
                 for fil in fils:
                     try:
-                        keyoutstr = deal_file(csuprem_path, apsys_path, root, fil)
+                        keyoutstr = deal_file(csuprem_path, apsys_path, root, fil, purpose)
                         testlist.append(keyoutstr)
                     except Exception as e:
-                        print(e)
+                        logger.info(e)
                     time.sleep(2)
 
 
 def main():
+    purpose="apsys"
+    # purpose = "pics3d"
     if (platform.system() == 'Windows'):
-        print('Windows系统')
-        rootpath = "C:\\"
+        logger.info('Windows系统')
+        rootpath = "E:\\"
         # csuprem_path = os.path.join(rootpath, "project", "crosslig_csuprem_ForLan_2020-12-07", "Bin")
-        csuprem_path = os.path.join(rootpath, "project", "bin_20201211", "exe64")
-        apsys_path = os.path.join(rootpath, "project", "crosslig_apsys_tmp", "apsys")
+        csuprem_path = os.path.join(rootpath, "project", "versions_win", "crosslig_csuprem_ForLan_2020-12-07", "Bin")
+        # pic3d_apsys_path = os.path.join(rootpath, "project", "versions_win", "crosslig_pics3d", "pics3d")
+        pic3d_apsys_path = os.path.join(rootpath, "1_2df", "2_3dd", "crosslig_apsys", "apsys")
     elif (platform.system() == 'Linux'):
-        print('Linux系统')
+        logger.info('Linux系统')
         rootpath = os.path.join("/", "home", "abc")
         csuprem_path = os.path.join("/", "opt", "crosslight", "csuprem-2020", "bin")
         # apsys_path = os.path.join("/", "opt", "crosslight", "apsys-2020", "bin")
-        apsys_path = os.path.join("/", "opt", "crosslight", "apsys-2021", "bin")
+        pic3d_apsys_path = os.path.join("/", "opt", "crosslight", "apsys-2021", "bin")
         # csuprem_path = os.path.join("/", "opt", "empyrean", "aresps-2020", "bin")
         # apsys_path = os.path.join("/", "opt", "empyrean", "aresds-2020", "bin")
     else:
-        print('其他')
+        logger.info('其他')
         rootpath = "C:\\"
-    print(csuprem_path)
-    print(apsys_path)
+    logger.info(csuprem_path)
+    logger.info(pic3d_apsys_path)
+    logger.info(purpose)
     # example_path = os.path.join(rootpath, "project", "test_all")
-    example_path = os.path.join(rootpath, "project", "simuproject", "gs", "diffuse_default")
-    print(example_path)
-    print(datetime.datetime.now())
-    test_batch(csuprem_path, apsys_path, example_path)
-    print("all finished!")
+    example_path = os.path.join(rootpath, "project", "test_all", "pics3d_examples")
+    logger.info(example_path)
+    logger.info(datetime.datetime.now())
+    test_batch(csuprem_path, pic3d_apsys_path, example_path, purpose)
+    logger.info("all finished!")
 
 
 if __name__ == '__main__':
