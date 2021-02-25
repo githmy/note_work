@@ -81,6 +81,9 @@ np.sqrt(sum((a - ts) ** 2) / len(ts))
 np.max(a)
 np.floor(a)
 np.dot(a, a)  ##矩阵乘法
+a.I    # 求逆
+np.linalg.inv(a) # 求逆
+np.linalg.pinv(a)  # 求矩阵 A 的伪逆（广义逆矩阵）
 a.max()
 a.min()
 a.sum()

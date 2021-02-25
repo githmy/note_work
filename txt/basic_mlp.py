@@ -7,7 +7,7 @@ from __future__ import absolute_import
 import pandas as pd
 import os
 import numpy as np
-import tushare as ts
+# import tushare as ts
 import matplotlib as mpl
 import matplotlib.pyplot as plt
 import seaborn as sns
@@ -74,7 +74,8 @@ def pandas_candlestick_ohlc(stock_data, otherseries=None):
 
 def plot_line_scatter_demo(x, y):
     # plt.plot(x, y, '--', lw=2)
-    plt.scatter(x, y, s=[3, 100], c=["r", "#0F0F0F0F"])
+    # plt.scatter(x, y, s=[3, 100], c=["r", "#0F0F0F0F"])
+    plt.scatter(x, y)
     plt.xlabel('x1')
     plt.ylabel('y3')
     plt.title('Mercator: aaa')
@@ -107,7 +108,10 @@ def plot_curve(x, ys, titles):
     # show_inte = 30
     show_inte = 7
     s_xin = [i1 for i1 in xin if i1 % show_inte == 0]
+    # print(xin)
+    # print(s_xin)
     s_x = [i1 for id1, i1 in enumerate(x) if id1 % show_inte == 0]
+    # print(s_x)
     plt.xticks(s_xin, s_x, rotation=90, fontsize=10)
     # plt.xticks(xin, x, rotation=90, fontsize=5)
     # yticks = np.arange(0, 500, 10)
