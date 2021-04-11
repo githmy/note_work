@@ -16,12 +16,13 @@ from matplotlib.dates import DateFormatter, WeekdayLocator, DayLocator, MONDAY, 
 from datetime import datetime
 # ! pip install statsmodels
 import statsmodels as stats
+import mplfinance as mpf
 
 # %matplotlib
 
 mpl.rcParams[u'font.sans-serif'] = u'SimHei'
 mpl.rcParams[u'axes.unicode_minus'] = False
-sns.set_style("darkgrid",{"font.sans-serif":['simhei','Droid Sans Fallback']})
+sns.set_style("darkgrid", {"font.sans-serif": ['simhei', 'Droid Sans Fallback']})
 
 cmd_path = os.getcwd()
 data_pa = os.path.join(cmd_path, "data")
@@ -39,6 +40,44 @@ def 保存图片():
     matplotlib.image.imsave('name0.png', image)
     plt.imsave('name.png', image)
     # Image.fromarray(image).save('WordCloud.png')
+
+
+def plot_stock_sig(pddatas, datals, sigs):
+    "datas标准数据，sigs(trade_sig,up_buy,up_sell,down_buy,down_sell)"
+    # https://blog.csdn.net/weixin_42524945/article/details/112187912
+    # https://blog.csdn.net/xingbuxing_py/article/details/109379080
+    # 1. 添加额外线
+    # add_plot = mpf.make_addplot(datal[['High', 'MidValue', 'Low']])
+    # 2. 添加额外点
+    tadd_plot = [mpf.make_addplot(datal) for datal in datals]
+    add_plot = [
+        mpf.make_addplot(sigs["sig"], scatter=True, markersize=100, marker='o', color='y'),
+        mpf.make_addplot(sigs["ub"], scatter=True, markersize=100, marker='^', color='r'),
+        mpf.make_addplot(sigs["us"], scatter=True, markersize=100, marker='v', color='g'),
+        mpf.make_addplot(sigs["db"], scatter=True, markersize=100, marker='^', color='#ff8080'),
+        mpf.make_addplot(sigs["ds"], scatter=True, markersize=100, marker='v', color='#80ff80'),
+    ]
+    mpf.plot(pddatas, type='candle', addplot=tadd_plot + add_plot)
+
+
+def plot_stock_sig_back(pddatas, datal, sigs):
+    "datas标准数据，sigs(trade_sig,up_buy,up_sell,down_buy,down_sell)"
+    # https://blog.csdn.net/weixin_42524945/article/details/112187912
+    # https://blog.csdn.net/xingbuxing_py/article/details/109379080
+    # 1. 添加额外线
+    add_plot = mpf.make_addplot(datal[['High', 'MidValue', 'Low']])
+    mpf.plot(pddatas, type='candle', addplot=add_plot)
+    # 2. 添加额外点
+    a_list = datal.High.tolist()
+    b_list = datal.Low.tolist()
+    c_list = datal.Low.tolist()
+    add_plot = [
+        mpf.make_addplot(datal['MidValue']),
+        mpf.make_addplot(a_list, scatter=True, markersize=100, marker='v', color='g'),
+        mpf.make_addplot(b_list, scatter=True, markersize=100, marker='^', color='r'),
+        mpf.make_addplot(c_list, scatter=True, markersize=100, marker='o', color='y'),
+    ]
+    mpf.plot(pddatas, type='candle', addplot=add_plot)
 
 
 def pandas_candlestick_ohlc(stock_data, otherseries=None):
@@ -531,7 +570,7 @@ def dim3_scatter():
         ys = randrange(n, 0, 100)
         zs = randrange(n, zlow, zhigh)
         # s 尺寸 , m不能是数组
-        ax.scatter(xs, ys, zs, c=c, marker=m,s=10)
+        ax.scatter(xs, ys, zs, c=c, marker=m, s=10)
 
     ax.set_xlabel('X Label')
     ax.set_ylabel('Y Label')
@@ -541,25 +580,24 @@ def dim3_scatter():
 
 
 # 排序显示密度
-def sort_density():
-    target_col = "target"
+def sort_density(pdobj, target_col="target"):
     plt.figure(figsize=(8, 6))
-    plt.scatter(range(train_df.shape[0]), np.sort(train_df[target_col].values))
+    plt.scatter(range(pdobj.shape[0]), np.sort(pdobj[target_col].values))
     plt.xlabel('index', fontsize=12)
     plt.ylabel('Loyalty Score', fontsize=12)
     plt.show()
 
 
 # 显示区间密度
-def range_density():
+def range_density(pdobj, target_col="target"):
     plt.figure(figsize=(12, 8))
-    sns.distplot(train_df[target_col].values, bins=50, kde=False, color="red")
+    # sns.distplot(pdobj[target_col].values, bins=50, kde=False, color="red")
     # 核密度估计 + 统计柱状图
-    sns.distplot(stock['Daily Return'].dropna(), bins=100)
-    # 核密度估计
-    sns.kdeplot(stock['Daily Return'].dropna())
-    # 两支股票的皮尔森相关系数
-    sns.jointplot(stock['Daily Return'], stock['Daily Return'], alpha=0.2)
+    # sns.distplot(pdobj[target_col].dropna(), bins=100)
+    # # 核密度估计
+    sns.kdeplot(pdobj[target_col].dropna())
+    # # 两支股票的皮尔森相关系数
+    # sns.jointplot(pdobj[target_col], pdobj[target_col], alpha=0.2)
     plt.title("Histogram of Loyalty score")
     plt.xlabel('Loyalty score', fontsize=12)
     plt.show()

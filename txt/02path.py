@@ -52,6 +52,9 @@ file_path = "D:/test/test.py"
 # 某文件的基本路径
 os.path.basename("full_path")
 
+# home路径
+os.path.expanduser('~')
+
 # 切换工作路径
 os.chdir("user_path")
 

@@ -122,6 +122,8 @@ symbol_ori_data[s].reindex(index=comb_index, method='pad')
 
 # 列设为索引
 # orderl_pd.set_index(i, inplace=True)
+# 索引改名
+# df.rename(index={0: 'indexName1', 1: 'indexName2'}, columns={'oldName1': 'newName1', 'oldName2': 'newName2'}, inplace=True)
 
 # 列改名
 # plotlist = [data_list[i2].rename(columns={"close": i2})[i2] for i2 in orderl_pd[numf:numt]["index"]]
