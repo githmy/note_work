@@ -82,6 +82,7 @@ class ParaSearch(object):
         self.now_step_dist = np.zeros((self.cluster_num))
         # 初始参数
         self.generate_positions()
+        self.reference_olddata()
         # 加载历史记录
         self.load_history()
 
@@ -100,7 +101,8 @@ class ParaSearch(object):
             print("loadlog: {}".format(loadfile))
             # 1. 数据加载
             pdobj = pd.read_csv(loadfile, header=0, encoding="gbk")
-            self.result_json = json.loads(pdobj.to_json(orient='records', force_ascii=False), encoding="utf-8")
+            print("contents:", pdobj)
+            self.result_json = json.loads(pdobj.to_json(orient='records', force_ascii=False), encoding="gbk")
             for item in self.result_json:
                 item["old_normal_posi"] = json.loads(item["old_normal_posi"])
                 item["now_normal_posi"] = json.loads(item["now_normal_posi"])
@@ -170,6 +172,10 @@ class ParaSearch(object):
         self.distance_near = np.min(self.ori_distance_matric, 1)
         self.now_step_dist = np.sqrt(np.sum(np.square(self.now_normal_positions), 1))
         self.now_dx = self.now_normal_positions - 0
+
+    def reference_olddata(self):
+        # 参考老点，如果下一步位置与老点的位置小于，敏感度规的10%，用老点编号，否则用新点
+        pass
 
     def one_iter_adam(self):
         """
@@ -498,6 +504,7 @@ class ParaSearch(object):
         self.result_json.append(tmpjson)
         pdobj = pd.DataFrame(self.result_json)
         pdobj.to_csv(loadfile, index=False, header=True, encoding='gbk')
+        # pdobj.to_csv(loadfile, index=False, header=True, encoding='uft8')
 
     def show_result(self):
         # 降维 分值分布图
@@ -639,8 +646,8 @@ def main():
         "merge_percent": 0.2,
     }
     rootpath = "E:\\"
-    fullpath = os.path.join("E:\\", "project", "data", "testproject")
-    run_file_list = ["tt.in", "tt.sol"]
+    fullpath = os.path.join("c:\\", "project", "simuproject", "simon", "test_qyb")
+    run_file_list = ["t.plt", "t.sol"]
     parakeys = ["@fa", "@fb"]
     psins = ParaSearch(fit_func, parajson, rootpath, fullpath, run_file_list, parakeys)
     n = 20
@@ -678,6 +685,5 @@ def dim3_surface():
 
 
 if __name__ == '__main__':
-    # data_gene()
     # dim3_surface()
     main()
