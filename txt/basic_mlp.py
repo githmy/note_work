@@ -17,6 +17,11 @@ from datetime import datetime
 # ! pip install statsmodels
 import statsmodels as stats
 import mplfinance as mpf
+import pyecharts
+from pyecharts.charts import Kline
+from pyecharts import options as opts
+import plotly.graph_objects as go
+from datetime import datetime
 
 # %matplotlib
 
@@ -215,7 +220,11 @@ def bar3dplot(data):
     plt.show()
 
 
-# plot_single(ts['2014-01-01':'2015-12-31'], 20, title='test_org')
+"""
+stock 相关
+"""
+
+
 # 股票均值
 def plot_line_stock(ts, w, title='time_sequence'):
     roll_mean = ts.rolling(window=w).mean()
@@ -300,6 +309,56 @@ def nplot_timesq(datas):
     plt.title('lines')
     plt.show()
     # plt.savefig('./PDF/' + title + '.pdf', format='pdf')
+
+def grapht_object():
+    df = pd.read_csv('../data/TSLA.csv')
+    fig = go.Figure(data=[go.Candlestick(x=df['Date'],
+                                         open=df['Open'],
+                                         high=df['High'],
+                                         low=df['Low'],
+                                         close=df['Close'])])
+    fig.show()
+
+
+def pyecharts_plt():
+    # 把数据生成 html
+    # show_kline("../data/HAL.csv", "HAL.html")
+    print(pyecharts.__version__)
+    data = pd.read_csv("../data/TSLA.csv")  # DataFrame
+
+    # print(data[0:10])
+    # print(data[-100:-1])
+    # print(data[0:10]['Close'])
+    date = data['Date'].tolist()  # 转为list
+    data = data[['Open', 'Close', 'High', 'Low']]
+    data = [data.iloc[i].tolist() for i in range(len(data))]  # 转为list
+
+    c = (
+        Kline()
+            .add_xaxis(date)
+            .add_yaxis(
+            "日K线",
+            data,
+            itemstyle_opts=opts.ItemStyleOpts(
+                color="#ec0000",
+                color0="#00da3c",
+                border_color="#8A0000",
+                border_color0="#008F28",
+            ),
+        )
+            .set_global_opts(
+            xaxis_opts=opts.AxisOpts(is_scale=True),
+            yaxis_opts=opts.AxisOpts(
+                is_scale=True,
+                splitarea_opts=opts.SplitAreaOpts(
+                    is_show=True, areastyle_opts=opts.AreaStyleOpts(opacity=1)
+                ),
+            ),
+            datazoom_opts=[opts.DataZoomOpts(type_="inside")],
+            title_opts=opts.TitleOpts(title="Tesla"),
+        )
+            .render("Tesla_Kline.html")
+    )
 
 
 # 相似曲线
