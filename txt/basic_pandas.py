@@ -422,6 +422,8 @@ class_data.loc[class_data['分类'] == 1, 'postive'] = 1
 class_data.loc[class_data['分类'] == 0, 'neutral'] = 1
 # 根据条件赋值
 df['panduan'] = df.city.apply(lambda x: 1 if 'ing' in x else 0)
+# .apply( 传参
+outdata = dataobj.rolling(window=n, center=False).apply(sharp_ratio, args=(basic_ratio,))
 
 # 去重
 # 按secid去重，保留最后的
