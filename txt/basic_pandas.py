@@ -177,6 +177,8 @@ df.drop([0, 1, 3, 5])
 
 # 空值丢弃
 df.dropna(subset=['closeprice'], inplace=True)
+# axis=0表示index行,axis=1表示columns列，默认为0
+df.dropna(axis=0, how='any', thresh=None, subset=None, inplace=False)
 # 空值丢弃阈值
 df.dropna(thresh=6, inplace=True, how='all')
 # 空值填充, 只能处理pandas的数据类型， float16 int8 无法处理
@@ -413,6 +415,8 @@ pdobj = pdobj[~pdobj["domain"].isin(domain_list)]
 # 
 # print(df['2016':'2017'].head(2))  #获取2016至2017年的数据
 # print(df['2016':'2017'].tail(2))  #获取2016至2017年的数据
+df.isnull().any() # 筛选出有缺失值的列：
+df.isnull().T.any()  # 筛选出有缺失值的行：
 
 # 筛选列
 # data_pd.ix[:, data_pd.columns != "label"]
@@ -531,6 +535,12 @@ df['time_slot1'] = pd.to_datetime(df['time_slot1'])
 df['dayofweek'] = df['time_slot1'].dt.dayofweek
 df['daynameofweek'] = df['time_slot1'].dt.weekday_name
 df['time'] = df['time'].apply(lambda x: x.weekday() + 1)
+
+
+# series 转 dataframe
+# sf是series
+pd.DataFrame({'email':sf.index, 'list':sf.values})
+
 
 
 # # 时间清理
