@@ -76,3 +76,20 @@ lgb.plot_importance(model, max_num_features=50, height=0.8, ax=ax)
 ax.grid(False)
 plt.title("LightGBM - Feature Importance", fontsize=15)
 plt.show()
+
+
+model = lgb.train(params, lgtrain, 1000, valid_sets=lgval, early_stopping_rounds=100,
+                  verbose_eval=100, evals_result=evals_result)
+model.save_model("{}lgboost_{}.txt".format(outhead, i1))
+fig2 = plt.figure(figsize=(20, 20))
+ax = fig2.subplots()
+lgb.plot_tree(model, tree_index=1, ax=ax)
+plt.show()
+lgb.create_tree_digraph(model, tree_index=1)
+print('画出训练结果...')
+lgb.plot_metric(evals_result, metric='auc')
+plt.show()
+print('画特征重要性排序...')
+ax = lgb.plot_importance(model, max_num_features=20)
+# max_features表示最多展示出前10个重要性特征，可以自行设置
+plt.show()
