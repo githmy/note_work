@@ -1,4 +1,4 @@
-# coding:utf-8
+# codinddg:ut5f-8
 import os
 import time
 import chardet
@@ -86,18 +86,23 @@ def test_batch(csuprem_path, apsys_path, example_path, purpose):
 def main():
     project_path = os.path.join("G:\\", "Program Files (x86)", "LTspiceIV 汉化版", "examples", "ttest")
     filehead = "draft1"
+    # 1、 文件读入
     with open(os.path.join(project_path, "{}.net".format(filehead)), 'rb') as f:
         data = f.read()
     ftype = chardet.detect(data)["encoding"]
-    headlist = ["^V", "^I", "^R", "^L", "^C", "^D", "^\.model", "^\.lib", ".*TCAD_*", "^\.tran", "^\.end"]
+    modelhead = ["^D", "^Q", "^T", "^M"]
+    tcadhead = ["^TCAD_"]
+    twohead = ["^D", "^L", "^R", "^C", "^G", "^E", "^F", "^H", "^I", "^V"]
+    threehead = ["^T"]
+    fourhead = ["^Q", "^M"]
+    headlist = ["^\.model", "^\.lib", ".*TCAD_*", "^\.tran", "^\.end"]
     with codecs.open(os.path.join(project_path, "{}.net".format(filehead)), "r", encoding=ftype) as inhand:
-    # with codecs.open(os.path.join(project_path, "{}.net".format(filehead)), "r", encoding=None) as inhand:
         # 1. 读入
         outlist = []
         readsig = True
         while readsig:
             incont = inhand.readline()
-            for i1 in headlist:
+            for i1 in headlist + twohead + threehead + fourhead:
                 rem = re.search(i1, incont, re.IGNORECASE)
                 if rem:
                     if i1 == ".*TCAD_*":
@@ -107,26 +112,147 @@ def main():
                     incont = incont.replace("µ", "u")
                     outlist.append(incont)
                     break
-    # 2. 获取节点，再编号
-    nodelist = {}
-    liblist = []
+    # 2. 分类存储
+    ordilist = []
+    modellist = []
     for line in outlist:
+        if re.search("^\.model ", line, re.IGNORECASE):
+            modellist.append(line)
+            continue
         if re.search("^\.lib ", line, re.IGNORECASE):
-            liblist.append(line)
             line = line[len(".lib"):].strip()
-            print(line)
-            line=line.encode()
-            print(line)
-            line=line.decode("GB18030")
-            print(line)
+            line = line.encode("latin1").decode("gbk")
             with open(line, 'rb') as f:
                 data = f.read()
             ftype = chardet.detect(data)["encoding"]
             with codecs.open(line, "r", encoding=ftype) as inhand:
-                print(inhand.readlines())
+                # modellist += [i2 for i2 in inhand.readlines() if re.search("^\.model ", i2, re.IGNORECASE)]
+                tliblist = []
+                for i2 in inhand.readlines():
+                    if re.search("^\.model ", i2, re.IGNORECASE):
+                        modellist.append("".join(tliblist))
+                        tliblist = [i2]
+                    elif re.search("^\+", i2):
+                        tliblist.append(i2)
+                modellist.append("".join(tliblist))
             continue
-        tlist = line.split()
-        print(tlist)
+        ordilist.append(line)
+    ordilist = [i1.strip() for i1 in ordilist]
+    modellist = [i1 for i1 in modellist if i1 != ""]
+    modellist = [i1.strip() for i1 in modellist]
+    # 3. 获取节点，再编号
+    nodelist = {}
+    for command in ordilist:
+        if re.search(tcadhead[0], command, re.IGNORECASE):
+            tlist = command.split()
+            tlist = tlist[1:-1]
+            for i3 in tlist:
+                nodelist[i3] = None
+            continue
+        for i2 in twohead:
+            # 只取第二，第三个
+            if re.search(i2, command, re.IGNORECASE):
+                tlist = command.split()
+                nodelist[tlist[1]] = None
+                nodelist[tlist[2]] = None
+                break
+        for i2 in threehead:
+            if re.search(i2, command, re.IGNORECASE):
+                tlist = command.split()
+                nodelist[tlist[1]] = None
+                nodelist[tlist[2]] = None
+                try:
+                    nodelist[tlist[3]] = None
+                except Exception as e:
+                    pass
+                break
+        for i2 in fourhead:
+            # 只取 第二, 第三, 第四, 第五
+            if re.search(i2, command, re.IGNORECASE):
+                tlist = command.split()
+                nodelist[tlist[1]] = None
+                nodelist[tlist[2]] = None
+                nodelist[tlist[3]] = None
+                nodelist[tlist[4]] = None
+                break
+    del nodelist["0"]
+    nodecounter = 0
+    for key in nodelist.keys():
+        nodecounter += 1
+        nodelist[key] = str(nodecounter)
+    nodelist["0"] = "0"
+    for id1, command in enumerate(ordilist):
+        if re.search(tcadhead[0], command, re.IGNORECASE):
+            tlist = command.split()
+            dlenth = len(set(tlist[1:-1]))
+            tlist[1:dlenth + 1] = [nodelist[i3] for i3 in tlist[1:dlenth + 1]]
+            tlist = tlist[0:dlenth + 1] + [tlist[-1]]
+            ordilist[id1] = " ".join(tlist)
+            continue
+        for i2 in twohead:
+            # 只取第二，第三个
+            if re.search(i2, command, re.IGNORECASE):
+                tlist = command.split()
+                tlist[1] = nodelist[tlist[1]]
+                tlist[2] = nodelist[tlist[2]]
+                ordilist[id1] = " ".join(tlist)
+                break
+        for i2 in threehead:
+            # 只取第二，第三个
+            if re.search(i2, command, re.IGNORECASE):
+                tlist = command.split()
+                tlist[1] = nodelist[tlist[1]]
+                tlist[2] = nodelist[tlist[2]]
+                try:
+                    tlist[3] = nodelist[tlist[3]]
+                except Exception as e:
+                    pass
+                ordilist[id1] = " ".join(tlist)
+                break
+        for i2 in fourhead:
+            # 只取第二，第三个
+            if re.search(i2, command, re.IGNORECASE):
+                tlist = command.split()
+                tlist[1] = nodelist[tlist[1]]
+                tlist[2] = nodelist[tlist[2]]
+                tlist[3] = nodelist[tlist[1]]
+                tlist[4] = nodelist[tlist[2]]
+                ordilist[id1] = " ".join(tlist)
+                break
+    # 4. 只保留有效的库文件
+    modelkey = []
+    for command in ordilist:
+        if re.search(tcadhead[0], command, re.IGNORECASE):
+            continue
+        for i2 in modelhead:
+            if re.search(i2, command, re.IGNORECASE):
+                tlist = command.split()
+                if i2 in twohead:
+                    modelkey.append(tlist[3])
+                elif i2 in threehead:
+                    # 加错了没关系，找不到映射不会输出
+                    try:
+                        _ = int(tlist[4])
+                        modelkey.append(tlist[4])
+                    except Exception as e:
+                        modelkey.append(tlist[3])
+                elif i2 in fourhead:
+                    modelkey.append(tlist[5])
+                break
+            pass
+    modelremain = []
+    for i1 in modellist:
+        if i1.split()[1] in modelkey:
+            modelremain.append(i1)
+    # print(ordilist)
+    # print(modellist)
+    # print(modelkey)
+    # print(modelremain)
+    ordilist = ordilist[0:-1] + modelremain + [ordilist[-1]]
+    # 5. 写出
+    with codecs.open(os.path.join(project_path, "{}.cir".format(filehead)), "w", encoding="utf8") as f:
+        for i1 in ordilist:
+            f.write(i1 + "\r\n")
 
 
 if __name__ == '__main__':
