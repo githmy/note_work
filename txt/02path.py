@@ -24,7 +24,7 @@ os.path.exists("modelName")
 if not os.path.exists(path):
     os.makedirs(path)
 
-# 判断目录
+# 判断文件
 if os.path.isfile(modelpath):
     pass
 # 判断目录
