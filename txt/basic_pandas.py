@@ -152,6 +152,7 @@ symbol_ori_data[s].reindex(index=comb_index, method='pad')
 
 # 选行按序号
 # df.iloc[0, :]
+# dataobj["oper_sig"][id1] = 1
 
 # 行列索引
 # df.iat[2, 3]
