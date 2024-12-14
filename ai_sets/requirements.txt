@@ -6,7 +6,7 @@ Automat==0.7.0
 certifi==2018.4.16
 cffi==1.11.5
 constantly==15.1.0
-cryptography==2.3
+cryptography==3.2
 future==0.16.0
 gast==0.2.0
 grpcio==1.14.1
